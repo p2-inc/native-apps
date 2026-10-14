@@ -1,0 +1,44 @@
+# XcodeGen spec (brew install xcodegen; xcodegen generate). Produces KeycloakNativeDemo.xcodeproj.
+name: KeycloakNativeDemo
+options:
+  bundleIdPrefix: io.phasetwo.keycloak
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+packages:
+  KeycloakNativeDemo:
+    path: .
+targets:
+  KeycloakNativeDemo:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes: ["*.plist", "*.entitlements"]
+    dependencies:
+      - package: KeycloakNativeDemo
+        product: KeycloakNativeDemoApp
+    entitlements:
+      path: App/KeycloakNativeDemo.entitlements
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: KC Native
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSAppTransportSecurity:
+          # The compose stack is plain HTTP on localhost; remove for real deployments.
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.phasetwo.keycloak.nativedemo
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+    preBuildScripts: []
+    attributes:
+      SystemCapabilities:
+        com.apple.AssociatedDomains:
+          enabled: 1

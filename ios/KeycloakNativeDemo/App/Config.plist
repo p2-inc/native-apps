@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Simulator against the compose stack: KC_PORT=8089 docker compose up --wait -->
+  <key>Issuer</key>
+  <string>http://localhost:8089/realms/demo</string>
+  <key>ClientId</key>
+  <string>demo-ios</string>
+  <key>PasskeyClientId</key>
+  <string>demo-ios-passkey</string>
+  <!-- true when the realm's Passwordless RP ID (tunnel host) differs from the issuer host -->
+  <key>AllowRpIdMismatch</key>
+  <false/>
+  <key>DeviceName</key>
+  <string>KeycloakNativeDemo</string>
+</dict>
+</plist>
