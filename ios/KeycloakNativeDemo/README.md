@@ -22,6 +22,11 @@ cd demo && KC_PORT=8089 docker compose up --wait          # http://localhost:808
 open ../../ios/KeycloakNativeDemo/KeycloakNativeDemo.xcodeproj
 ```
 
+In Xcode pick the scheme **KeycloakNativeDemo** (the one with the app icon). Xcode also lists the
+Swift package products as schemes (`KeycloakNativeDemoApp`, `KeycloakNativeCore`,
+`KeycloakNativeUI`); those are libraries, so running one of them makes Xcode ask for an executable.
+Hide them with Product → Scheme → Manage Schemes if they get in the way.
+
 `App/Config.plist` already points at `http://localhost:8089/realms/demo` (the simulator shares the
 Mac's `localhost`; `NSAllowsLocalNetworking` permits plain HTTP). Run on an iOS 17+ simulator,
 choose **S3**, log in as `alice / alice-password` and the TOTP from
