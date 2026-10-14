@@ -12,6 +12,7 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.restassured.path.json.JsonPath;
@@ -26,8 +27,8 @@ import org.junit.jupiter.api.Test;
 import org.keycloak.models.utils.TimeBasedOTP;
 
 /**
- * HTTP-level tests of the Phase 0 native flow against a real Keycloak (Testcontainers). Each test
- * name is referenced from spec/09-phase0-decisions.md as evidence.
+ * HTTP-level tests of the native flow against a real Keycloak (Testcontainers). Each test name is
+ * referenced from spec/09-phase0-decisions.md as evidence; passkeys are covered by {@link PasskeyIT}.
  */
 class NativeAuthIT {
 
@@ -89,6 +90,29 @@ class NativeAuthIT {
     return challenge(p);
   }
 
+  /** Like {@link #assertChallenge} but only requires {@code type} to be offered (alice's primary-factor set gains 'passkey' once PasskeyIT registered one). */
+  static void assertOffers(Response r, String type) {
+    assertEquals(403, r.statusCode(), r.asString());
+    assertEquals("insufficient_authorization", r.jsonPath().getString("error"), r.asString());
+    assertNotNull(r.jsonPath().getString("auth_session"));
+    List<String> types = r.jsonPath().getList("challenges.type");
+    assertTrue(types.contains(type), "expected '" + type + "' among " + types + ": " + r.asString());
+  }
+
+  static Map<String, Object> descriptor(Response r, String type) {
+    List<Map<String, Object>> challenges = r.jsonPath().getList("challenges");
+    for (Map<String, Object> c : challenges) {
+      if (type.equals(c.get("type"))) return c;
+    }
+    throw new AssertionError("no '" + type + "' challenge in " + r.asString());
+  }
+
+  @SuppressWarnings("unchecked")
+  static String errorCode(Response r, String type) {
+    Map<String, Object> error = (Map<String, Object>) descriptor(r, type).get("error");
+    return error == null ? null : (String) error.get("code");
+  }
+
   static void assertChallenge(Response r, String... expectedTypes) {
     assertEquals(403, r.statusCode(), r.asString());
     JsonPath j = r.jsonPath();
@@ -105,7 +129,7 @@ class NativeAuthIT {
     Response r = start(clientId, pkce);
     assertChallenge(r, "username");
     r = answer(r, "username", "username", username);
-    assertChallenge(r, "password");
+    assertOffers(r, "password");
     assertEquals(username, r.jsonPath().getString("context.username"));
     r = answer(r, "password", "password", password);
     if (totpSecret != null) {
@@ -193,7 +217,10 @@ class NativeAuthIT {
         .body("authorization_challenge_endpoint", equalTo(realmUrl() + "/native-auth/challenge"))
         .body("token_endpoint", equalTo(realmUrl() + "/protocol/openid-connect/token"))
         .body("code_exchange.redirect_uri_required", equalTo(false))
-        .body("challenge_types_supported", hasItems("username", "password", "totp"))
+        .body("challenge_types_supported", hasItems("username", "password", "totp", "passkey", "passkey_registration"))
+        .body("passkey.rp_id", equalTo("localhost"))
+        .body("passkey.register_options_endpoint", equalTo(realmUrl() + "/native-auth/passkey/register/options"))
+        .body("passkey.register_finish_endpoint", equalTo(realmUrl() + "/native-auth/passkey/register/finish"))
         .body("client_attestation.required", equalTo(false));
   }
 
@@ -305,11 +332,12 @@ class NativeAuthIT {
 
     pauseForQuickLoginWindow();
     r = answer(r, "password", "password", "wrong-password");
-    assertChallenge(r, "password");
-    assertEquals("invalid_credential", r.jsonPath().getString("challenges[0].error.code"), r.asString());
-    assertNotNull(r.jsonPath().getString("challenges[0].error.message"));
+    assertOffers(r, "password");
+    assertEquals("invalid_credential", errorCode(r, "password"), r.asString());
+    assertNotNull(((Map<?, ?>) descriptor(r, "password").get("error")).get("message"));
     assertEquals(firstPasswordId, challengeId(r, "password"), "same execution is re-challenged");
-    assertEquals(true, r.jsonPath().getBoolean("challenges[0].required"));
+    boolean single = r.jsonPath().getList("challenges").size() == 1;
+    assertEquals(single, descriptor(r, "password").get("required"), "required iff it is the only alternative");
 
     r = answer(r, "password", "password", "alice-password");
     assertChallenge(r, "totp");
@@ -342,8 +370,8 @@ class NativeAuthIT {
     Response r = start(CLIENT, Pkce.s256());
     r = answer(r, "username", "username", "alice");
     r = answer(r, "password", "password", "");
-    assertChallenge(r, "password");
-    assertEquals("missing_credential", r.jsonPath().getString("challenges[0].error.code"));
+    assertOffers(r, "password");
+    assertEquals("missing_credential", errorCode(r, "password"));
   }
 
   @Test
@@ -420,7 +448,7 @@ class NativeAuthIT {
     // Answering an execution that is not pending yet (password before username) is also invalid_request.
     // The session is still usable afterwards:
     Response ok = challenge(params("auth_session", mismatch.jsonPath().getString("auth_session"), "challenge_type", "username", "challenge_id", challengeId(r, "username"), "username", "alice"));
-    assertChallenge(ok, "password");
+    assertOffers(ok, "password");
   }
 
   @Test
@@ -444,7 +472,8 @@ class NativeAuthIT {
 
   @Test
   void pendingRequiredActionIsReportedAsAccessDenied() {
-    // carol must update her password; Phase 0 has no native required actions nor redirect_to_web.
+    // carol must update her password: a non-native required action still ends with access_denied
+    // (redirect_to_web is Phase 2); native ones are served in-band, see PasskeyIT.
     Response r = login(CLIENT, Pkce.s256(), "carol", "carol-password", null);
     assertEquals(403, r.statusCode(), r.asString());
     assertEquals("access_denied", r.jsonPath().getString("error"));
@@ -476,8 +505,10 @@ class NativeAuthIT {
     r = answer(r, "username", "username", "alice");
     pauseForQuickLoginWindow();
     r = answer(r, "totp", "totp", wrongTotp(ALICE_TOTP_SECRET));
-    assertChallenge(r, "totp", "password");
-    assertEquals("invalid_credential", r.jsonPath().getString("challenges[0].error.code"));
+    // Flow order (password before totp in the subflow) is kept; the error sits on the failed entry (spec/11 D3).
+    assertChallenge(r, "password", "totp");
+    assertEquals("invalid_credential", errorCode(r, "totp"));
+    assertNull(errorCode(r, "password"));
     r = answer(r, "password", "password", "alice-password");
     assertEquals(200, r.statusCode(), r.asString());
   }

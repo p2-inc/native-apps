@@ -8,7 +8,10 @@ import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequestContext;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
@@ -18,6 +21,7 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.authenticators.util.AuthenticatorUtils;
 import org.keycloak.events.Errors;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -107,11 +111,35 @@ public abstract class NativeAuthenticatorBase implements NativeAuthenticator {
         set.add(siblingAuthenticator.describe(context, sibling).setId(sibling.getId()));
       }
     }
+    // Order follows the operator's flow layout (depth-first execution order), not the engine's
+    // pick, which follows the user's credential priority and would list a newly registered passkey
+    // after the password (spec/11 D3).
+    Map<String, Integer> order = flowOrder(context.getRealm(), context.getTopLevelFlow());
+    set.sort(Comparator.comparingInt(d -> order.getOrDefault(d.getId(), Integer.MAX_VALUE)));
     boolean single = set.size() == 1;
     for (ChallengeDescriptor d : set) {
       d.setRequired(single);
     }
     return set;
+  }
+
+  /** Execution id → position in a depth-first walk of the top-level flow (executions sorted by priority). */
+  static Map<String, Integer> flowOrder(RealmModel realm, AuthenticationFlowModel topLevelFlow) {
+    Map<String, Integer> order = new HashMap<>();
+    if (topLevelFlow != null) collectFlowOrder(realm, topLevelFlow.getId(), order);
+    return order;
+  }
+
+  private static void collectFlowOrder(RealmModel realm, String flowId, Map<String, Integer> order) {
+    realm
+        .getAuthenticationExecutionsStream(flowId)
+        .forEachOrdered(
+            e -> {
+              order.put(e.getId(), order.size());
+              if (e.isAuthenticatorFlow() && e.getFlowId() != null) {
+                collectFlowOrder(realm, e.getFlowId(), order);
+              }
+            });
   }
 
   /** Hands the set to the endpoint and stops the flow (CHALLENGE or FAILURE_CHALLENGE). */
