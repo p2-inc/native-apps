@@ -17,6 +17,7 @@
 | 07 | `07-security-considerations.md` | Threat model and mitigations: first-partyness/attestation, token & session binding, replay, push fatigue, passkey RP ID, key storage. |
 | 08 | `08-roadmap-and-open-questions.md` | Phased implementation plan, effort estimates, risks, and unresolved questions that need a decision before/while building. |
 | 09 | `09-phase0-decisions.md` | **Phase 0 spike results** (14 Oct 2026): answers to Q1–Q4 with evidence, decisions taken while building `keycloak-native-auth/`, spec edits, extension points. |
+| 10 | `10-status-and-task-list.md` | **Current state and task list**: what exists and is verified, protocol coverage, known limitations, open tasks per phase. Start here when picking up the project. |
 
 ## Executive summary
 
