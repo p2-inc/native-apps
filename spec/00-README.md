@@ -1,7 +1,7 @@
 # Keycloak Native Mobile Authentication — Investigation & Build Plan
 
 **Date:** 14 October 2026
-**Status:** Phase 0 spike complete (see `09-phase0-decisions.md`); username + password + TOTP work end to end over HTTP against Keycloak 26.8.1
+**Status:** Phase 0 spike complete (`09-phase0-decisions.md`) and Phase 1a server passkeys done (`11-phase1-decisions.md`); username + password + TOTP + passkeys (login and registration) work end to end over HTTP against Keycloak 26.8.1
 **Scope:** Browserless native authentication for Keycloak (passkeys, TOTP, OTP codes, push MFA), delivered as (1) a set of Keycloak extensions, (2) an iOS SDK, and (3) an example iOS app.
 
 ## Documents in this folder
@@ -18,6 +18,7 @@
 | 08 | `08-roadmap-and-open-questions.md` | Phased implementation plan, effort estimates, risks, and unresolved questions that need a decision before/while building. |
 | 09 | `09-phase0-decisions.md` | **Phase 0 spike results** (14 Oct 2026): answers to Q1–Q4 with evidence, decisions taken while building `keycloak-native-auth/`, spec edits, extension points. |
 | 10 | `10-status-and-task-list.md` | **Current state and task list**: what exists and is verified, protocol coverage, known limitations, open tasks per phase. Start here when picking up the project. |
+| 11 | `11-phase1-decisions.md` | **Phase 1a (server passkeys) decisions** (14 Oct 2026): native required actions in-band, `native-passkey` eligibility/discoverable login, flow-order challenge sets, post-login `auth_session`, registration endpoints and freshness rule, the test software authenticator. |
 
 ## Executive summary
 

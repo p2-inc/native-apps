@@ -120,7 +120,8 @@ without touching the first.
   notes keyed by execution id and must be idempotent — recorded in the `NativeAuthenticator` javadoc.
 - Ordering: the current execution first (the engine's choice: `CURRENT_AUTHENTICATION_EXECUTION`,
   else the first selection, which follows the user's credential preference order), then the
-  remaining selections.
+  remaining selections. **Superseded in Phase 1a** by flow order (11 D3): the set is sorted by the
+  flow's depth-first execution order so a passkey placed first in the sub-flow is offered first.
 
 ---
 

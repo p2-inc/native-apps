@@ -70,8 +70,9 @@ POST /native-auth/challenge
   │         → AuthenticationManager.finishedRequiredActions / attach user session
   │         → CodeIssuer.issue() → 200 { authorization_code, auth_session(long-lived) }
   │     • required action pending:
-  │         - if a native RequiredActionProvider exists → it emitted a challenge (handled above)
-  │         - else → RedirectToWebBuilder → 403 redirect_to_web (reason = required_action:<alias>)
+  │         - native RequiredActionProvider (NativeRequiredActionFactory) → RequiredActionDriver runs it;
+  │           challenge_id = provider id; session in Action.REQUIRED_ACTIONS (spec/11 D1)   [Phase 1 ✅]
+  │         - else → RedirectToWebBuilder → 403 redirect_to_web (reason = required_action:<alias>)  [Phase 2; today 403 access_denied]
   │     • AuthenticationFlowException / FAILURE → 403 access_denied or re-challenge with error (depending on error code)
   └─ events: LOGIN / LOGIN_ERROR with detail native=true, challenge_type
 ```
@@ -89,10 +90,10 @@ Implementation notes
 - `/native-auth/metadata` built from realm attributes + installed factories (`challenge_types_supported` = factories present and enabled).
 - Optional `WellKnownOverride` registered with a higher priority than the default `openid-configuration` provider.
 
-### 2.4 Passkey registration endpoints
-- Authenticate caller with Keycloak's `AppAuthManager.BearerTokenAuthenticator` (works for DPoP tokens too).
-- `/options`: create `PublicKeyCredentialCreationOptions` using the realm's WebAuthn Passwordless policy (`WebAuthnPolicy`), store challenge + `registration_id` in a short-lived single-use entry (use `SingleUseObjectProvider`).
-- `/finish`: validate with webauthn4j (`WebAuthnRegistrationManager`) exactly as `WebAuthnRegister` does, then `WebAuthnCredentialProvider.createCredential`.
+### 2.4 Passkey registration endpoints (Phase 1 ✅, `PasskeyRegistrationDriver`, spec/11 D5)
+- Authenticate caller with Keycloak's `AppAuthManager.BearerTokenAuthenticator` (works for DPoP tokens too); enforce the 07 §5 freshness rule from the user session's `AUTH_TIME` (realm attribute `native-auth.passkey-registration-max-age`, default 300 s).
+- `/options`: create `PublicKeyCredentialCreationOptions` using the realm's WebAuthn Passwordless policy (`WebAuthnPolicy`), store challenge + `registration_id` in a short-lived single-use entry (`SingleUseObjectProvider`, key `native-auth.passkey-registration-id:<id>`).
+- `/finish`: validate with webauthn4j (`WebAuthnRegistrationManager`) exactly as `WebAuthnRegister` does (`PasskeyRegistrationVerifier`, shared with the required action), then `WebAuthnCredentialProvider.createCredential`.
 
 ### 2.5 Push enrolment start
 - Requires bearer token from a native login.
@@ -121,7 +122,7 @@ Every authenticator guards `if (!NativeRequestContext.isNative(ctx)) { ctx.attem
 |---------------|------------------|------------|--------|
 | `native-username` | emit `username` (hint from `login_hint`) | lookup user by username/email per realm settings; `ctx.setUser`; generic error on miss | `UserModel` lookup, `AbstractUsernameFormAuthenticator` error semantics |
 | `native-password` | emit `password` | `PasswordCredentialProvider.isValid`; brute-force via `BruteForceProtector` | |
-| `native-passkey` | create assertion options via `WebAuthnPolicy` + user's credentials (`allow_credentials`) or discoverable (empty) ; store challenge in authNote | parse 4 fields; `WebAuthnCredentialProvider.isValid(WebAuthnCredentialInput)` ; set user from `user_handle` if discoverable | webauthn4j, `WebAuthnAuthenticator`'s validation portion |
+| `native-passkey` (Phase 1 ✅) | create assertion options via the **Passwordless** `WebAuthnPolicy` + user's credentials (`allow_credentials`) or discoverable (empty); store challenge in an authNote keyed by execution id; `attempted()` for an identified user without passkeys (spec/11 D2) | parse 4 fields; `WebAuthnCredentialProvider.isValid(WebAuthnCredentialModelInput)`; set user from `user_handle` if discoverable | webauthn4j, `WebAuthnPasswordlessAuthenticator`'s validation portion |
 | `native-totp` | emit `totp` with policy digits/period; `configuredFor` → user has OTP cred | `OTPCredentialProvider.isValid` | |
 | `native-otp` | pick channel (config: email/sms); generate code (`SecretGenerator`), hash+store in authNote with ttl; send via `NativeOtpSender`; emit `otp` | compare, enforce attempts & ttl; `action=resend` with cooldown | Keycloak `EmailSenderProvider` |
 | `native-push` | create ba-itsys challenge for user's push credential; send confirmToken via sender; emit `push` with `cid`, number-match number | `action=poll` → read challenge status; approved → success; denied → failure; `action=cancel` → deny | ba-itsys challenge store & sender |
@@ -132,7 +133,7 @@ Config properties exposed in the admin console (via `getConfigProperties()`): OT
 
 ## 4. Required actions (JSON variants)
 
-- `native-passkey-register`: `requiredActionChallenge()` emits `passkey_registration`; `processAction()` validates attestation and stores credential. Operators enable it as the default action for new users in the native realm, or the `native-passkey` authenticator sets it via `setRequiredActions` when `configuredFor` is false and policy says "enrol on first login".
+- `native-passkey-register` (Phase 1 ✅, module `native-auth-required-actions`): `requiredActionChallenge()` emits `passkey_registration`; `processAction()` validates attestation and stores credential. Operators enable it as the default action for new users in the native realm (the demo export registers it; note that an export listing `requiredActions` must list Keycloak's defaults too, spec/11 D1). Outside a native session (browser login) it ignores itself with a warning and stays on the user. Having `native-passkey` set it via `setRequiredActions` when `configuredFor` is false ("enrol on first login") is still open.
 - `native-push-enroll`: same shape wrapping ba-itsys enrolment.
 - Any other required action (update password, T&C, verify email, profile) → endpoint emits `redirect_to_web` (reason = alias). Phase 2 may add `native-update-password` and `native-verify-email` if product wants them.
 

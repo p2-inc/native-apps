@@ -3,7 +3,7 @@
 | Directory | What |
 |---|---|
 | `spec/` | Investigation, protocol specification (`03`), architecture and plans. Read `spec/00-README.md` first, then `spec/10-status-and-task-list.md` for the current state and open tasks. |
-| `keycloak-native-auth/` | Keycloak extensions (Maven multi-module): the FiPA-style challenge endpoint, native authenticators, demo realm, docker-compose, integration tests. See its `README.md`. |
+| `keycloak-native-auth/` | Keycloak extensions (Maven multi-module): the FiPA-style challenge endpoint, native authenticators (username, password, TOTP, passkey), the native passkey-registration required action and endpoints, demo realm, docker-compose, integration tests. See its `README.md`. |
 | `.github/workflows/ci.yml` | Build + unit + integration tests; docker compose + curl walkthrough. |
 
 Planned next to the extensions: an iOS SDK (`spec/05`) and an example iOS app (`spec/06`).

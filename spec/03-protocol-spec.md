@@ -17,7 +17,7 @@ All paths are relative to the realm base `https://{host}/realms/{realm}`.
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| GET | `/native-auth/metadata` | none | Discovery: protocol version, supported challenge types, endpoint URLs, RP ID. |
+| GET | `/native-auth/metadata` | none | Discovery: protocol version, supported challenge types, endpoint URLs, RP ID (`passkey.rp_id`). |
 | POST | `/native-auth/challenge` | none (client is public; optional DPoP header) | The FiPA authorization challenge endpoint. Starts/continues a login or step-up. |
 | POST | `/protocol/openid-connect/token` | standard | Unchanged Keycloak token endpoint. Code exchange, refresh. |
 | POST | `/native-auth/passkey/register/options` | Bearer/DPoP access token | Begin passkey registration for the authenticated user. |
@@ -88,7 +88,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
 { "authorization_code": "…", "auth_session": "…" }
 ```
 
-`auth_session` MAY be present; if so the client MUST store it (needed for step-up). Exchange the code at the token endpoint with `grant_type=authorization_code`, `client_id`, `code`, `code_verifier`, and **no** `redirect_uri` — unless metadata says otherwise: `code_exchange.redirect_uri_required` is `false` by default (Keycloak accepts a code stored without a redirect URI when the token request omits the parameter; verified in 09 Q1). When it is `true` the client MUST send exactly `code_exchange.redirect_uri` (operator-chosen `sentinel` or `client-fixed` mode).
+`auth_session` MAY be present; if so the client MUST store it (needed for step-up). Since Phase 1 the Keycloak implementation always returns it (a post-login value bound to the user session, lifetime = SSO session max, 11 D4); presenting it to the challenge endpoint is answered with `invalid_session` until step-up is implemented (Phase 2). Exchange the code at the token endpoint with `grant_type=authorization_code`, `client_id`, `code`, `code_verifier`, and **no** `redirect_uri` — unless metadata says otherwise: `code_exchange.redirect_uri_required` is `false` by default (Keycloak accepts a code stored without a redirect URI when the token request omits the parameter; verified in 09 Q1). When it is `true` the client MUST send exactly `code_exchange.redirect_uri` (operator-chosen `sentinel` or `client-fixed` mode).
 
 ### 3.2 Challenge — more input required
 
@@ -112,7 +112,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
 }
 ```
 
-- `challenges` is ordered by server preference. Entries are the **ALTERNATIVE** executions currently eligible; the client MAY present a chooser or auto-pick the first it supports.
+- `challenges` is ordered by server preference — in the Keycloak implementation the operator's flow layout (depth-first execution order, 11 D3). Entries are the **ALTERNATIVE** executions currently eligible; the client MAY present a chooser or auto-pick the first it supports.
 - `context` is informational, present once the user is identified. Never include secrets.
 - `expires_in` is the remaining lifetime of the authentication session.
 
@@ -197,7 +197,9 @@ authenticator_data=<b64url>
 signature=<b64url>
 user_handle=<b64url, optional>
 ```
-The server verifies via `WebAuthnCredentialProvider` using the stored challenge from the auth session. `rp_id` MUST equal the realm's configured WebAuthn RP ID, and the app MUST have an Associated Domains `webcredentials:` entry for it.
+The server verifies via `WebAuthnCredentialProvider` using the stored challenge from the auth session (single use; a fresh `challenge` is issued with every challenge set). `rp_id` MUST equal the realm's configured WebAuthn **Passwordless** RP ID, and the app MUST have an Associated Domains `webcredentials:` entry for it. The `origin` inside `client_data_json` must be the server's base origin or one of the policy's *extra origins* (add `https://<rp_id>` there when they differ).
+Error codes on the descriptor: `missing_credential` (field missing or not base64url; not counted as a failure), `invalid_credential` (signature, challenge, origin, RP ID, UV or counter check failed, unknown credential or user; counted as a failure). A `user_handle` naming a different user than the one already identified ends the flow with `access_denied`.
+Eligibility (11 D2): offered to an identified user only when that user has at least one passkey; always offered before a user is identified (then `discoverable: true`).
 
 ### 4.4 `passkey_registration` — WebAuthn attestation mid-flow (required action)
 
@@ -209,6 +211,7 @@ Used when the flow requires passkey enrolment (`webauthn-register`-style require
 ```
 response: `credential_id`, `client_data_json`, `attestation_object`, `transports` (comma-separated), `label` (optional user-visible name).
 The same payloads are used by the standalone `/native-auth/passkey/register/*` endpoints (§6).
+The descriptor's `id` (echoed as `challenge_id`) is the required action's provider id (`native-passkey-register`), not an execution id (11 D1); `required` is always `true`. `authenticator_selection` MAY also carry `require_resident_key: true`. Error codes: `missing_credential`, `invalid_attestation` (attestation did not parse/verify, policy violation, duplicate credential; a fresh `challenge` is issued with the re-challenge).
 
 ### 4.5 `totp` — authenticator-app code
 
@@ -267,11 +270,13 @@ Types not understood by a client MUST be ignored unless they are the only `requi
 
 For enrolling a passkey from inside the app after login (not mid-flow):
 
-1. `POST /native-auth/passkey/register/options` with `Authorization: Bearer|DPoP <access_token>` → `200` with §4.4 `params` plus `registration_id`.
+1. `POST /native-auth/passkey/register/options` with `Authorization: Bearer|DPoP <access_token>` (no body) → `200` with §4.4 `params` plus `registration_id`.
 2. App performs `ASAuthorizationPlatformPublicKeyCredentialProvider.createCredentialRegistrationRequest`.
-3. `POST /native-auth/passkey/register/finish` (JSON body: `registration_id`, `credential_id`, `client_data_json`, `attestation_object`, `transports`, `label`) → `201 { "credential_id": "…", "label": "…" }`.
+3. `POST /native-auth/passkey/register/finish` (JSON body: `registration_id`, `credential_id`, `client_data_json`, `attestation_object`, `transports` — comma-separated string or array —, `label`) → `201 { "credential_id": "…", "label": "…" }`.
 
 Policy (attestation conveyance, UV requirement, allowed algorithms, exclude-credentials) comes from the realm's WebAuthn Passwordless policy.
+
+Errors: `401 invalid_token` (+ `WWW-Authenticate: Bearer …`) when the token is missing, invalid, expired or has no user session; `403 insufficient_authorization` when the authentication behind the token is older than the realm's `native-auth.passkey-registration-max-age` (default 300 s; 07 §5) — the client MUST re-authenticate (a new login until step-up exists; no `auth_session` is returned); `400 invalid_request` for a malformed body, an unknown/expired/already used `registration_id`, or an attestation that does not verify (`error_description` is user-safe). `registration_id` is single use and valid for the realm's user-action timeout.
 
 ---
 
