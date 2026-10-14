@@ -1,15 +1,17 @@
 # KeycloakNativeDemo (example iOS app)
 
-Proves the protocol paths end to end against the demo realm and shows how an app drives
-`KeycloakNativeCore` without the (Phase 2) default UI: a hand-rolled login screen that renders the
-server's challenge set, a Home screen with token claims and post-login passkey registration, a
-Scenarios list (S1, S2, S3, S11, S14 and the `dave` enrolment path of `spec/06 §2`) and a Diagnostics
+Proves the protocol paths end to end against the demo realm and shows both ways of driving the SDK:
+the hand-rolled login screen (the "full control" sample: it renders the server's challenge set
+itself) and, for S5/S13, `NativeLoginView` from `KeycloakNativeUI`. Also a Home screen with token
+claims, post-login passkey registration, the step-up "Transfer" call and the S8 session controls, a
+Scenarios list (S1–S8, S11, S13, S14 and the `dave` enrolment path of `spec/06 §2`) and a Diagnostics
 tab with the redacted flow log. Design: `../../spec/06-example-ios-app.md`.
 
 Layout: `Sources/KeycloakNativeDemoApp` is a Swift package library (SwiftUI + `DemoModel`) so it
 type-checks with `swift build` on macOS; `App/` holds the `@main` entry, `Config.plist`, entitlements;
-`project.yml` is the [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec that produces
-`KeycloakNativeDemo.xcodeproj` (committed, regenerate with `xcodegen generate` after editing).
+`UITests/` the XCUITest smoke tests; `project.yml` is the [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+spec that produces `KeycloakNativeDemo.xcodeproj` (committed, regenerate with `xcodegen generate`
+after editing).
 
 ## 1. Simulator, no passkeys (S3, S14, token lifecycle)
 
@@ -28,6 +30,40 @@ authenticator app seeded with `alice-totp-secret-20261014`.
 
 **S14** runs itself from the Scenarios tab (user `erin`, five wrong passwords → `access_denied`;
 the realm's `failureFactor` is 5 and the lock lasts 60 s).
+
+**Simulator Keychain:** the app must be code-signed, even ad hoc. With `CODE_SIGNING_ALLOWED=NO`
+the simulator's Keychain answers `-34018` (missing entitlement) and the SDK's DPoP key store and
+`CredentialsManager` fail (`keychain_error`). Xcode's default "Sign to Run Locally" is fine; from the
+command line pass `CODE_SIGN_IDENTITY="-"`.
+
+### XCUITest smoke tests (spec/06 §1)
+
+```bash
+xcodebuild test -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo \
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' CODE_SIGN_IDENTITY="-"
+```
+
+`UITests/DemoAppUITests.swift` drives the real app against the compose stack: S3 (password + TOTP
+computed from the seeded secret), the Keychain restore across a relaunch, refresh, logout, the
+software DPoP key (`jkt` in Diagnostics, `token_type DPoP`) and S14. They are not part of CI (the
+runner has no Keycloak); CI only compiles them (`build-for-testing`).
+
+### Phase 2 scenarios on the simulator (S4, S6, S7, S8, S5/S13)
+
+- **S4** (client `demo-ios-otp`): `bob / bob-password` → the email code is sent at once; read it in
+  mailpit (`http://localhost:8025`). `alice` gets `[totp, otp]` and a "Send me a code" button.
+- **S5 / S13**: the same client rendered by `NativeLoginView`; S13 swaps the TOTP screen.
+- **S6** (client `demo-ios-stepup`): log in with the password (acr 1), Home → **Transfer**: the
+  compose `resource-server` (`http://localhost:8091`) answers `401 insufficient_user_authentication`,
+  the app steps up with the stored `auth_session`, the Login tab shows only the TOTP, and the next
+  Transfer succeeds with acr 2 (the token is DPoP-bound; the API checks the proof).
+- **S7**: `carol / carol-password` → "Continue in the browser" → Safari (`ASWebAuthenticationSession`)
+  shows the realm's login with carol pre-filled, then the *Update password* page; the code returns
+  to `demoapp://auth/callback` and the app exchanges it. Safari needs to reach the issuer host: on
+  the simulator `localhost:8089` works.
+- **S8**: after any login, Home → **End session on the server**, then **Refresh tokens** →
+  `reauthentication_required` (Keycloak answers `invalid_grant` without an `auth_session`, so the
+  app starts a new login).
 
 ## 2. Real passkeys (S1, S2, S11, dave): HTTPS host + Associated Domains
 
@@ -78,6 +114,6 @@ passwords, OTPs, assertions) and the DPoP key thumbprint; "Copy" puts the log on
 
 ## Not demonstrated here
 
-S4–S10, S12, S13 (OTP, chooser UI product, step-up, redirect-to-web, refresh-forced re-auth, push,
-custom presenters) depend on Phase 2/3 server and SDK work. The app has no Settings bundle yet;
-edit `Config.plist`.
+S9, S10, S12 (push MFA) depend on Phase 3. The app has no Settings bundle yet; edit `Config.plist`
+(`Issuer`, `ClientId`, `PasskeyClientId`, `StepUpClientId`, `OtpClientId`, `ResourceServer`,
+`AllowRpIdMismatch`, `DeviceName`).

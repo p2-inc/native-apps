@@ -17,6 +17,7 @@ struct DiagnosticsView: View {
           LabeledContent("dpop_signing_alg_values_supported", value: metadata.dpopSigningAlgValuesSupported.isEmpty ? "[] (server does not bind auth_session yet)" : metadata.dpopSigningAlgValuesSupported.joined(separator: ", "))
         }
         LabeledContent("DPoP key (jkt)", value: model.dpopThumbprint ?? "—").font(.footnote.monospaced())
+          .accessibilityIdentifier("dpopJkt")
         Button("Load metadata") { Task { await model.loadDiagnostics() } }
       }
       Section {

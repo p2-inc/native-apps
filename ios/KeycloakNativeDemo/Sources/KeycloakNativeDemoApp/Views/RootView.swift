@@ -18,6 +18,7 @@ public struct RootView: View {
       NavigationStack { DiagnosticsView() }.tabItem { Label("Diagnostics", systemImage: "waveform.path.ecg") }
     }
     .environment(model)
+    .task { await model.restoreSession() }
   }
 }
 
@@ -27,6 +28,7 @@ struct StatusBar: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
       Text(model.status).font(.footnote).foregroundStyle(model.lastError == nil ? Color.secondary : Color.red)
+        .accessibilityIdentifier("status")
       if model.isBusy { ProgressView().controlSize(.small) }
     }
     .frame(maxWidth: .infinity, alignment: .leading)

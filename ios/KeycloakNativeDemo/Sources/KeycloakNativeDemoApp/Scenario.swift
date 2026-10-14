@@ -1,12 +1,18 @@
 import Foundation
 
-/// The spec/06 §2 scenarios demonstrated in this phase. Each one configures the client and the
+/// The spec/06 §2 scenarios demonstrated by the app. Each one configures the client and the
 /// expected path; the login screen then renders whatever the server offers.
 public enum Scenario: String, CaseIterable, Identifiable, Sendable {
   case s1UsernamePasskey
   case s2DiscoverablePasskey
   case s3PasswordTotp
+  case s4EmailOtp
+  case s5DefaultUI
+  case s6StepUp
+  case s7RedirectToWeb
+  case s8RefreshReauth
   case s11RegisterSecondPasskey
+  case s13CustomPresenter
   case s14BruteForce
   case daveEnrolment
 
@@ -17,7 +23,13 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .s1UsernamePasskey: "S1 · Username → passkey"
     case .s2DiscoverablePasskey: "S2 · Username-less passkey"
     case .s3PasswordTotp: "S3 · Username → password → TOTP"
+    case .s4EmailOtp: "S4 · Email one-time code with resend"
+    case .s5DefaultUI: "S5 · Default UI with factor chooser"
+    case .s6StepUp: "S6 · Step-up for a protected action"
+    case .s7RedirectToWeb: "S7 · Redirect to web (carol)"
+    case .s8RefreshReauth: "S8 · Refresh forces re-authentication"
     case .s11RegisterSecondPasskey: "S11 · Register a passkey after login"
+    case .s13CustomPresenter: "S13 · Default UI with a custom TOTP screen"
     case .s14BruteForce: "S14 · Brute force → access_denied"
     case .daveEnrolment: "Enrol a passkey on first login (dave)"
     }
@@ -31,8 +43,20 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
       "Client demo-ios-passkey: the first challenge set is [passkey (discoverable), username]. Use the passkey without typing a username; user_handle identifies the account."
     case .s3PasswordTotp:
       "Client demo-ios. alice / alice-password, then the 6-digit code from the seeded secret (walkthrough.sh prints it, or any authenticator app with alice-totp-secret-20261014)."
+    case .s4EmailOtp:
+      "Client demo-ios-otp. bob / bob-password gets an email code as the only second factor (sent at once); alice gets [totp, otp] and the code is only sent when she asks for it. Codes land in mailpit (http://localhost:8025). Resend has a 10 s cooldown."
+    case .s5DefaultUI:
+      "Client demo-ios-otp with the KeycloakNativeUI product: NativeLoginView drives the whole flow with the default screens and the “Try another way” chooser (alice sees TOTP vs email code)."
+    case .s6StepUp:
+      "Client demo-ios-stepup. Log in (password only = acr 1), then Home → Transfer: the demo API answers 401 insufficient_user_authentication acr_values=2; the app steps up with the stored auth_session (only TOTP is asked), retries and succeeds with acr 2."
+    case .s7RedirectToWeb:
+      "Client demo-ios. carol / carol-password has a pending Update Password action the native flow cannot serve: the server answers redirect_to_web with a PAR request_uri; Safari completes the login and the code comes back to the app (demoapp://auth/callback)."
+    case .s8RefreshReauth:
+      "After any login: Home → “End session on the server” (revokes the refresh token), then “Refresh tokens”: the SDK reports reauthentication_required and the app starts a new login."
     case .s11RegisterSecondPasskey:
-      "After any login, Home → Register passkey: POST /passkey/register/options → platform sheet → /finish. Must happen within 300 s of authenticating, otherwise 403 insufficient_authorization."
+      "After any login, Home → Register passkey: POST /passkey/register/options → platform sheet → /finish. After 300 s the server answers 403 insufficient_authorization with an auth_session: the app steps up with max_age and retries."
+    case .s13CustomPresenter:
+      "Same as S5 but the TOTP screen is replaced through challengePresenter(for: .totp) — the SDK's screens are replaceable one by one."
     case .s14BruteForce:
       "Client demo-ios, user erin. Submits wrong passwords automatically until Keycloak locks the account (failureFactor 5, or two failures within a second); the flow ends with 403 access_denied."
     case .daveEnrolment:
@@ -40,12 +64,29 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     }
   }
 
-  /// Which client to use; `nil` keeps the default client.
-  public var usesPasskeyClient: Bool { self == .s2DiscoverablePasskey }
+  /// Which SDK client the scenario uses.
+  public enum ClientRole: Sendable { case standard, passkey, stepUp, otp }
+
+  public var client: ClientRole {
+    switch self {
+    case .s2DiscoverablePasskey: .passkey
+    case .s4EmailOtp, .s5DefaultUI, .s13CustomPresenter: .otp
+    case .s6StepUp: .stepUp
+    default: .standard
+    }
+  }
+
+  /// Kept for the Phase 1b call sites.
+  public var usesPasskeyClient: Bool { client == .passkey }
+
+  /// Scenarios rendered by `NativeLoginView` (KeycloakNativeUI) instead of the hand-rolled screens.
+  public var usesDefaultUI: Bool { self == .s5DefaultUI || self == .s13CustomPresenter }
 
   public var prefilledUsername: String? {
     switch self {
-    case .s1UsernamePasskey, .s3PasswordTotp, .s11RegisterSecondPasskey: "alice"
+    case .s1UsernamePasskey, .s3PasswordTotp, .s11RegisterSecondPasskey, .s6StepUp, .s8RefreshReauth, .s5DefaultUI, .s13CustomPresenter: "alice"
+    case .s4EmailOtp: "bob"
+    case .s7RedirectToWeb: "carol"
     case .s14BruteForce: "erin"
     case .daveEnrolment: "dave"
     case .s2DiscoverablePasskey: nil

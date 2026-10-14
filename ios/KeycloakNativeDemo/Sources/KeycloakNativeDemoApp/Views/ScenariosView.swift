@@ -24,6 +24,7 @@ struct ScenariosView: View {
             }
           }
           .buttonStyle(.plain)
+          .accessibilityIdentifier("scenario-\(scenario.rawValue)")
         }
       }
       if model.scenario == .s14BruteForce {

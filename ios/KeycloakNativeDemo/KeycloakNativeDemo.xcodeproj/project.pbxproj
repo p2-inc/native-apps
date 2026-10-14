@@ -7,13 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0690B787895F9314EB6EEAD1 /* DemoAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14789A1DB7DC478B4C536684 /* DemoAppUITests.swift */; };
 		9E3EB1C2C61F9C3EF56E58E2 /* KeycloakNativeDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F2D3C7AF3135AAE0BEC0A2 /* KeycloakNativeDemoApp.swift */; };
 		C36C4A720B2B2992EB99E482 /* KeycloakNativeDemoApp in Frameworks */ = {isa = PBXBuildFile; productRef = 666E25ADDD9CAF2BE24015A8 /* KeycloakNativeDemoApp */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		F8A7F518EB4908DD1C2FFBCB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1EF95C69D79D6778728E8EC3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FA0A26D338F755D0A323CF25;
+			remoteInfo = KeycloakNativeDemo;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		09F2D3C7AF3135AAE0BEC0A2 /* KeycloakNativeDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeycloakNativeDemoApp.swift; sourceTree = "<group>"; };
+		14789A1DB7DC478B4C536684 /* DemoAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoAppUITests.swift; sourceTree = "<group>"; };
 		AF87B3C2DA9F472E93E4EC39 /* KeycloakNativeDemo */ = {isa = PBXFileReference; lastKnownFileType = folder; name = KeycloakNativeDemo; path = .; sourceTree = SOURCE_ROOT; };
+		B2801490484F9BDE144E064F /* KeycloakNativeDemoUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = KeycloakNativeDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C9ACBA12FAEC088C84D1866B /* KeycloakNativeDemo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = KeycloakNativeDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -33,6 +46,7 @@
 			isa = PBXGroup;
 			children = (
 				C9ACBA12FAEC088C84D1866B /* KeycloakNativeDemo.app */,
+				B2801490484F9BDE144E064F /* KeycloakNativeDemoUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -50,6 +64,7 @@
 			children = (
 				493BAE00BA9AF2813BA4B328 /* App */,
 				02B654A4AD90AC623DEEE531 /* Packages */,
+				5C779B2288C2191DEC6720A6 /* UITests */,
 				02AD6C16F226E4E682826784 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -62,9 +77,35 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		5C779B2288C2191DEC6720A6 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				14789A1DB7DC478B4C536684 /* DemoAppUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		21E2403872739587334CE93C /* KeycloakNativeDemoUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1DA8C15C1BA922D77252E63D /* Build configuration list for PBXNativeTarget "KeycloakNativeDemoUITests" */;
+			buildPhases = (
+				37EDDF6F006431E564969C28 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9828024AB8C75CF0D745AF37 /* PBXTargetDependency */,
+			);
+			name = KeycloakNativeDemoUITests;
+			packageProductDependencies = (
+			);
+			productName = KeycloakNativeDemoUITests;
+			productReference = B2801490484F9BDE144E064F /* KeycloakNativeDemoUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		FA0A26D338F755D0A323CF25 /* KeycloakNativeDemo */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = FAC6A2CB3692DD187BEB3D45 /* Build configuration list for PBXNativeTarget "KeycloakNativeDemo" */;
@@ -93,6 +134,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					21E2403872739587334CE93C = {
+						ProvisioningStyle = Automatic;
+						TestTargetID = FA0A26D338F755D0A323CF25;
+					};
 					FA0A26D338F755D0A323CF25 = {
 						ProvisioningStyle = Automatic;
 						SystemCapabilities = "[\"com.apple.AssociatedDomains\": [\"enabled\": 1]]";
@@ -117,6 +162,7 @@
 			projectRoot = "";
 			targets = (
 				FA0A26D338F755D0A323CF25 /* KeycloakNativeDemo */,
+				21E2403872739587334CE93C /* KeycloakNativeDemoUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -130,9 +176,63 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		37EDDF6F006431E564969C28 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0690B787895F9314EB6EEAD1 /* DemoAppUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		9828024AB8C75CF0D745AF37 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FA0A26D338F755D0A323CF25 /* KeycloakNativeDemo */;
+			targetProxy = F8A7F518EB4908DD1C2FFBCB /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		2E4972E505ED3CE178A6C963 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.phasetwo.keycloak.nativedemo.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = KeycloakNativeDemo;
+			};
+			name = Release;
+		};
+		335AAE80B8DAD79E25D78A12 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.phasetwo.keycloak.nativedemo.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = KeycloakNativeDemo;
+			};
+			name = Debug;
+		};
 		3470F67C7CE7EB02930FCCD2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -295,6 +395,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1DA8C15C1BA922D77252E63D /* Build configuration list for PBXNativeTarget "KeycloakNativeDemoUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				335AAE80B8DAD79E25D78A12 /* Debug */,
+				2E4972E505ED3CE178A6C963 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		D886BBDC71D05985F78E595A /* Build configuration list for PBXProject "KeycloakNativeDemo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

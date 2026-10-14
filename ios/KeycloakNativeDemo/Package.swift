@@ -9,7 +9,12 @@ let package = Package(
   products: [.library(name: "KeycloakNativeDemoApp", targets: ["KeycloakNativeDemoApp"])],
   dependencies: [.package(path: "../KeycloakNative")],
   targets: [
-    .target(name: "KeycloakNativeDemoApp", dependencies: [.product(name: "KeycloakNativeCore", package: "KeycloakNative")])
+    .target(
+      name: "KeycloakNativeDemoApp",
+      dependencies: [
+        .product(name: "KeycloakNativeCore", package: "KeycloakNative"),
+        .product(name: "KeycloakNativeUI", package: "KeycloakNative"),
+      ])
   ],
   swiftLanguageModes: [.v6]
 )

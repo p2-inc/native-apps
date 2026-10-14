@@ -8,6 +8,17 @@ options:
 packages:
   KeycloakNativeDemo:
     path: .
+schemes:
+  KeycloakNativeDemo:
+    build:
+      targets:
+        KeycloakNativeDemo: all
+        KeycloakNativeDemoUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [KeycloakNativeDemoUITests]
 targets:
   KeycloakNativeDemo:
     type: application
@@ -42,3 +53,17 @@ targets:
       SystemCapabilities:
         com.apple.AssociatedDomains:
           enabled: 1
+  # XCUITest smoke tests against the compose stack (README §1): S3, relaunch/refresh/logout, S14.
+  KeycloakNativeDemoUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: KeycloakNativeDemo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.phasetwo.keycloak.nativedemo.uitests
+        SWIFT_VERSION: "6.0"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: KeycloakNativeDemo
