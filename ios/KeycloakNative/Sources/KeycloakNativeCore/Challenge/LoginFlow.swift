@@ -56,9 +56,12 @@ public actor NativeLoginFlow: LoginFlow {
     case finished
   }
 
-  public let clientId: String
-  public let parameters: LoginParameters
-  public let pkce: PKCE
+  public nonisolated let clientId: String
+  public nonisolated let parameters: LoginParameters
+  public nonisolated let pkce: PKCE
+  /// The post-login `auth_session` this flow steps up / re-authenticates (spec/03 §5), `nil` for a
+  /// fresh login.
+  public nonisolated let stepUpSession: String?
 
   private let metadata: MetadataClient
   private let transport: any Transport
@@ -76,6 +79,7 @@ public actor NativeLoginFlow: LoginFlow {
     clientId: String,
     parameters: LoginParameters,
     pkce: PKCE,
+    stepUpSession: String? = nil,
     metadata: MetadataClient,
     transport: any Transport,
     dpop: DPoPSigner?,
@@ -85,6 +89,7 @@ public actor NativeLoginFlow: LoginFlow {
     self.clientId = clientId
     self.parameters = parameters
     self.pkce = pkce
+    self.stepUpSession = stepUpSession
     self.metadata = metadata
     self.transport = transport
     self.dpop = dpop
@@ -94,6 +99,7 @@ public actor NativeLoginFlow: LoginFlow {
 
   public var currentState: State { state }
   public var authSession: String? { session }
+  public nonisolated var isStepUp: Bool { stepUpSession != nil }
   public var pendingChallenges: [Challenge] { pending }
   /// Remaining lifetime of the authentication session as last reported.
   public var expiresIn: Int? { lastExpiresIn }
@@ -124,8 +130,10 @@ public actor NativeLoginFlow: LoginFlow {
     if let v = parameters.uiLocales { fields.append(("ui_locales", v)) }
     if let v = parameters.deviceName { fields.append(("device_name", v)) }
     if let v = parameters.deviceId { fields.append(("device_id", v)) }
-    // EXTENSION POINT (step-up, spec/03 §5): a stored post-login auth_session would be added here.
-    // The server rejects it until Phase 2 (spec/11 D4), so the SDK deliberately never sends it.
+    if let stepUpSession {
+      // spec/03 §5: a §2.1 request plus the post-login auth_session = step-up / re-authentication.
+      fields.append(("auth_session", stepUpSession))
+    }
 
     do {
       return try await handle(client.post(fields))
@@ -192,6 +200,14 @@ public actor NativeLoginFlow: LoginFlow {
       session = postLoginSession
       let credentials = try await tokens.exchange(code: code, codeVerifier: pkce.verifier, authSession: postLoginSession)
       return .authorized(credentials)
+    case .redirectToWeb(let request):
+      // The server removed the native authentication session (spec/03 §3.4); the PKCE pair of this
+      // flow is what WebFallback exchanges the browser's code with.
+      state = .finished
+      pending = []
+      session = nil
+      logger.log(.info, "Server asks for a browser fallback (\(request.reason ?? "no reason"))")
+      return .redirectToWeb(request)
     }
   }
 

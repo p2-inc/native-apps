@@ -44,11 +44,11 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     }
   }
 
-  /// Whether this SDK version has a `ChallengeAnswer` for the type. `otp`, `push`, `recovery_code`
-  /// and `select` are specified but arrive with the Phase 2/3 server work.
+  /// Whether this SDK version has a `ChallengeAnswer` for the type. `push`, `recovery_code` and
+  /// `select` are specified but arrive with the Phase 3 server work.
   public var isSupported: Bool {
     switch self {
-    case .username, .password, .passkey, .passkeyRegistration, .totp: true
+    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp: true
     default: false
     }
   }
@@ -63,6 +63,10 @@ public struct ChallengeError: Sendable, Equatable {
     public static let invalidUser = "invalid_user"
     public static let missingCredential = "missing_credential"
     public static let invalidAttestation = "invalid_attestation"
+    /// `otp`: the code expired or was consumed by too many attempts; `otpResend` is needed (spec/03 §4.6).
+    public static let expiredCode = "expired_code"
+    /// `otp`: `otpResend` before `resend_allowed_at`; not a failure.
+    public static let resendTooSoon = "resend_too_soon"
   }
 
   public let code: String
@@ -127,6 +131,38 @@ public struct Challenge: Sendable, Identifiable, Equatable {
   public var passkeyParams: PasskeyAssertionParams? { type == .passkey ? PasskeyAssertionParams(json: params) : nil }
   public var passkeyRegistrationParams: PasskeyRegistrationParams? {
     type == .passkeyRegistration ? PasskeyRegistrationParams(json: params) : nil
+  }
+  public var otpParams: OTPParams? { type == .otp ? OTPParams(json: params) : nil }
+}
+
+/// spec/03 §4.6 — a code delivered out of band (email / SMS).
+public struct OTPParams: Sendable, Equatable {
+  /// `email` | `sms`
+  public let channel: String
+  /// `a***@example.com`; never the full address.
+  public let destinationMasked: String?
+  public let digits: Int
+  /// Code lifetime in seconds from sending.
+  public let ttl: Int?
+  /// `true` when a code is outstanding. `false` when the server waits for `otpResend` (the challenge
+  /// is one of several alternatives, or the previous code expired / was exhausted).
+  public let sent: Bool
+  /// Earliest time another `otpResend` is accepted.
+  public let resendAllowedAt: Date?
+
+  public init(json: JSONValue) {
+    channel = json["channel"]?.stringValue ?? "email"
+    destinationMasked = json["destination_masked"]?.stringValue
+    digits = json["digits"]?.intValue ?? 6
+    ttl = json["ttl"]?.intValue
+    sent = json["sent"]?.boolValue ?? false
+    resendAllowedAt = json["resend_allowed_at"]?.doubleValue.map { Date(timeIntervalSince1970: $0) }
+  }
+
+  /// Seconds until a resend is accepted (0 when allowed now).
+  public func resendWait(at date: Date = Date()) -> TimeInterval {
+    guard let resendAllowedAt else { return 0 }
+    return max(0, resendAllowedAt.timeIntervalSince(date))
   }
 }
 
@@ -297,8 +333,37 @@ public enum FlowStep: Sendable {
   case challenges([Challenge], FlowContext)
   /// The code was issued and exchanged; `Credentials.authSession` holds the post-login value.
   case authorized(Credentials)
-  // EXTENSION POINT (Phase 2, spec/03 §3.4): `.redirectToWeb(RedirectToWebRequest)` is added together
-  // with `WebFallback`. Today a `redirect_to_web` answer surfaces as `NativeAuthError` with that code.
+  /// The server cannot finish natively (spec/03 §3.4): hand the request to `WebFallback`, which
+  /// opens the system browser and exchanges the resulting code with this flow's PKCE verifier.
+  case redirectToWeb(RedirectToWebRequest)
+}
+
+/// A `redirect_to_web` answer (spec/03 §3.4).
+public struct RedirectToWebRequest: Sendable, Equatable {
+  /// PAR `request_uri` (single use, expires after `expiresIn`).
+  public let requestUri: String
+  public let expiresIn: Int?
+  /// Where the browser flow will send the code; its scheme is the callback scheme to listen on.
+  public let redirectUri: String
+  /// Must match the `state` on the callback.
+  public let state: String?
+  /// Informational, e.g. `required_action:UPDATE_PASSWORD`.
+  public let reason: String?
+  public let errorDescription: String?
+  public let raw: JSONValue
+
+  public init?(json: JSONValue) {
+    guard let requestUri = json["request_uri"]?.stringValue, let redirectUri = json["redirect_uri"]?.stringValue else { return nil }
+    self.requestUri = requestUri
+    self.expiresIn = json["expires_in"]?.intValue
+    self.redirectUri = redirectUri
+    self.state = json["state"]?.stringValue
+    self.reason = json["reason"]?.stringValue
+    self.errorDescription = json["error_description"]?.stringValue
+    self.raw = json
+  }
+
+  public var callbackScheme: String? { URL(string: redirectUri)?.scheme }
 }
 
 extension FlowStep {
@@ -309,6 +374,11 @@ extension FlowStep {
 
   public var credentials: Credentials? {
     if case .authorized(let credentials) = self { return credentials }
+    return nil
+  }
+
+  public var redirectToWeb: RedirectToWebRequest? {
+    if case .redirectToWeb(let request) = self { return request }
     return nil
   }
 
@@ -325,8 +395,12 @@ public enum ChallengeAnswer: Sendable, Equatable {
   case totp(String, credentialId: String? = nil)
   case passkey(PasskeyAssertion)
   case passkeyRegistration(PasskeyAttestation, label: String? = nil)
-  // EXTENSION POINT (Phase 2/3): otp(String), otpResend, push(poll|cancel), recoveryCode(String),
-  // select(challengeId:) follow the server-side authenticators.
+  /// The code the user received (spec/03 §4.6).
+  case otp(String)
+  /// `action=resend`: (re)send a code; also the first send when `OTPParams.sent` is `false`.
+  case otpResend
+  // EXTENSION POINT (Phase 3): push(poll|cancel), recoveryCode(String), select(challengeId:) follow
+  // the server-side authenticators.
 
   public var challengeType: ChallengeType {
     switch self {
@@ -335,6 +409,7 @@ public enum ChallengeAnswer: Sendable, Equatable {
     case .totp: .totp
     case .passkey: .passkey
     case .passkeyRegistration: .passkeyRegistration
+    case .otp, .otpResend: .otp
     }
   }
 
@@ -355,6 +430,10 @@ public enum ChallengeAnswer: Sendable, Equatable {
       var fields = attestation.formFields
       if let label, !label.isEmpty { fields.append(("label", label)) }
       return fields
+    case .otp(let code):
+      return [("otp", code)]
+    case .otpResend:
+      return [("action", "resend")]
     }
   }
 }

@@ -39,7 +39,7 @@ struct LiveServerTests {
     let kc = sdk(clientId: "demo-ios")
     let metadata = try await kc.metadata()
     #expect(metadata.passkey?.rpId == "localhost")
-    #expect(metadata.dpopSigningAlgValuesSupported.isEmpty)
+    #expect(metadata.dpopSigningAlgValuesSupported.contains("ES256"))
 
     let credentials = try await loginAlice(kc)
     #expect(credentials.accessTokenClaims?["preferred_username"]?.stringValue == "alice")
@@ -118,6 +118,82 @@ struct LiveServerTests {
     let passkey = try #require(step.challenges?.first(.passkey))
     step = try await second.respond(.passkey(try await kc.passkeys().assert(passkey.passkeyParams!)), to: passkey)
     #expect(step.credentials != nil)
+  }
+
+  // MARK: - Phase 2 (spec/13)
+
+  @Test func s6StepUpAgainstTheResourceServerAsksOnlyForTotp() async throws {
+    let kc = sdk(clientId: "demo-ios-stepup")
+    // Level 1: password only on the step-up flow.
+    let flow = kc.authentication().startLogin(LoginParameters(scope: "openid profile", deviceName: "LiveServerTests"))
+    var step = try await flow.start()
+    step = try await flow.respond(.username("alice"), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password("alice-password"), to: try #require(step.challenges?.first(.password)))
+    let level1 = try #require(step.credentials)
+    #expect(level1.accessTokenClaims?["acr"]?.stringValue == "1")
+    try await kc.credentialsManager().store(level1)
+
+    // The demo API refuses acr 1 with RFC 9470's insufficient_user_authentication …
+    let resource = URL(string: (ProcessInfo.processInfo.environment["KEYCLOAK_NATIVE_LIVE_RESOURCE"] ?? "http://localhost:8091") + "/transfer")!
+    func call(_ credentials: Credentials) async throws -> (Int, JSONValue?) {
+      var request = URLRequest(url: resource)
+      for (name, value) in try await kc.resourceRequestHeaders(for: credentials, method: "GET", url: resource) { request.setValue(value, forHTTPHeaderField: name) }
+      let (data, response) = try await URLSession.shared.data(for: request)
+      return ((response as? HTTPURLResponse)?.statusCode ?? 0, JSONValue(jsonData: data))
+    }
+    let (status1, body1) = try await call(level1)
+    #expect(status1 == 401 && body1?["error"]?.stringValue == "insufficient_user_authentication", "\(status1) \(String(describing: body1))")
+
+    // … so the app steps up: username skipped, only the TOTP is asked, same session, acr 2.
+    let stepUp = try await kc.authentication().stepUp(acrValues: body1?["acr_values"]?.stringValue ?? "2", scope: "openid profile", deviceName: "LiveServerTests")
+    step = try await stepUp.start()
+    guard case .challenges(let set, let context) = step else { Issue.record("expected totp, got \(step)"); return }
+    #expect(set.types == ["totp"] && context.stepUp && context.acrRequested == "2" && context.username == "alice")
+    step = try await stepUp.respond(.totp(TOTP.code(secret: Self.aliceTotpSecret)), to: try #require(set.first(.totp)))
+    let level2 = try #require(step.credentials)
+    #expect(level2.accessTokenClaims?["acr"]?.stringValue == "2" && level2.accessTokenClaims?["sid"] == level1.accessTokenClaims?["sid"])
+    #expect(level2.isDPoPBound, "the token endpoint binds to the SDK's key")
+    let (status2, body2) = try await call(level2)
+    #expect(status2 == 200 && body2?["status"]?.stringValue == "transferred", "\(status2) \(String(describing: body2))")
+  }
+
+  @Test func s4EmailOtpWithResendThroughMailpit() async throws {
+    let mailpit = ProcessInfo.processInfo.environment["KEYCLOAK_NATIVE_LIVE_MAILPIT"] ?? "http://localhost:8025"
+    func latestCode(to email: String) async throws -> String {
+      let (data, _) = try await URLSession.shared.data(from: URL(string: mailpit + "/api/v1/messages?limit=20")!)
+      let messages = JSONValue(jsonData: data)?["messages"]?.arrayValue ?? []
+      let mine = try #require(messages.first { ($0["To"]?.arrayValue ?? []).contains { $0["Address"]?.stringValue == email } })
+      let (body, _) = try await URLSession.shared.data(from: URL(string: mailpit + "/api/v1/message/" + (mine["ID"]?.stringValue ?? ""))!)
+      let text = JSONValue(jsonData: body)?["Text"]?.stringValue ?? ""
+      let match = try #require(text.firstRange(of: /code is (\d{6})/))
+      return String(text[match].suffix(6))
+    }
+    let kc = sdk(clientId: "demo-ios-otp")
+    let flow = kc.authentication().startLogin(LoginParameters(scope: "openid", deviceName: "LiveServerTests"))
+    var step = try await flow.start()
+    step = try await flow.respond(.username("alice"), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password("alice-password"), to: try #require(step.challenges?.first(.password)))
+    #expect(step.challenges?.types == ["totp", "otp"])
+    let otp = try #require(step.challenges?.first(.otp))
+    #expect(otp.otpParams?.sent == false, "nothing sent until the user picks the email code")
+    step = try await flow.respond(.otpResend, to: otp)
+    let sent = try #require(step.challenges?.first(.otp))
+    #expect(sent.otpParams?.sent == true && (sent.otpParams?.resendWait() ?? 0) > 0)
+    step = try await flow.respond(.otp(try await latestCode(to: "alice@example.com")), to: sent)
+    #expect(step.credentials?.accessTokenClaims?["preferred_username"]?.stringValue == "alice")
+  }
+
+  @Test func s7CarolIsRedirectedToTheWeb() async throws {
+    let kc = sdk(clientId: "demo-ios")
+    let flow = kc.authentication().startLogin(LoginParameters(scope: "openid", deviceName: "LiveServerTests"))
+    var step = try await flow.start()
+    step = try await flow.respond(.username("carol"), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password("carol-password"), to: try #require(step.challenges?.first(.password)))
+    guard case .redirectToWeb(let request) = step else { Issue.record("expected redirect_to_web, got \(step)"); return }
+    #expect(request.reason == "required_action:UPDATE_PASSWORD" && request.callbackScheme == "demoapp" && request.state != nil)
+    let url = try await kc.webFallback().authorizationURL(for: request)
+    #expect(url.absoluteString.hasPrefix(Self.base + "/realms/demo/protocol/openid-connect/auth?"))
+    // The browser flow itself is exercised by RedirectToWebIT; opening Safari is not possible here.
   }
 
   @Test func s14BruteForceLockEndsWithAccessDenied() async throws {

@@ -13,14 +13,17 @@ let package = Package(
   name: "KeycloakNative",
   platforms: [.iOS(.v17), .macOS(.v14)],
   products: [
-    .library(name: "KeycloakNativeCore", targets: ["KeycloakNativeCore"])
-    // Later phases: KeycloakNativeUI (default screens), KeycloakNativePush (spec/05 §1).
+    .library(name: "KeycloakNativeCore", targets: ["KeycloakNativeCore"]),
+    // Default SwiftUI screens driving a flow end to end; every screen is replaceable (spec/05 §4).
+    .library(name: "KeycloakNativeUI", targets: ["KeycloakNativeUI"]),
+    // Later: KeycloakNativePush (spec/05 §5).
   ],
   dependencies: testingFromSource
     ? [.package(url: "https://github.com/swiftlang/swift-testing.git", exact: "6.2.4")]
     : [],
   targets: [
     .target(name: "KeycloakNativeCore"),
+    .target(name: "KeycloakNativeUI", dependencies: ["KeycloakNativeCore"]),
     .testTarget(
       name: "KeycloakNativeCoreTests",
       dependencies: ["KeycloakNativeCore"]

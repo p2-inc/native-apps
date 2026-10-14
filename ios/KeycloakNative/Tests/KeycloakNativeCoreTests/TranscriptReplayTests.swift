@@ -199,19 +199,6 @@ import Testing
     }
   }
 
-  @Test func nonNativeRequiredActionIsAccessDenied() async throws {
-    let (h, _, _) = try Harness.replay(["NativeAuthIT.pendingRequiredActionIsReportedAsAccessDenied"], clientId: Self.demoIOS)
-    let flow = h.sdk.authentication().startLogin(Self.itParameters)
-    var step = try await flow.start()
-    step = try await flow.respond(.username("carol"), to: try #require(step.challenges?.first(.username)))
-    let password = try #require(step.challenges?.first(.password))
-    let error = await #expect(throws: NativeAuthError.self) { try await flow.respond(.password("carol-password"), to: password) }
-    #expect(error?.code == NativeAuthError.Code.accessDenied && error?.statusCode == 403)
-    #expect(error?.errorDescription?.contains("UPDATE_PASSWORD") == true)
-    let v20 = await flow.currentState
-    #expect(v20 == .finished)
-  }
-
   // MARK: - Brute force (S14)
 
   @Test func bruteForceLockEndsWithAccessDenied() async throws {
@@ -476,20 +463,6 @@ import Testing
     let garbage = Credentials(accessToken: "not-a-token", refreshToken: nil, idToken: nil, scope: nil, expiresAt: .distantFuture, refreshExpiresAt: nil, authSession: nil)
     let error = await #expect(throws: NativeAuthError.self) { try await h.sdk.passkeys().registerNewPasskey(label: nil, credentials: garbage) }
     #expect(error?.code == NativeAuthError.Code.invalidToken && error?.statusCode == 401)
-  }
-
-  @Test func staleAuthenticationIsRefusedForRegistration() async throws {
-    let (h, _, _) = try Harness.replay(["PasskeyIT.staleAuthenticationIsRefusedForRegistration"], clientId: Self.demoIOS)
-    let flow = h.sdk.authentication().startLogin(Self.itParameters)
-    var step = try await flow.start()
-    step = try await flow.respond(.username("alice"), to: try #require(step.challenges?.first(.username)))
-    step = try await flow.respond(.password("alice-password"), to: try #require(step.challenges?.first(.password)))
-    step = try await flow.respond(.totp("999999"), to: try #require(step.challenges?.first(.totp)))
-    let credentials = try #require(step.credentials)
-    let error = await #expect(throws: NativeAuthError.self) { try await h.sdk.passkeys().registerNewPasskey(label: "x", credentials: credentials) }
-    #expect(error?.code == NativeAuthError.Code.insufficientAuthorization && error?.statusCode == 403)
-    #expect(error?.authSession == nil, "no step-up session until Phase 2: the app must log in again")
-    #expect(h.passkeys.registerParams.isEmpty, "the platform ceremony never started")
   }
 
   @Test func requiredActionRegistersPasskeyForNewUserThenPasskeyLoginWorks() async throws {

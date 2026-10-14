@@ -84,8 +84,9 @@ public struct Tokens: Sendable {
   }
 
   /// `grant_type=authorization_code` without `redirect_uri` unless metadata says otherwise (spec/03
-  /// §3.1, spec/09 Q1).
-  public func exchange(code: String, codeVerifier: String, authSession: String? = nil) async throws -> Credentials {
+  /// §3.1, spec/09 Q1). A code issued by the browser flow (`WebFallback`) always sends the
+  /// `redirect_uri` it was issued for.
+  public func exchange(code: String, codeVerifier: String, authSession: String? = nil, redirectUri: String? = nil) async throws -> Credentials {
     let document = try await metadata.metadata()
     var fields: [(name: String, value: String)] = [
       ("grant_type", "authorization_code"),
@@ -93,7 +94,9 @@ public struct Tokens: Sendable {
       ("code", code),
       ("code_verifier", codeVerifier),
     ]
-    if document.codeExchange.redirectUriRequired {
+    if let redirectUri {
+      fields.append(("redirect_uri", redirectUri))
+    } else if document.codeExchange.redirectUriRequired {
       guard let redirectUri = document.codeExchange.redirectUri else {
         throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "Metadata requires redirect_uri but names none")
       }

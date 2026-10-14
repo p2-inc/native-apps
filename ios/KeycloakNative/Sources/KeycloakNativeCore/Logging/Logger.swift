@@ -49,6 +49,7 @@ public enum Redactor {
     "auth_session", "password", "totp", "otp", "recovery_code",
     "authorization_code", "code", "code_verifier",
     "access_token", "refresh_token", "id_token", "token", "client_secret", "registration_id",
+    "request_uri",
     "signature", "authenticator_data", "client_data_json", "attestation_object",
     "authorization", "dpop", "dpop-nonce",
   ]

@@ -19,6 +19,10 @@ public final class KeycloakNative: Sendable {
     public var keychainAccessGroup: String? = nil
     /// Overrides the platform passkey bridge (tests).
     public var passkeyPlatform: (any PasskeyPlatform)? = nil
+    /// Overrides the system browser used by `WebFallback` (tests).
+    public var webPresenter: (any WebAuthenticationPresenter)? = nil
+    /// `ASWebAuthenticationSession.prefersEphemeralWebBrowserSession` for the fallback browser.
+    public var ephemeralWebSession = false
     /// Window for the passkey sheet; defaults to the key window.
     public var presentationAnchor: (@MainActor @Sendable () -> ASPresentationAnchor)? = nil
     public var metadataCacheTTL: TimeInterval = 300
@@ -35,6 +39,7 @@ public final class KeycloakNative: Sendable {
   let metadataClient: MetadataClient
   let dpopSigner: DPoPSigner?
   let passkeyPlatform: any PasskeyPlatform
+  let webPresenter: any WebAuthenticationPresenter
   private let credentialsManagerInstance: CredentialsManager
 
   public static func configure(issuer: URL, clientId: String, options: Options = Options()) -> KeycloakNative {
@@ -55,6 +60,7 @@ public final class KeycloakNative: Sendable {
       ? nil
       : DPoPSigner(mode: options.dpop, store: store, storeKey: "\(scope)|dpop-key", logger: options.logger)
     self.passkeyPlatform = options.passkeyPlatform ?? ASAuthorizationPasskeyPlatform(anchor: options.presentationAnchor)
+    self.webPresenter = options.webPresenter ?? ASWebAuthenticationSessionPresenter(anchor: options.presentationAnchor, prefersEphemeralSession: options.ephemeralWebSession)
     let tokens = Tokens(clientId: clientId, issuer: self.issuer, metadata: metadataClient, transport: transport, dpop: dpopSigner, logger: options.logger)
     self.credentialsManagerInstance = CredentialsManager(store: store, key: "\(scope)|credentials", tokens: tokens, logger: options.logger)
   }
@@ -68,6 +74,21 @@ public final class KeycloakNative: Sendable {
       allowRpIdMismatch: options.allowRpIdMismatch,
       registration: PasskeyRegistrationClient(issuer: issuer, metadata: metadataClient, transport: transport, dpop: dpopSigner),
       logger: options.logger)
+  }
+
+  /// Completes `FlowStep.redirectToWeb` through the system browser (spec/03 §3.4).
+  public func webFallback() -> WebFallback {
+    WebFallback(clientId: clientId, issuer: issuer, metadata: metadataClient, presenter: webPresenter, tokens: tokens(), logger: options.logger)
+  }
+
+  /// Headers for a request to a resource server with the stored tokens: `Authorization: Bearer …`,
+  /// or `Authorization: DPoP …` plus a `DPoP` proof with `ath` when the tokens are bound (spec/03 §8).
+  public func resourceRequestHeaders(for credentials: Credentials, method: String, url: URL) async throws -> [String: String] {
+    var headers = ["Authorization": "\(credentials.authorizationScheme) \(credentials.accessToken)"]
+    if credentials.isDPoPBound, let dpopSigner, let proof = try await dpopSigner.proof(method: method, url: url, accessToken: credentials.accessToken) {
+      headers["DPoP"] = proof
+    }
+    return headers
   }
 
   public func tokens() -> Tokens {

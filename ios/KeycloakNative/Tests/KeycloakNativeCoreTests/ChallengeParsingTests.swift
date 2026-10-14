@@ -129,9 +129,10 @@ import Testing
     #expect(metadata.codeExchange.redirectUriRequired == false)
     #expect(metadata.passkey?.rpId == "localhost")
     #expect(metadata.passkey?.registerFinishEndpoint?.path == "/realms/demo/native-auth/passkey/register/finish")
-    #expect(Set(metadata.challengeTypesSupported) == ["passkey", "passkey_registration", "password", "totp", "username"])
-    #expect(metadata.supports(.passkey) && !metadata.supports(.otp))
-    #expect(metadata.dpopSigningAlgValuesSupported.isEmpty, "no binding yet: normal for Phase 1")
+    #expect(Set(metadata.challengeTypesSupported) == ["otp", "passkey", "passkey_registration", "password", "totp", "username"])
+    #expect(metadata.supports(.passkey) && metadata.supports(.otp) && !metadata.supports(.push))
+    #expect(metadata.dpopSigningAlgValuesSupported.contains("ES256"), "the challenge endpoint verifies and binds proofs (spec/13 D3)")
+    #expect(metadata.authorizationEndpoint?.path == "/realms/demo/protocol/openid-connect/auth")
     #expect(metadata.clientAttestation?.required == false)
     #expect(metadata.raw?["push"] == nil)
   }

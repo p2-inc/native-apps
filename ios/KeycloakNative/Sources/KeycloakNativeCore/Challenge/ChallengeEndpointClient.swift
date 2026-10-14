@@ -13,6 +13,7 @@ struct ChallengeSet: Sendable {
 enum ChallengeOutcome: Sendable {
   case authorizationCode(String, authSession: String?)
   case challenges(ChallengeSet)
+  case redirectToWeb(RedirectToWebRequest)
 }
 
 /// Form-encoded transport to `POST /native-auth/challenge` (spec/05 §3.1): attaches a DPoP proof when
@@ -77,6 +78,9 @@ struct ChallengeEndpointClient: Sendable {
           challenges: challenges,
           context: FlowContext(json: json["context"]),
           raw: json))
+    }
+    if error == NativeAuthError.Code.redirectToWeb, let request = RedirectToWebRequest(json: json) {
+      return .redirectToWeb(request)
     }
     throw NativeAuthError.from(response: response)
   }

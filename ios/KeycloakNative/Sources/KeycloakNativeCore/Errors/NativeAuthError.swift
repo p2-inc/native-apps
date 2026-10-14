@@ -15,8 +15,8 @@ public struct NativeAuthError: Error, CustomStringConvertible {
     public static let slowDown = "slow_down"
     public static let clientAttestationRequired = "client_attestation_required"
     public static let serverError = "server_error"
-    /// spec/03 §3.4: the server asked for a browser fallback. `WebFallback` is a Phase 2 item, so
-    /// the SDK surfaces it as an error carrying the body in `details`.
+    /// spec/03 §3.4: surfaces as `FlowStep.redirectToWeb`; this code only appears when the body
+    /// could not be parsed into a `RedirectToWebRequest`.
     public static let redirectToWeb = "redirect_to_web"
     // spec/03 §6 (bearer-authenticated endpoints) and the token endpoint
     public static let invalidToken = "invalid_token"
@@ -36,6 +36,9 @@ public struct NativeAuthError: Error, CustomStringConvertible {
     public static let reauthenticationRequired = "reauthentication_required"
     public static let keychainError = "keychain_error"
     public static let dpopKeyError = "dpop_key_error"
+    /// `WebFallback`: the user closed the browser (not a flow failure, the app may retry).
+    public static let webFallbackCancelled = "web_fallback_cancelled"
+    public static let webFallbackFailed = "web_fallback_failed"
   }
 
   public let code: String
@@ -75,6 +78,9 @@ public struct NativeAuthError: Error, CustomStringConvertible {
   }
 
   public var authSessionStillValid: Bool { authSession != nil }
+
+  /// `max_age` from a §6 `insufficient_authorization` body: the freshness a step-up must satisfy.
+  public var maxAge: Int? { details?["max_age"]?.intValue }
 
   public var description: String {
     var parts = ["NativeAuthError(\(code)"]

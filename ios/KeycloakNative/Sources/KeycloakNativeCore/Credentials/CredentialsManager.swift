@@ -77,7 +77,7 @@ public actor CredentialsManager {
         try? clear()
         throw NativeAuthError(code: NativeAuthError.Code.reauthenticationRequired, statusCode: error.statusCode, description: error.errorDescription, details: error.details, underlying: error)
       case NativeAuthError.Code.insufficientAuthorization:
-        // EXTENSION POINT (Phase 2, spec/03 §5): hand the returned auth_session to a step-up flow.
+        // spec/03 §5: the returned auth_session feeds Authentication.continueAfterTokenChallenge.
         throw NativeAuthError(code: NativeAuthError.Code.reauthenticationRequired, statusCode: error.statusCode, description: error.errorDescription, authSession: error.authSession, details: error.details, underlying: error)
       default:
         throw error

@@ -10,7 +10,7 @@ struct Harness {
   let observer: CapturingObserver
   let logger: CapturingLogger
 
-  init(issuer: URL, clientId: String, transport: any Transport, dpop: DPoPMode = .software, allowRpIdMismatch: Bool = false) {
+  init(issuer: URL, clientId: String, transport: any Transport, dpop: DPoPMode = .software, allowRpIdMismatch: Bool = false, webPresenter: (any WebAuthenticationPresenter)? = nil) {
     let store = InMemorySecureStore()
     let passkeys = MockPasskeyPlatform()
     let observer = CapturingObserver()
@@ -23,6 +23,7 @@ struct Harness {
     options.logger = logger
     options.dpop = dpop
     options.allowRpIdMismatch = allowRpIdMismatch
+    options.webPresenter = webPresenter
     self.sdk = KeycloakNative.configure(issuer: issuer, clientId: clientId, options: options)
     self.transport = transport
     self.store = store
@@ -32,17 +33,19 @@ struct Harness {
   }
 
   /// Metadata exchange (always the first request of a flow) followed by the scenario's exchanges.
-  static func replay(_ names: [String], clientId: String, metadataFrom: String = "NativeAuthIT.metadataIsServedUnderRealmNativeAuthPath", range: ClosedRange<Int>? = nil) throws -> (Harness, MockTransport, [Transcript]) {
+  static func replay(_ names: [String], clientId: String, metadataFrom: String = "NativeAuthIT.metadataIsServedUnderRealmNativeAuthPath", range: ClosedRange<Int>? = nil, seqs: [Int]? = nil, webPresenter: (any WebAuthenticationPresenter)? = nil) throws -> (Harness, MockTransport, [Transcript]) {
     let metadata = try Transcript.load(metadataFrom)
     let transcripts = try names.map(Transcript.load)
     var exchanges = [metadata.exchange(1)]
-    if let range, transcripts.count == 1 {
+    if let seqs, transcripts.count == 1 {
+      exchanges += seqs.map { transcripts[0].exchange($0) }
+    } else if let range, transcripts.count == 1 {
       exchanges += transcripts[0].exchanges(range)
     } else {
       exchanges += transcripts.flatMap(\.exchanges)
     }
     let transport = MockTransport(exchanges)
-    let harness = Harness(issuer: metadata.issuer, clientId: clientId, transport: transport)
+    let harness = Harness(issuer: metadata.issuer, clientId: clientId, transport: transport, webPresenter: webPresenter)
     return (harness, transport, transcripts)
   }
 }

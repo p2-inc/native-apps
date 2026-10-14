@@ -35,10 +35,13 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
   public var fipaDraft: String?
   public var authorizationChallengeEndpoint: URL
   public var tokenEndpoint: URL
+  /// The realm's OIDC authorization endpoint (spec/03 §1.1), used by `WebFallback`.
+  public var authorizationEndpoint: URL?
   public var codeExchange: CodeExchange
   public var passkey: Passkey?
   public var challengeTypesSupported: [String]
-  /// Empty until the server binds sessions/codes to DPoP keys (Phase 4). The SDK still sends proofs.
+  /// Proof algorithms the challenge endpoint verifies and binds to (spec/03 §8); empty when it does
+  /// not verify proofs. The SDK sends ES256 proofs either way and reads `token_type` for the result.
   public var dpopSigningAlgValuesSupported: [String]
   public var clientAttestation: ClientAttestation?
   /// The raw document, for fields this version of the SDK does not model (e.g. `push`).
@@ -49,6 +52,7 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
     case fipaDraft = "fipa_draft"
     case authorizationChallengeEndpoint = "authorization_challenge_endpoint"
     case tokenEndpoint = "token_endpoint"
+    case authorizationEndpoint = "authorization_endpoint"
     case codeExchange = "code_exchange"
     case passkey
     case challengeTypesSupported = "challenge_types_supported"
@@ -62,6 +66,7 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
     fipaDraft = try c.decodeIfPresent(String.self, forKey: .fipaDraft)
     authorizationChallengeEndpoint = try c.decode(URL.self, forKey: .authorizationChallengeEndpoint)
     tokenEndpoint = try c.decode(URL.self, forKey: .tokenEndpoint)
+    authorizationEndpoint = try c.decodeIfPresent(URL.self, forKey: .authorizationEndpoint)
     codeExchange = try c.decodeIfPresent(CodeExchange.self, forKey: .codeExchange) ?? CodeExchange()
     passkey = try c.decodeIfPresent(Passkey.self, forKey: .passkey)
     challengeTypesSupported = try c.decodeIfPresent([String].self, forKey: .challengeTypesSupported) ?? []
@@ -76,6 +81,7 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
     try c.encodeIfPresent(fipaDraft, forKey: .fipaDraft)
     try c.encode(authorizationChallengeEndpoint, forKey: .authorizationChallengeEndpoint)
     try c.encode(tokenEndpoint, forKey: .tokenEndpoint)
+    try c.encodeIfPresent(authorizationEndpoint, forKey: .authorizationEndpoint)
     try c.encode(codeExchange, forKey: .codeExchange)
     try c.encodeIfPresent(passkey, forKey: .passkey)
     try c.encode(challengeTypesSupported, forKey: .challengeTypesSupported)
