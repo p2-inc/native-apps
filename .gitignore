@@ -1,0 +1,8 @@
+target/
+*.iml
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+keycloak-native-auth/demo/providers/
