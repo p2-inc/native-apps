@@ -95,10 +95,13 @@ public abstract class NativeAuthenticatorBase implements NativeAuthenticator {
           continue;
         }
         UserModel user = context.getUser();
-        if (siblingAuthenticator.requiresUser()
-            && (user == null
-                || !siblingAuthenticator.configuredFor(
-                    context.getSession(), context.getRealm(), user))) {
+        // Credential-based siblings are offered only when the identified user has the credential;
+        // before a user is known only user-less authenticators (e.g. discoverable passkey) qualify.
+        boolean eligible =
+            user == null
+                ? !siblingAuthenticator.requiresUser()
+                : siblingAuthenticator.configuredFor(context.getSession(), context.getRealm(), user);
+        if (!eligible) {
           continue;
         }
         set.add(siblingAuthenticator.describe(context, sibling).setId(sibling.getId()));

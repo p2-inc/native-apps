@@ -1,3 +1,4 @@
 io.phasetwo.keycloak.nativeauth.authenticators.NativeUsernameAuthenticatorFactory
 io.phasetwo.keycloak.nativeauth.authenticators.NativePasswordAuthenticatorFactory
 io.phasetwo.keycloak.nativeauth.authenticators.NativeTotpAuthenticatorFactory
+io.phasetwo.keycloak.nativeauth.authenticators.NativePasskeyAuthenticatorFactory
