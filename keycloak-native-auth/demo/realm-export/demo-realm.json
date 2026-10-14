@@ -19,6 +19,21 @@
   "otpPolicyPeriod": 30,
   "otpPolicyLookAheadWindow": 1,
   "otpPolicyCodeReusable": true,
+  "webAuthnPolicyPasswordlessRpEntityName": "Native Auth Demo",
+  "webAuthnPolicyPasswordlessSignatureAlgorithms": [
+    "ES256",
+    "RS256"
+  ],
+  "webAuthnPolicyPasswordlessRpId": "localhost",
+  "webAuthnPolicyPasswordlessAttestationConveyancePreference": "none",
+  "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
+  "webAuthnPolicyPasswordlessRequireResidentKey": "Yes",
+  "webAuthnPolicyPasswordlessResidentKey": "required",
+  "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
+  "webAuthnPolicyPasswordlessCreateTimeout": 0,
+  "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
+  "webAuthnPolicyPasswordlessAcceptableAaguids": [],
+  "webAuthnPolicyPasswordlessExtraOrigins": [],
   "eventsEnabled": true,
   "eventsExpiration": 86400,
   "eventsListeners": [
@@ -72,6 +87,27 @@
         "pkce.code.challenge.method": "S256",
         "native-auth.enabled": "true",
         "native-auth.flow-alias": "native-alternatives"
+      }
+    },
+    {
+      "clientId": "demo-ios-passkey",
+      "name": "Demo iOS App (passkey-first flow)",
+      "description": "Same as demo-ios but bound to the 'native-passkey-first' flow: discoverable passkey OR username+password, then the conditional second factor",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "demoapp://auth/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "native-auth.enabled": "true",
+        "native-auth.flow-alias": "native-passkey-first"
       }
     },
     {
@@ -145,12 +181,167 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "username": "dave",
+      "enabled": true,
+      "email": "dave@example.com",
+      "emailVerified": true,
+      "firstName": "Dave",
+      "lastName": "Enrolspasskey",
+      "requiredActions": [
+        "native-passkey-register"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dave-password",
+          "temporary": false
+        }
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "TERMS_AND_CONDITIONS",
+      "name": "Terms and Conditions",
+      "providerId": "TERMS_AND_CONDITIONS",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 20,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 40,
+      "config": {}
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 50,
+      "config": {}
+    },
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 54,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 57,
+      "config": {}
+    },
+    {
+      "alias": "delete_account",
+      "name": "Delete Account",
+      "providerId": "delete_account",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 60,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_EMAIL",
+      "name": "Update Email",
+      "providerId": "UPDATE_EMAIL",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 70,
+      "config": {}
+    },
+    {
+      "alias": "webauthn-register",
+      "name": "Webauthn Register",
+      "providerId": "webauthn-register",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 80,
+      "config": {}
+    },
+    {
+      "alias": "webauthn-register-passwordless",
+      "name": "Webauthn Register Passwordless",
+      "providerId": "webauthn-register-passwordless",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 90,
+      "config": {}
+    },
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "VERIFY_PROFILE",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 100,
+      "config": {}
+    },
+    {
+      "alias": "delete_credential",
+      "name": "Delete Credential",
+      "providerId": "delete_credential",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 110,
+      "config": {}
+    },
+    {
+      "alias": "idp_link",
+      "name": "Linking Identity Provider",
+      "providerId": "idp_link",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 120,
+      "config": {}
+    },
+    {
+      "alias": "CONFIGURE_RECOVERY_AUTHN_CODES",
+      "name": "Recovery Authentication Codes",
+      "providerId": "CONFIGURE_RECOVERY_AUTHN_CODES",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 130,
+      "config": {}
+    },
+    {
+      "alias": "native-passkey-register",
+      "name": "Native: register passkey",
+      "providerId": "native-passkey-register",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 140,
+      "config": {}
+    },
+    {
+      "alias": "update_user_locale",
+      "name": "Update User Locale",
+      "providerId": "update_user_locale",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 1000,
+      "config": {}
     }
   ],
   "authenticationFlows": [
     {
       "alias": "native",
-      "description": "Native (browserless) authentication: username -> primary factor -> conditional second factor (spec/04 \u00a77)",
+      "description": "Native (browserless) authentication: username -> primary factor -> conditional second factor (spec/04 §7)",
       "providerId": "basic-flow",
       "topLevel": true,
       "builtIn": false,
@@ -180,11 +371,18 @@
     },
     {
       "alias": "native - primary factor",
-      "description": "ALTERNATIVE primary factors; native-passkey joins here in Phase 1",
+      "description": "ALTERNATIVE primary factors: passkey (discoverable or allow-list) first, password second",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
       "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 5,
+          "userSetupAllowed": false,
+          "authenticator": "native-passkey"
+        },
         {
           "authenticatorFlow": false,
           "requirement": "ALTERNATIVE",
@@ -252,6 +450,96 @@
           "priority": 10,
           "userSetupAllowed": false,
           "authenticator": "native-password"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "native-totp"
+        }
+      ]
+    },
+    {
+      "alias": "native-passkey-first",
+      "description": "Passkey-first native login: discoverable passkey OR username+password, then the conditional second factor (spec/11 D2)",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "flowAlias": "native-passkey-first - identify"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "flowAlias": "native-passkey-first - second factor"
+        }
+      ]
+    },
+    {
+      "alias": "native-passkey-first - identify",
+      "description": "Either a (discoverable) passkey assertion or username + password",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "native-passkey"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "flowAlias": "native-passkey-first - username password"
+        }
+      ]
+    },
+    {
+      "alias": "native-passkey-first - username password",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "native-username"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "native-password"
+        }
+      ]
+    },
+    {
+      "alias": "native-passkey-first - second factor",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-configured"
         },
         {
           "authenticatorFlow": false,
