@@ -1,0 +1,55 @@
+# Keycloak 26.8.1 + Postgres with the native-auth providers and the demo realm.
+#
+#   mvn -f ../pom.xml -DskipTests -DskipITs package   # builds ./target/providers/*.jar
+#   docker compose up --wait                           # KC_PORT=8089 docker compose up --wait  to use another host port
+#   ./scripts/walkthrough.sh                           # KC_BASE=http://localhost:8089 ./scripts/walkthrough.sh
+#
+# Admin console: http://localhost:${KC_PORT:-8080}/admin (admin / admin)
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    # Keep in sync with keycloak.version in ../pom.xml (spec/08 Q4).
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_LOG_LEVEL: "info,io.phasetwo.keycloak.nativeauth:debug"
+    ports:
+      - "${KC_PORT:-8080}:8080"
+    volumes:
+      - ./target/providers:/opt/keycloak/providers:ro
+      - ./realm-export:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl/wget; use bash's /dev/tcp against the management port.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"status": "UP"' <&3
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.phasetwo.keycloak</groupId>
+    <artifactId>keycloak-native-auth-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>demo</artifactId>
+  <packaging>pom</packaging>
+  <name>Keycloak Native Auth :: demo</name>
+  <description>Assembles the provider JARs for docker-compose and runs the HTTP-level integration tests against a Keycloak container.</description>
+
+  <properties>
+    <!-- Provider JARs are copied here; docker-compose.yml and the ITs mount this directory. -->
+    <providers.dir>${project.build.directory}/providers</providers.dir>
+    <skipITs>false</skipITs>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-endpoint</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-authenticators</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- TOTP generation in tests reuses Keycloak's own implementation. -->
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-server-spi</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-providers</id>
+            <phase>package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${providers.dir}</outputDirectory>
+              <includeGroupIds>io.phasetwo.keycloak</includeGroupIds>
+              <includeScope>runtime</includeScope>
+              <stripVersion>true</stripVersion>
+              <overWriteSnapshots>true</overWriteSnapshots>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <skipITs>${skipITs}</skipITs>
+          <systemPropertyVariables>
+            <keycloak.image>${keycloak.image}</keycloak.image>
+            <providers.dir>${providers.dir}</providers.dir>
+            <realm.export>${project.basedir}/realm-export/demo-realm.json</realm.export>
+          </systemPropertyVariables>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
