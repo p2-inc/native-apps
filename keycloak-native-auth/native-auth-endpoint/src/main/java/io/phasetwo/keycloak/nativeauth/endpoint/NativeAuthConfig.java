@@ -85,6 +85,20 @@ public final class NativeAuthConfig {
     return uri;
   }
 
+  /**
+   * Maximum age (seconds) of the authentication behind an access token presented to the passkey
+   * registration endpoints (spec/07 §5); 0 disables the check.
+   */
+  public static int passkeyRegistrationMaxAge(RealmModel realm) {
+    String value = realm.getAttribute(Protocol.ATTR_PASSKEY_REGISTRATION_MAX_AGE);
+    if (value == null || value.isBlank()) return Protocol.DEFAULT_PASSKEY_REGISTRATION_MAX_AGE;
+    try {
+      return Math.max(0, Integer.parseInt(value.trim()));
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid " + Protocol.ATTR_PASSKEY_REGISTRATION_MAX_AGE + ": " + value);
+    }
+  }
+
   /** Realm-level description for metadata (client-specific values cannot be shown there). */
   public static Metadata.CodeExchange codeExchangeMetadata(RealmModel realm) {
     return switch (codeRedirectUriMode(realm)) {

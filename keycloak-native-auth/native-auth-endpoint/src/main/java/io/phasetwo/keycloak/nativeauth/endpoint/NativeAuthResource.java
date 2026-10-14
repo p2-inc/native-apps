@@ -4,6 +4,8 @@ import io.phasetwo.keycloak.nativeauth.core.model.ChallengeType;
 import io.phasetwo.keycloak.nativeauth.core.model.Metadata;
 import io.phasetwo.keycloak.nativeauth.core.model.Protocol;
 import io.phasetwo.keycloak.nativeauth.core.spi.NativeAuthenticatorFactory;
+import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequiredActionFactory;
+import io.phasetwo.keycloak.nativeauth.requiredactions.PasskeyRegistrationOptions;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -17,15 +19,17 @@ import jakarta.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 import org.keycloak.authentication.Authenticator;
+import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocolService;
 
 /**
- * JAX-RS resource behind {@code /realms/{realm}/native-auth}. Phase 0 serves {@code GET /metadata} and
- * {@code POST /challenge} (spec/03 §1). Passkey registration and push enrolment endpoints are added in
- * later phases.
+ * JAX-RS resource behind {@code /realms/{realm}/native-auth}: {@code GET /metadata}, {@code POST
+ * /challenge} and the bearer-authenticated {@code POST /passkey/register/options|finish} (spec/03 §1,
+ * §6). Push enrolment is added in Phase 3.
  */
 public class NativeAuthResource {
 
@@ -51,6 +55,11 @@ public class NativeAuthResource {
     m.setTokenEndpoint(
         OIDCLoginProtocolService.tokenUrl(UriBuilder.fromUri(baseUri)).build(realm.getName()).toString());
     m.setCodeExchange(NativeAuthConfig.codeExchangeMetadata(realm));
+    m.setPasskey(
+        new Metadata.Passkey(
+            PasskeyRegistrationOptions.rpId(PasskeyRegistrationOptions.policy(realm), baseUri),
+            realmPath(baseUri, realm, "passkey/register/options"),
+            realmPath(baseUri, realm, "passkey/register/finish")));
     m.setChallengeTypesSupported(installedChallengeTypes());
     // DPoP binding of auth_session/code is a Phase 4 item; advertise nothing until it is enforced.
     m.setDpopSigningAlgValuesSupported(List.of());
@@ -68,13 +77,51 @@ public class NativeAuthResource {
     return new ChallengeFlowDriver(session).handle(form);
   }
 
+  /** Passkey registration for an already authenticated user (spec/03 §6 step 1). */
+  @POST
+  @Path("passkey/register/options")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response passkeyRegisterOptions() {
+    return guarded(() -> new PasskeyRegistrationDriver(session).options());
+  }
+
+  /** Passkey registration for an already authenticated user (spec/03 §6 step 3). */
+  @POST
+  @Path("passkey/register/finish")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response passkeyRegisterFinish(String body) {
+    return guarded(() -> new PasskeyRegistrationDriver(session).finish(body));
+  }
+
+  private static Response guarded(java.util.function.Supplier<Response> action) {
+    try {
+      return action.get();
+    } catch (NativeAuthException e) {
+      return e.toResponse();
+    } catch (RuntimeException e) {
+      org.jboss.logging.Logger.getLogger(NativeAuthResource.class).error("Unexpected error in native-auth endpoint", e);
+      return Responses.error(Response.Status.INTERNAL_SERVER_ERROR, Protocol.ERR_SERVER_ERROR, "Unexpected server error");
+    }
+  }
+
+  private static String realmPath(URI baseUri, RealmModel realm, String suffix) {
+    return UriBuilder.fromUri(baseUri)
+        .path("realms/{realm}/" + Protocol.RESOURCE_ID + "/" + suffix)
+        .build(realm.getName())
+        .toString();
+  }
+
+  /** Challenge types of the installed native authenticators and native required actions, sorted. */
   private List<ChallengeType> installedChallengeTypes() {
     List<ChallengeType> types = new ArrayList<>();
-    session
-        .getKeycloakSessionFactory()
-        .getProviderFactoriesStream(Authenticator.class)
-        .filter(f -> f instanceof NativeAuthenticatorFactory)
-        .map(f -> ((NativeAuthenticatorFactory) f).challengeType())
+    Stream.concat(
+            session.getKeycloakSessionFactory().getProviderFactoriesStream(Authenticator.class)
+                .filter(f -> f instanceof NativeAuthenticatorFactory)
+                .map(f -> ((NativeAuthenticatorFactory) f).challengeType()),
+            session.getKeycloakSessionFactory().getProviderFactoriesStream(RequiredActionProvider.class)
+                .filter(f -> f instanceof NativeRequiredActionFactory)
+                .map(f -> ((NativeRequiredActionFactory) f).challengeType()))
         .distinct()
         .sorted()
         .forEach(types::add);

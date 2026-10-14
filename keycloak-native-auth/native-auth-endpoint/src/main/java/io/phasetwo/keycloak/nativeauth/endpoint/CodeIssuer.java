@@ -35,8 +35,11 @@ final class CodeIssuer {
 
   private static final Logger log = Logger.getLogger(CodeIssuer.class);
 
-  /** Outcome of {@link #complete}: either a code or the alias of a required action we cannot serve. */
-  record Outcome(String code, String pendingRequiredAction) {}
+  /**
+   * Outcome of {@link #complete}: either a code (plus the id of the user session it belongs to, for
+   * the post-login {@code auth_session}) or the alias of the next pending required action.
+   */
+  record Outcome(String code, String userSessionId, String pendingRequiredAction) {}
 
   private final KeycloakSession session;
   private final RealmModel realm;
@@ -65,10 +68,10 @@ final class CodeIssuer {
     String nextRequiredAction =
         AuthenticationManager.nextRequiredAction(session, authSession, request, event);
     if (nextRequiredAction != null) {
-      // EXTENSION POINT (spec/04 §2.1, §4): a native RequiredActionProvider would emit a JSON
-      // challenge here and anything else would become `redirect_to_web` via RedirectToWebBuilder
-      // (PAR request_uri). Neither exists in Phase 0, so the caller reports access_denied.
-      return new Outcome(null, nextRequiredAction);
+      // Native required actions are run by the caller (RequiredActionDriver, spec/11 D1).
+      // EXTENSION POINT (spec/03 §3.4): anything else becomes `redirect_to_web` via
+      // RedirectToWebBuilder (PAR request_uri) in Phase 2; until then the caller reports access_denied.
+      return new Outcome(null, null, nextRequiredAction);
     }
 
     // Note: newer Keycloak versions add LoginProtocol.authenticationComplete(authSession) here to
@@ -130,6 +133,6 @@ final class CodeIssuer {
     log.debugf(
         "Issued native authorization code for user session %s (client %s, redirect_uri mode %s)",
         userSession.getId(), client.getClientId(), NativeAuthConfig.codeRedirectUriMode(realm));
-    return new Outcome(code, null);
+    return new Outcome(code, userSession.getId(), null);
   }
 }

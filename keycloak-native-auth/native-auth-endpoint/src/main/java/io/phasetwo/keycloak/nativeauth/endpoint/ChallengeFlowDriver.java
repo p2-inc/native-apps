@@ -10,6 +10,7 @@ import io.phasetwo.keycloak.nativeauth.core.session.AuthSessionCodec;
 import io.phasetwo.keycloak.nativeauth.core.session.InvalidAuthSessionException;
 import io.phasetwo.keycloak.nativeauth.core.spi.ChallengeEnvelope;
 import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequestContext;
+import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequiredActionFactory;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
@@ -47,7 +48,8 @@ import org.keycloak.sessions.RootAuthenticationSessionModel;
 
 /**
  * Request lifecycle of {@code POST /native-auth/challenge} (spec/04 §2.1). Together with
- * {@link CodeIssuer} this is where all Keycloak-internal API usage lives (spec/08 R2).
+ * {@link CodeIssuer}, {@link RequiredActionDriver} and {@link PasskeyRegistrationDriver} this is where
+ * all Keycloak-internal API usage lives (spec/08 R2, spec/11).
  *
  * <p>Initial request: create a root authentication session + tab for the client (no cookies), copy
  * the OIDC parameters into client notes, run {@code AuthenticationProcessor.authenticateOnly()} over
@@ -175,18 +177,33 @@ final class ChallengeFlowDriver {
     if (requestedClientId != null && !requestedClientId.equals(client.getClientId())) {
       throw invalidSession("client_id does not match auth_session");
     }
+    if (claims.isPostLogin()) {
+      // EXTENSION POINT (step-up, spec/03 §5, Phase 2): resume the user session named by the claims,
+      // run the flow with LoA conditions and issue a new code. Rejected until that exists.
+      log.debugf("auth_session %s: post-login session presented but step-up is not implemented", ref);
+      throw invalidSession(
+          "auth_session belongs to a completed login; step-up with a post-login auth_session is not supported yet, start a new login");
+    }
     AuthenticationSessionModel authSession =
         sessions.getAuthenticationSessionByIdAndClient(
             realm, claims.getRootSessionId(), client, claims.getTabId());
-    if (authSession == null
-        || !NativeRequestContext.isNative(authSession)
-        || !AuthenticationSessionModel.Action.AUTHENTICATE.name().equals(authSession.getAction())) {
+    boolean inFlow =
+        authSession != null
+            && AuthenticationSessionModel.Action.AUTHENTICATE.name().equals(authSession.getAction());
+    boolean inRequiredAction =
+        authSession != null
+            && AuthenticationSessionModel.Action.REQUIRED_ACTIONS.name().equals(authSession.getAction())
+            && NativeRequestContext.pendingRequiredAction(authSession) != null;
+    if (authSession == null || !NativeRequestContext.isNative(authSession) || !(inFlow || inRequiredAction)) {
       log.debugf("auth_session %s: authentication session not found or not in progress", ref);
       throw invalidSession("auth_session expired or unknown");
     }
-    if (!new ClientSessionCode<>(session, realm, authSession)
-        .isActionActive(ClientSessionCode.ActionType.LOGIN)) {
-      log.debugf("auth_session %s: login timeout exceeded", ref);
+    // Same timeouts as the browser flow: login timeout while authenticating, user-action timeout
+    // while a required action is pending (SessionCodeChecks).
+    ClientSessionCode.ActionType actionType =
+        inRequiredAction ? ClientSessionCode.ActionType.USER : ClientSessionCode.ActionType.LOGIN;
+    if (!new ClientSessionCode<>(session, realm, authSession).isActionActive(actionType)) {
+      log.debugf("auth_session %s: timeout exceeded", ref);
       sessions.removeAuthenticationSession(realm, authSession, false);
       throw invalidSession("auth_session expired");
     }
@@ -212,14 +229,17 @@ final class ChallengeFlowDriver {
     if (ChallengeType.fromWire(challengeType) == null || !expectedType.equals(challengeType)) {
       throw invalidRequest("challenge_type does not match challenge_id", authSession);
     }
+    event.detail(DETAIL_CHALLENGE_TYPE, challengeType);
+    // Like AuthenticationProcessor.checkClientSession(): every valid request refreshes the timeout.
+    authSession.getParentSession().setTimestamp(Time.currentTime());
+
+    if (inRequiredAction) {
+      return continueRequiredAction(authSession, challengeId, event);
+    }
     AuthenticationExecutionModel execution = realm.getAuthenticationExecutionById(challengeId);
     if (execution == null) {
       throw invalidRequest("challenge_id is unknown", authSession);
     }
-    event.detail(DETAIL_CHALLENGE_TYPE, challengeType);
-    // Like AuthenticationProcessor.checkClientSession(): every valid request refreshes the login timeout.
-    authSession.getParentSession().setTimestamp(Time.currentTime());
-
     AuthenticationFlowModel flowModel = requireFlow(client);
     AuthenticationProcessor processor = processor(authSession, flowModel, event);
     try {
@@ -271,22 +291,94 @@ final class ChallengeFlowDriver {
     return Responses.json(Response.Status.FORBIDDEN, body);
   }
 
+  /**
+   * The flow is done: serve native required actions in-band (spec/11 D1), then issue the code.
+   * Loops because a required action may complete immediately or be followed by another one.
+   */
   private Response complete(AuthenticationSessionModel authSession, EventBuilder event) {
-    CodeIssuer.Outcome outcome =
-        new CodeIssuer(session, realm, connection, request, event).complete(authSession);
-    if (outcome.pendingRequiredAction() != null) {
-      event.detail("required_action", outcome.pendingRequiredAction()).error(Errors.NOT_ALLOWED);
-      sessions.removeAuthenticationSession(realm, authSession, false);
-      return Responses.error(
-          Response.Status.FORBIDDEN,
-          Protocol.ERR_ACCESS_DENIED,
-          "required_action:"
-              + outcome.pendingRequiredAction()
-              + " cannot be completed in the native flow (not implemented in Phase 0)");
+    CodeIssuer issuer = new CodeIssuer(session, realm, connection, request, event);
+    RequiredActionDriver actions = new RequiredActionDriver(session, realm, request, event);
+    String previous = null;
+    while (true) {
+      CodeIssuer.Outcome outcome = issuer.complete(authSession);
+      String alias = outcome.pendingRequiredAction();
+      if (alias == null) {
+        event.success();
+        return Responses.json(
+            Response.Status.OK, new AuthorizationCodeResponse(outcome.code(), mintPostLogin(authSession, outcome.userSessionId())));
+      }
+      NativeRequiredActionFactory factory = RequiredActionDriver.nativeFactory(session, providerIdOf(alias));
+      if (factory == null || alias.equals(previous)) {
+        // EXTENSION POINT (spec/03 §3.4): RedirectToWebBuilder (PAR request_uri) for non-native actions.
+        event.detail("required_action", alias).error(Errors.NOT_ALLOWED);
+        sessions.removeAuthenticationSession(realm, authSession, false);
+        return Responses.error(
+            Response.Status.FORBIDDEN,
+            Protocol.ERR_ACCESS_DENIED,
+            "required_action:" + alias + " cannot be completed in the native flow");
+      }
+      previous = alias;
+      switch (actions.challenge(authSession, factory)) {
+        case CHALLENGE -> {
+          return challengeResponse(authSession, NativeRequestContext.markerResponse());
+        }
+        case SUCCESS -> {
+          // Nothing to ask (e.g. already satisfied); evaluate the next action.
+        }
+        case FAILURE -> {
+          return requiredActionFailed(authSession, event, alias);
+        }
+      }
     }
-    event.success();
-    // auth_session for step-up (spec/03 §5) is not re-minted in Phase 0: nothing would accept it yet.
-    return Responses.json(Response.Status.OK, new AuthorizationCodeResponse(outcome.code(), null));
+  }
+
+  /** Continuation addressed to the pending native required action (challenge_id = provider id). */
+  private Response continueRequiredAction(AuthenticationSessionModel authSession, String challengeId, EventBuilder event) {
+    String pending = NativeRequestContext.pendingRequiredAction(authSession);
+    NativeRequiredActionFactory factory = RequiredActionDriver.nativeFactory(session, pending);
+    if (factory == null || !pending.equals(challengeId)) {
+      throw invalidRequest("challenge_id is not pending", authSession);
+    }
+    RequiredActionDriver actions = new RequiredActionDriver(session, realm, request, event);
+    try {
+      return switch (actions.processAction(authSession, factory)) {
+        case CHALLENGE -> challengeResponse(authSession, NativeRequestContext.markerResponse());
+        case SUCCESS -> complete(authSession, event);
+        case FAILURE -> requiredActionFailed(authSession, event, pending);
+      };
+    } catch (AuthenticationFlowException e) {
+      return failed(authSession, event, e);
+    } catch (WebApplicationException e) {
+      return failed(authSession, event, e);
+    }
+  }
+
+  private Response requiredActionFailed(AuthenticationSessionModel authSession, EventBuilder event, String alias) {
+    event.detail("required_action", alias).error(Errors.REJECTED_BY_USER);
+    sessions.removeAuthenticationSession(realm, authSession, false);
+    return Responses.error(
+        Response.Status.FORBIDDEN, Protocol.ERR_ACCESS_DENIED, "required_action:" + alias + " failed");
+  }
+
+  /** Required actions are addressed by alias in the realm; the factory id is what we dispatch on. */
+  private String providerIdOf(String alias) {
+    var model = realm.getRequiredActionProviderByAlias(alias);
+    return model == null ? alias : model.getProviderId();
+  }
+
+  /**
+   * Post-login {@code auth_session} (spec/03 §5, spec/11 D4): points at the user session, lives as
+   * long as the SSO session may, and is what a client will present for step-up in Phase 2.
+   */
+  private String mintPostLogin(AuthenticationSessionModel authSession, String userSessionId) {
+    long now = Time.currentTime();
+    int lifespan = realm.getSsoSessionMaxLifespan() > 0 ? realm.getSsoSessionMaxLifespan() : 36_000;
+    return codec.encode(
+        new AuthSessionClaims()
+            .setUserSessionId(userSessionId)
+            .setClientId(authSession.getClient().getClientId())
+            .setIat(now)
+            .setExp(now + lifespan));
   }
 
   private Response failed(AuthenticationSessionModel authSession, EventBuilder event, Exception failure) {
@@ -444,8 +536,10 @@ final class ChallengeFlowDriver {
   }
 
   private long expiresIn(AuthenticationSessionModel authSession) {
+    boolean requiredAction =
+        AuthenticationSessionModel.Action.REQUIRED_ACTIONS.name().equals(authSession.getAction());
     int lifespan =
-        realm.getAccessCodeLifespanLogin() > 0
+        !requiredAction && realm.getAccessCodeLifespanLogin() > 0
             ? realm.getAccessCodeLifespanLogin()
             : realm.getAccessCodeLifespanUserAction();
     long remaining = lifespan - (Time.currentTime() - authSession.getParentSession().getTimestamp());
