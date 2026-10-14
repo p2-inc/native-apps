@@ -1,0 +1,69 @@
+{
+  "test": "PasskeyIT.registrationEndpointsRequireABearerToken",
+  "recorded_at": "2026-10-14T14:55:07.972545Z",
+  "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
+  "base_url": "http://localhost:64847",
+  "masked_form_fields": [
+    "client_secret",
+    "code_verifier",
+    "otp",
+    "password",
+    "recovery_code",
+    "refresh_token",
+    "token",
+    "totp"
+  ],
+  "exchanges": [
+    {
+      "seq": 1,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/passkey/register/options",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=ISO-8859-1",
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 401,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache",
+          "WWW-Authenticate": "Bearer realm=\"demo\", error=\"invalid_token\""
+        },
+        "json": {
+          "error": "invalid_token",
+          "error_description": "Bearer token missing, invalid or expired",
+          "protocol_version": "1"
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/passkey/register/options",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=ISO-8859-1",
+          "Authorization": "Bearer ***",
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 401,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache",
+          "WWW-Authenticate": "Bearer realm=\"demo\", error=\"invalid_token\""
+        },
+        "json": {
+          "error": "invalid_token",
+          "error_description": "Bearer token missing, invalid or expired",
+          "protocol_version": "1"
+        }
+      }
+    }
+  ]
+}

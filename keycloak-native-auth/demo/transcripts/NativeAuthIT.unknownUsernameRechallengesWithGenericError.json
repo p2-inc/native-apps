@@ -1,0 +1,116 @@
+{
+  "test": "NativeAuthIT.unknownUsernameRechallengesWithGenericError",
+  "recorded_at": "2026-10-14T14:55:01.157321Z",
+  "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
+  "base_url": "http://localhost:64847",
+  "masked_form_fields": [
+    "client_secret",
+    "code_verifier",
+    "otp",
+    "password",
+    "recovery_code",
+    "refresh_token",
+    "token",
+    "totp"
+  ],
+  "exchanges": [
+    {
+      "seq": 1,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "client_id": "demo-ios",
+          "response_type": "code",
+          "scope": "openid profile",
+          "code_challenge": "EKo88ld2WaEtTbvfnde-uvnmZ5l724nJBQZ__nXZGSQ",
+          "code_challenge_method": "S256",
+          "device_name": "NativeAuthIT"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiODJhYjU5ZTYtM2IwZi00ODZlLWI3MDMtMGQwMGIzMzQzNDUxIn0..bAQW8fmUp-47W7Cj.g145ROmeZVePtK2MvsegA1hy4ckhmulwItvP_milwoR86LcjdAWC0QPnCExnKK4nfm4F1iLhlmXqWhtfCg-2FE83gCyOly6S71uIOdIyOl827dKujF-6WagLsWNGhQVjw7f49wMJ6rFDImZ-iFHAZbHnZ5H4LCCavQBIp4vM0Fz8YcRx0Yz_jyVRr7dSGjVebA.wRm_WMopU0-klzU4hS_rQQ",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "username",
+              "id": "6997e437-08f7-4607-b7ca-8eb880f39231",
+              "label": "Username",
+              "required": true,
+              "params": {
+                "allow_email": true
+              }
+            }
+          ],
+          "context": {
+            "client_name": "Demo iOS App"
+          }
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiODJhYjU5ZTYtM2IwZi00ODZlLWI3MDMtMGQwMGIzMzQzNDUxIn0..bAQW8fmUp-47W7Cj.g145ROmeZVePtK2MvsegA1hy4ckhmulwItvP_milwoR86LcjdAWC0QPnCExnKK4nfm4F1iLhlmXqWhtfCg-2FE83gCyOly6S71uIOdIyOl827dKujF-6WagLsWNGhQVjw7f49wMJ6rFDImZ-iFHAZbHnZ5H4LCCavQBIp4vM0Fz8YcRx0Yz_jyVRr7dSGjVebA.wRm_WMopU0-klzU4hS_rQQ",
+          "challenge_type": "username",
+          "challenge_id": "6997e437-08f7-4607-b7ca-8eb880f39231",
+          "username": "nobody-3698799633995291"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiODJhYjU5ZTYtM2IwZi00ODZlLWI3MDMtMGQwMGIzMzQzNDUxIn0..30kxPzUMAHs57Xtu.69OtFSmrS3qVfsV_Dmleef4MeeqcXXJ4allPkGCpJ2rFd983hYoZos1a2R2R8x5FV9827f6uppzBhY9Ra87JU3L2QHcA1dyk4eMEuqpJ_TRkfQtBJi7G02KapGIq1lLsQBuEOA0xROX8xsVj7Je6dMxO_ik6nPUE16KtPVQup35kdteJDpxkDtNlmsPFAguxEQ.ybfmztPNatwl9M95e1S5Qg",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "username",
+              "id": "6997e437-08f7-4607-b7ca-8eb880f39231",
+              "label": "Username",
+              "required": true,
+              "error": {
+                "code": "invalid_credential",
+                "message": "Invalid username or password"
+              },
+              "params": {
+                "allow_email": true
+              }
+            }
+          ],
+          "context": {
+            "client_name": "Demo iOS App"
+          }
+        }
+      }
+    }
+  ]
+}
