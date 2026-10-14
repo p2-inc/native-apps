@@ -305,6 +305,7 @@ Keycloak-side, scenario B (§02 Architecture §3) exposes the same challenge thr
 - Proof JWT header `typ: dpop+jwt`, `jwk` = device public key; payload `htm`, `htu` (no query/fragment), `iat`, `jti`, `ath` when an access token is presented, `nonce` if the server issued one.
 - Native login flow: the client MAY send `DPoP` on every `/native-auth/challenge` request and MUST then send it on the token request with the same key; the server binds `auth_session` and the code to the key's thumbprint (`jkt`).
 - Push device API: required by ba-itsys; additionally carries `sub` and `deviceId` claims in the proof as that extension specifies.
+- Implementation note (12 D2): Keycloak's own DPoP support already binds **tokens** when the token request carries a `DPoP` header (`token_type: "DPoP"`, `cnf.jkt`), and the bearer-authenticated endpoints of §6 then require `Authorization: DPoP <token>` plus a proof with `ath`. Binding of `auth_session` and the authorization code at the challenge endpoint is still future work, which is why `dpop_signing_alg_values_supported` is `[]`; clients MUST treat that as normal and read `token_type` to learn whether their tokens are bound.
 
 ---
 

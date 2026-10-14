@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - "keycloak-native-auth/**"
+      - "ios/**"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "keycloak-native-auth/**"
+      - "ios/**"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
 
@@ -70,3 +72,20 @@ jobs:
         if: always()
         working-directory: keycloak-native-auth/demo
         run: docker compose down -v
+
+  ios-sdk:
+    name: Swift package build + tests (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ios/KeycloakNative
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version && xcodebuild -version
+      - name: Build + tests (transcript replay from keycloak-native-auth/demo/transcripts)
+        run: swift build && swift test
+      - name: Example app package type-checks
+        working-directory: ios/KeycloakNativeDemo
+        run: swift build

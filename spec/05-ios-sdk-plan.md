@@ -1,6 +1,8 @@
 # 05 — iOS SDK Plan (`KeycloakNative`)
 
-Swift Package, Swift 6 (strict concurrency), minimum **iOS 17** (passkeys need 16.6+; 17 simplifies `AuthorizationController` and `SwiftUI` APIs). macOS 14 and visionOS can be added later with little effort since no UIKit is required in Core.
+Swift Package, Swift 6 (strict concurrency), minimum **iOS 17** (passkeys need 16.6+; 17 simplifies `AuthorizationController` and `SwiftUI` APIs). Core also declares **macOS 14** (it is built and tested there, 12); visionOS can be added later since no UIKit is required in Core.
+
+**Status (Phase 1b, 12):** `KeycloakNativeCore` exists at `ios/KeycloakNative/`; `KeycloakNativeUI` and `KeycloakNativePush` do not yet.
 
 ## 1. Package products
 
@@ -205,7 +207,7 @@ Design notes
 
 ## 7. Testing
 
-- Unit tests with a `MockTransport` replaying recorded JSON from the conformance suite (the **same fixtures** the Keycloak tests produce → contract tests both sides).
+- Unit tests (Swift Testing) with a `MockTransport` replaying the recorded transcripts in `keycloak-native-auth/demo/transcripts/` (the **same fixtures** the Keycloak integration tests produce → contract tests both sides, 12 D1); live tests against the compose stack behind `KEYCLOAK_NATIVE_LIVE_BASE`.
 - Passkey bridge tested on device via the example app; in CI, inject a `PasskeyPlatform` protocol mock.
 - DPoP/JWS vectors from RFC 9449 and RFC 7515 appendices.
 - UI tests (XCUITest) for the default screens against a local Keycloak started by `docker compose` in CI (self-hosted macOS runner or Keycloak in a Linux job exposed via tunnel — decide in Phase 1).
