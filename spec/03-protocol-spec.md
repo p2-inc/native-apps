@@ -35,6 +35,7 @@ The server SHOULD also advertise `authorization_challenge_endpoint` in `/.well-k
   "fipa_draft": "draft-ietf-oauth-first-party-apps-04",
   "authorization_challenge_endpoint": "https://idp.example.com/realms/demo/native-auth/challenge",
   "token_endpoint": "https://idp.example.com/realms/demo/protocol/openid-connect/token",
+  "code_exchange": { "redirect_uri_required": false },
   "passkey": { "rp_id": "idp.example.com", "register_options_endpoint": "…", "register_finish_endpoint": "…" },
   "push": { "enabled": true, "enroll_start_endpoint": "…", "device_api_base": "https://idp.example.com/realms/demo/push-mfa", "device_client_id": "push-device-client" },
   "challenge_types_supported": ["username", "password", "passkey", "totp", "otp", "push", "recovery_code", "select", "redirect_to_web"],
@@ -87,7 +88,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
 { "authorization_code": "…", "auth_session": "…" }
 ```
 
-`auth_session` MAY be present; if so the client MUST store it (needed for step-up). Exchange the code at the token endpoint with `grant_type=authorization_code`, `client_id`, `code`, `code_verifier`, and **no** `redirect_uri`. (Implementation note: Keycloak may require a `redirect_uri` for codes it issued with one; see 08 open question Q1. The metadata document will state whether `redirect_uri` must be sent.)
+`auth_session` MAY be present; if so the client MUST store it (needed for step-up). Exchange the code at the token endpoint with `grant_type=authorization_code`, `client_id`, `code`, `code_verifier`, and **no** `redirect_uri` — unless metadata says otherwise: `code_exchange.redirect_uri_required` is `false` by default (Keycloak accepts a code stored without a redirect URI when the token request omits the parameter; verified in 09 Q1). When it is `true` the client MUST send exactly `code_exchange.redirect_uri` (operator-chosen `sentinel` or `client-fixed` mode).
 
 ### 3.2 Challenge — more input required
 
@@ -211,8 +212,8 @@ The same payloads are used by the standalone `/native-auth/passkey/register/*` e
 
 ### 4.5 `totp` — authenticator-app code
 
-params: `{ "digits": 6, "period": 30, "algorithm": "HmacSHA1", "credential_labels": ["Phone"] }`
-response: `totp=<digits>` and optionally `credential_id` when the user has several OTP credentials.
+params: `{ "digits": 6, "period": 30, "algorithm": "HmacSHA1", "credential_labels": ["Phone"], "credentials": [ { "id": "…", "label": "Phone" } ] }`
+response: `totp=<digits>` and optionally `credential_id` (one of `params.credentials[].id`) when the user has several OTP credentials; omitted → the user's default OTP credential.
 
 ### 4.6 `otp` — code delivered out of band (email / SMS)
 

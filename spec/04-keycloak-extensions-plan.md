@@ -77,13 +77,13 @@ POST /native-auth/challenge
 ```
 
 Implementation notes
-- Reuse `AuthenticationProcessor` as-is. The browser flow's `AuthenticationFlow` logic (REQUIRED/ALTERNATIVE/CONDITIONAL) is what produces "the set of eligible executions". To surface **all** eligible alternatives in one response, `NativeAuthenticatorBase.emitChallenge` appends to a per-request `ChallengeEnvelope` stored in the session's request context, and the flow is allowed to visit sibling ALTERNATIVE executions by returning a *challenge* status; the driver then collects the envelope. (Prototype in Phase 0: `DefaultAuthenticationFlow` stops at the first challenge; we may need a custom `AuthenticationFlow` wrapper for the native top-level flow that probes alternatives. This is the single biggest technical risk — see 08 Q2.)
+- Reuse `AuthenticationProcessor` and `DefaultAuthenticationFlow` as-is (resolved in Phase 0, see 09 Q2). The engine hands every authenticator the list of currently eligible ALTERNATIVE executions through `AuthenticationFlowContext.getAuthenticationSelections()` (the "Try another way" list, computed by `AuthenticationSelectionResolver` across sub-flows and filtered by the user's credentials). `NativeAuthenticatorBase` asks each sibling that implements `NativeAuthenticator` to `describe()` itself and puts all descriptors into the per-request `ChallengeEnvelope` (a `KeycloakSession` attribute); the authenticator then returns the marker response via `context.challenge()`. No custom `AuthenticationFlow` is needed. Continuations are routed with `processor.createFlowExecution(topFlowId, execution).processAction(challengeId)` rather than `processor.authenticationAction()`, because the latter only accepts the engine's single "current" execution. The ids offered are recorded in the auth note `native-auth.pending` and validated before the engine is invoked (unknown → `invalid_request`).
 - `auth_session` re-minting: short TTL (login timeout) during the flow; after success re-mint with `root_session_id` of the **user session** (not the auth session) and the SSO max lifetime.
 - Step-up: when `auth_session` points at a user session and `acr_values` is present, create a fresh auth session with `AuthenticationManager` already-authenticated context (`AUTHENTICATED` user set, `LoAUtil` notes) so conditional LoA executions skip what is satisfied.
 
 ### 2.2 `CodeIssuer`
 - Build `OAuth2Code(id, exp, nonce, scope, redirectUriParam=null|sentinel, codeChallenge, codeChallengeMethod, userSessionId, dpopJkt)` and persist with `OAuth2CodeParser.persistCode`.
-- Q1 (08) covers the `redirect_uri` question; implement behind a config switch `native-auth.code-redirect-uri-mode = none|sentinel|client-fixed`.
+- Q1 (08) covers the `redirect_uri` question; implemented behind the realm attribute `native-auth.code-redirect-uri-mode = none|sentinel|client-fixed`, **default `none`** (verified on 26.8.1, see 09 Q1). The effective requirement is advertised in metadata as `code_exchange`.
 
 ### 2.3 Metadata & well-known
 - `/native-auth/metadata` built from realm attributes + installed factories (`challenge_types_supported` = factories present and enabled).

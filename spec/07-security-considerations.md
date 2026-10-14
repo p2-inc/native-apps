@@ -17,7 +17,7 @@ Organised as threat → mitigation → where it is implemented → phase. Source
 
 ## 3. Session hijacking (`auth_session`)
 
-- `auth_session` is a JWE (A256GCM, realm key) → opaque and tamper-proof; contains issuance time; TTL enforced server-side via the underlying auth session expiry.
+- `auth_session` is a JWE (`dir` + AES-GCM under the realm's `aes-generated` key: A128GCM with Keycloak's default 128-bit key, A256GCM when the key provider is configured with `secretSize=32`; same construction as Keycloak's own `KC_RESTART` cookie) → opaque and tamper-proof; contains issuance time; TTL enforced server-side via the underlying auth session expiry (login timeout).
 - When the client uses DPoP, the `jkt` is embedded and every continuation must present a proof for the same key (FiPA §9.6.1). Recommended default in the SDK (`dpop: .secureEnclave`).
 - Bound to `client_id`; mismatch → `invalid_session`.
 - Not logged (only a SHA-256 prefix).

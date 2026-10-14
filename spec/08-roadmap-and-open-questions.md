@@ -12,6 +12,8 @@ Deliverables
 
 Exit criteria: tokens obtained without a browser; events show in the admin console; integration test green in CI with testcontainers.
 
+> **Status (14 Oct 2026): done** — see `09-phase0-decisions.md`.
+
 ## Phase 1 — Passkeys + SDK core + example app (4–5 w)
 
 - `native-passkey` (login) + `native-passkey-register` (required action) + `/passkey/register/*` endpoints.
@@ -71,12 +73,16 @@ Exit criteria: tokens obtained without a browser; events show in the admin conso
 ### Decide before Phase 0
 - **Q1 — Authorization code without `redirect_uri`.** Keycloak's authorization-code grant historically validates `redirect_uri` against the value stored with the code. Need to confirm on 26.x whether a null stored value is accepted when the token request omits `redirect_uri`. Options: (a) store null and verify; (b) store a sentinel such as `urn:keycloak:native` and have the SDK send it; (c) require a fixed registered redirect URI. Preference: (a) if it works, else (b). Metadata will advertise the requirement.
 > Preference: (a) if it works, else (b).
+> **Answered (09 Q1):** (a) works on 26.8.1 — `AuthorizationCodeGrantType` only compares when the stored value is non-null. Default `native-auth.code-redirect-uri-mode=none`; `sentinel`/`client-fixed` available and tested.
 - **Q2 — Multi-alternative challenge sets.** Do we (a) extend/wrap the flow engine to probe all eligible ALTERNATIVE executions in one pass, or (b) rely on `native-select` plus one-challenge-at-a-time? (a) gives the nicer protocol; (b) is guaranteed feasible. Phase 0 answers this.
 > Answer using validation in Phase 0. Do (a) if possible, but fall back to (b) if necessary.
+> **Answered (09 Q2):** (a), without wrapping the engine: `AuthenticationFlowContext.getAuthenticationSelections()` already lists the eligible alternatives; the native base authenticator describes them all in one `challenges[]`. `native-select` stays optional.
 - **Q3 — Endpoint path & well-known.** `/realms/{r}/native-auth/challenge` (RealmResource) vs trying to live under `/protocol/openid-connect/ext/…`. The former is what the SPI gives us; publish in metadata and optionally well-known. Confirm nobody objects to the `native-auth` provider id.
 > Agreed
+> **Confirmed (09 Q3):** `/realms/{realm}/native-auth/{metadata,challenge}` via `RealmResourceProviderFactory` id `native-auth`.
 - **Q4 — Keycloak version floor.** 26.x only, or also 25? Recommend 26.x (DPoP GA, passkeys policy changes). Affects CI matrix.
 > 26.8.x floor
+> **Pinned (09 Q4):** 26.8.1 (parent POM, docker-compose, Testcontainers).
 
 ### Decide during Phase 1–3
 - **Q5 — ba-itsys integration depth.** Depend on the published JAR and call internal classes (fragile), or upstream a small "programmatic enrolment" API and an APNs sender. Recommend upstreaming; budget review time.
