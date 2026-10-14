@@ -14,10 +14,11 @@
 
   <modules>
     <module>native-auth-core</module>
-    <module>native-auth-endpoint</module>
     <module>native-auth-authenticators</module>
+    <module>native-auth-required-actions</module>
+    <module>native-auth-endpoint</module>
     <module>demo</module>
-    <!-- Later phases slot in here: native-auth-required-actions, native-auth-otp-sender,
+    <!-- Later phases slot in here: native-auth-otp-sender,
          native-auth-push-apns, native-auth-events, conformance (see spec/04 §1). -->
   </modules>
 
@@ -104,6 +105,11 @@
       <dependency>
         <groupId>io.phasetwo.keycloak</groupId>
         <artifactId>native-auth-authenticators</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.phasetwo.keycloak</groupId>
+        <artifactId>native-auth-required-actions</artifactId>
         <version>${project.version}</version>
       </dependency>
 

@@ -34,6 +34,10 @@
       <groupId>io.phasetwo.keycloak</groupId>
       <artifactId>native-auth-authenticators</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-required-actions</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>

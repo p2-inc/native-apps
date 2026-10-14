@@ -18,6 +18,11 @@
       <groupId>io.phasetwo.keycloak</groupId>
       <artifactId>native-auth-core</artifactId>
     </dependency>
+    <!-- Passkey registration helpers (options + attestation verification) shared with native-passkey-register. -->
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-required-actions</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-core</artifactId>
