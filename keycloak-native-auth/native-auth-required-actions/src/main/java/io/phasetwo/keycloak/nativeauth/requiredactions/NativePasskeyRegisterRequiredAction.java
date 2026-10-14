@@ -18,6 +18,7 @@ import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.common.util.Base64Url;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
+import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
@@ -93,7 +94,9 @@ public class NativePasskeyRegisterRequiredAction implements NativeRequiredAction
   @Override
   public void processAction(RequiredActionContext context) {
     UserModel user = context.getUser();
-    context.getEvent().event(EventType.UPDATE_CREDENTIAL).detail(Details.CREDENTIAL_TYPE, WebAuthnCredentialModel.TYPE_PASSWORDLESS);
+    // Separate UPDATE_CREDENTIAL event; the shared builder stays the LOGIN event of the request.
+    EventBuilder credentialEvent =
+        context.getEvent().clone().event(EventType.UPDATE_CREDENTIAL).detail(Details.CREDENTIAL_TYPE, WebAuthnCredentialModel.TYPE_PASSWORDLESS);
     MultivaluedMap<String, String> params = context.getHttpRequest().getDecodedFormParameters();
     if (params == null) params = new MultivaluedHashMap<>();
     String credentialIdParam = params.getFirst(Protocol.CREDENTIAL_ID);
@@ -120,7 +123,7 @@ public class NativePasskeyRegisterRequiredAction implements NativeRequiredAction
     String challenge = authSession.getAuthNote(AUTH_NOTE_CHALLENGE);
     authSession.removeAuthNote(AUTH_NOTE_CHALLENGE);
     if (challenge == null || session.singleUseObjects().remove(SINGLE_USE_PREFIX + challenge) == null) {
-      context.getEvent().error(Errors.INVALID_REGISTRATION);
+      credentialEvent.error(Errors.INVALID_REGISTRATION);
       challenge(context, new ChallengeDescriptor.ChallengeError(Protocol.DESC_ERR_INVALID_ATTESTATION, "Registration challenge expired or already used"));
       return;
     }
@@ -130,18 +133,18 @@ public class NativePasskeyRegisterRequiredAction implements NativeRequiredAction
           PasskeyRegistrationVerifier.verifyAndStore(
               session, context.getRealm(), user, context.getUriInfo().getBaseUri(), challenge,
               attestationObject, clientDataJson, transports, label);
-      context.getEvent()
+      credentialEvent
           .detail(WebAuthnConstants.PUBKEY_CRED_ID_ATTR, registered.credentialIdBase64Url())
           .detail(WebAuthnConstants.PUBKEY_CRED_LABEL_ATTR, label == null ? "" : label)
           .detail(WebAuthnConstants.PUBKEY_CRED_AAGUID_ATTR, registered.aaguid());
       if (registered.credential() != null) {
-        context.getEvent().detail(Details.CREDENTIAL_ID, registered.credential().getId());
+        credentialEvent.detail(Details.CREDENTIAL_ID, registered.credential().getId());
       }
-      context.getEvent().success();
+      credentialEvent.success();
       NativeRequestContext.clearPendingRequiredAction(authSession);
       context.success();
     } catch (PasskeyRegistrationException e) {
-      context.getEvent().detail(WebAuthnConstants.REG_ERR_DETAIL_LABEL, e.getMessage()).error(Errors.INVALID_REGISTRATION);
+      credentialEvent.detail(WebAuthnConstants.REG_ERR_DETAIL_LABEL, e.getMessage()).error(Errors.INVALID_REGISTRATION);
       challenge(context, new ChallengeDescriptor.ChallengeError(Protocol.DESC_ERR_INVALID_ATTESTATION, e.getMessage()));
     }
   }

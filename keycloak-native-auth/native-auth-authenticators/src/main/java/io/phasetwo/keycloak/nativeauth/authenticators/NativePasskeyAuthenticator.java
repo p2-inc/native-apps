@@ -88,6 +88,13 @@ public class NativePasskeyAuthenticator extends NativeAuthenticatorBase
     if (NativeRequestContext.isNative(context)
         && user != null
         && !configuredFor(context.getSession(), context.getRealm(), user)) {
+      if (context.getExecution().isRequired()) {
+        // Same outcome as Keycloak's engine for a required credential the user lacks (user setup
+        // through native required actions is not wired yet, spec/10): the flow fails terminally.
+        context.getEvent().user(user).error(Errors.INVALID_USER_CREDENTIALS);
+        context.failure(AuthenticationFlowError.CREDENTIAL_SETUP_REQUIRED);
+        return;
+      }
       // Known user without a passkey: nothing to offer here, let the next alternative challenge.
       context.attempted();
       return;
