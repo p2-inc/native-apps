@@ -1,0 +1,492 @@
+package io.phasetwo.keycloak.nativeauth.demo;
+
+import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.adminRealmUrl;
+import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.adminToken;
+import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.challenge;
+import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.params;
+import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.realmUrl;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItems;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.restassured.path.json.JsonPath;
+import io.restassured.response.Response;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.keycloak.models.utils.TimeBasedOTP;
+
+/**
+ * HTTP-level tests of the Phase 0 native flow against a real Keycloak (Testcontainers). Each test
+ * name is referenced from spec/09-phase0-decisions.md as evidence.
+ */
+class NativeAuthIT {
+
+  static final String CLIENT = "demo-ios";
+  static final String CLIENT_ALT = "demo-ios-alt";
+  static final String ALICE_TOTP_SECRET = "alice-totp-secret-20261014";
+
+  @BeforeAll
+  static void start() {
+    KeycloakContainerSupport.baseUrl();
+  }
+
+  @AfterAll
+  static void dumpInterestingLogs() {
+    KeycloakContainerSupport.logs()
+        .lines()
+        .filter(l -> l.contains("ERROR") || l.contains("nativeauth"))
+        .limit(200)
+        .forEach(System.out::println);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // helpers
+
+  static String totp(String secret) {
+    return new TimeBasedOTP("HmacSHA1", 6, 30, 1).generateTOTP(secret);
+  }
+
+  static String wrongTotp(String secret) {
+    int code = Integer.parseInt(totp(secret));
+    return String.format("%06d", (code + 1) % 1_000_000);
+  }
+
+  static Response start(String clientId, Pkce pkce) {
+    return challenge(
+        params(
+            "client_id", clientId,
+            "response_type", "code",
+            "scope", "openid profile",
+            "code_challenge", pkce.challenge(),
+            "code_challenge_method", "S256",
+            "device_name", "NativeAuthIT"));
+  }
+
+  static String challengeId(Response r, String type) {
+    List<Map<String, Object>> challenges = r.jsonPath().getList("challenges");
+    for (Map<String, Object> c : challenges) {
+      if (type.equals(c.get("type"))) return (String) c.get("id");
+    }
+    throw new AssertionError("no '" + type + "' challenge in " + r.asString());
+  }
+
+  static Response answer(Response previous, String type, String... fields) {
+    String session = previous.jsonPath().getString("auth_session");
+    assertNotNull(session, "auth_session missing in " + previous.asString());
+    Map<String, String> p =
+        params("auth_session", session, "challenge_type", type, "challenge_id", challengeId(previous, type));
+    for (int i = 0; i < fields.length; i += 2) p.put(fields[i], fields[i + 1]);
+    return challenge(p);
+  }
+
+  static void assertChallenge(Response r, String... expectedTypes) {
+    assertEquals(403, r.statusCode(), r.asString());
+    JsonPath j = r.jsonPath();
+    assertEquals("insufficient_authorization", j.getString("error"), r.asString());
+    assertEquals("1", j.getString("protocol_version"));
+    assertNotNull(j.getString("auth_session"));
+    assertTrue(j.getLong("expires_in") > 0);
+    List<String> types = j.getList("challenges.type");
+    assertEquals(List.of(expectedTypes), types, r.asString());
+  }
+
+  /** Username -> password -> (optional) TOTP; returns the final response. */
+  static Response login(String clientId, Pkce pkce, String username, String password, String totpSecret) {
+    Response r = start(clientId, pkce);
+    assertChallenge(r, "username");
+    r = answer(r, "username", "username", username);
+    assertChallenge(r, "password");
+    assertEquals(username, r.jsonPath().getString("context.username"));
+    r = answer(r, "password", "password", password);
+    if (totpSecret != null) {
+      assertChallenge(r, "totp");
+      r = answer(r, "totp", "totp", totp(totpSecret));
+    }
+    return r;
+  }
+
+  static Response exchange(String clientId, String code, Pkce pkce, String redirectUri) {
+    var req =
+        given()
+            .formParam("grant_type", "authorization_code")
+            .formParam("client_id", clientId)
+            .formParam("code", code)
+            .formParam("code_verifier", pkce.verifier());
+    if (redirectUri != null) req = req.formParam("redirect_uri", redirectUri);
+    return req.post(realmUrl() + "/protocol/openid-connect/token").andReturn();
+  }
+
+  static JsonPath claims(String jwt) {
+    String payload = jwt.split("\\.")[1];
+    return JsonPath.from(new String(Base64.getUrlDecoder().decode(payload), StandardCharsets.UTF_8));
+  }
+
+  /** Partial realm update: Keycloak only touches the fields present in the representation. */
+  static void updateRealm(String partialRepresentationJson) {
+    given()
+        .auth()
+        .oauth2(adminToken())
+        .contentType("application/json")
+        .body(partialRepresentationJson)
+        .put(adminRealmUrl())
+        .then()
+        .statusCode(204);
+  }
+
+  /** A PUT with {@code attributes} replaces the whole map, so read-modify-write it. */
+  static void setRealmAttribute(String name, String value) {
+    Map<String, String> attributes =
+        given().auth().oauth2(adminToken()).get(adminRealmUrl()).then().statusCode(200).extract().jsonPath().getMap("attributes");
+    Map<String, String> updated = new java.util.LinkedHashMap<>(attributes);
+    updated.put(name, value);
+    StringBuilder json = new StringBuilder("{\"attributes\": {");
+    boolean first = true;
+    for (Map.Entry<String, String> e : updated.entrySet()) {
+      if (!first) json.append(',');
+      first = false;
+      json.append('"').append(e.getKey().replace("\"", "\\\"")).append("\": \"")
+          .append(String.valueOf(e.getValue()).replace("\"", "\\\"")).append('"');
+    }
+    json.append("}}");
+    updateRealm(json.toString());
+  }
+
+  /**
+   * Keycloak's brute-force detector treats two failures of one user within
+   * quickLoginCheckMilliSeconds (1 s) as an attack and locks the account for a minute. Tests that
+   * provoke a failure on purpose wait that window out first so they stay independent of ordering.
+   */
+  static void pauseForQuickLoginWindow() {
+    try {
+      Thread.sleep(1100);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  static void setRealmField(String name, int value) {
+    updateRealm("{\"" + name + "\": " + value + "}");
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Q3: endpoint path & metadata
+
+  @Test
+  void metadataIsServedUnderRealmNativeAuthPath() {
+    given()
+        .get(realmUrl() + "/native-auth/metadata")
+        .then()
+        .statusCode(200)
+        .header("Cache-Control", containsString("no-store"))
+        .body("protocol_version", equalTo("1"))
+        .body("fipa_draft", equalTo("draft-ietf-oauth-first-party-apps-04"))
+        .body("authorization_challenge_endpoint", equalTo(realmUrl() + "/native-auth/challenge"))
+        .body("token_endpoint", equalTo(realmUrl() + "/protocol/openid-connect/token"))
+        .body("code_exchange.redirect_uri_required", equalTo(false))
+        .body("challenge_types_supported", hasItems("username", "password", "totp"))
+        .body("client_attestation.required", equalTo(false));
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Happy path + Q1 (code stored without redirect_uri, token request omits it)
+
+  @Test
+  void happyPathUsernamePasswordTotpYieldsTokensWithoutRedirectUri() throws Exception {
+    Pkce pkce = Pkce.s256();
+    Response r = login(CLIENT, pkce, "alice", "alice-password", ALICE_TOTP_SECRET);
+    assertEquals(200, r.statusCode(), r.asString());
+    String code = r.jsonPath().getString("authorization_code");
+    assertNotNull(code);
+    assertTrue(code.split("\\.").length == 3, "Keycloak code format id.userSessionId.clientUUID: " + code);
+
+    Response tokens = exchange(CLIENT, code, pkce, null);
+    assertEquals(200, tokens.statusCode(), tokens.asString());
+    String accessToken = tokens.jsonPath().getString("access_token");
+    assertNotNull(tokens.jsonPath().getString("refresh_token"));
+    assertNotNull(tokens.jsonPath().getString("id_token"));
+    JsonPath claims = claims(accessToken);
+    assertEquals("alice", claims.getString("preferred_username"));
+    assertEquals(CLIENT, claims.getString("azp"));
+    assertEquals(realmUrl(), claims.getString("iss"));
+
+    // Code is single use.
+    assertEquals(400, exchange(CLIENT, code, pkce, null).statusCode());
+
+    // Exit criterion "events show in the admin console": a LOGIN event tagged native_protocol=1.
+    String token = adminToken();
+    List<Map<String, Object>> events =
+        given().auth().oauth2(token).queryParam("type", "LOGIN").queryParam("user", claims.getString("sub"))
+            .get(adminRealmUrl() + "/events").then().statusCode(200).extract().jsonPath().getList("$");
+    assertTrue(
+        events.stream().anyMatch(e -> "1".equals(((Map<?, ?>) e.get("details")).get("native_protocol"))),
+        "expected a LOGIN event with native_protocol=1, got " + events);
+  }
+
+  @Test
+  void q1_sentinelModeRejectsTokenRequestWithoutRedirectUri() {
+    setRealmAttribute("native-auth.code-redirect-uri-mode", "sentinel");
+    try {
+      given().get(realmUrl() + "/native-auth/metadata").then()
+          .body("code_exchange.redirect_uri_required", equalTo(true))
+          .body("code_exchange.redirect_uri", equalTo("urn:keycloak:native-auth"));
+
+      Pkce pkce = Pkce.s256();
+      Response r = login(CLIENT, pkce, "alice", "alice-password", ALICE_TOTP_SECRET);
+      assertEquals(200, r.statusCode(), r.asString());
+      String code = r.jsonPath().getString("authorization_code");
+      // Keycloak compares the stored value with the parameter: omitting it fails, matching it works.
+      Response noRedirect = exchange(CLIENT, code, pkce, null);
+      assertEquals(400, noRedirect.statusCode(), noRedirect.asString());
+      assertEquals("invalid_grant", noRedirect.jsonPath().getString("error"));
+    } finally {
+      setRealmAttribute("native-auth.code-redirect-uri-mode", "none");
+    }
+  }
+
+  @Test
+  void q1_sentinelModeRoundTrip() {
+    setRealmAttribute("native-auth.code-redirect-uri-mode", "sentinel");
+    try {
+      Pkce pkce = Pkce.s256();
+      Response r = login(CLIENT, pkce, "alice", "alice-password", ALICE_TOTP_SECRET);
+      assertEquals(200, r.statusCode(), r.asString());
+      Response tokens = exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, "urn:keycloak:native-auth");
+      assertEquals(200, tokens.statusCode(), tokens.asString());
+    } finally {
+      setRealmAttribute("native-auth.code-redirect-uri-mode", "none");
+    }
+  }
+
+  @Test
+  void q1_noneModeAlsoToleratesAnyRedirectUriParameter() {
+    // Documented side effect of storing null: AuthorizationCodeGrantType skips the comparison entirely.
+    Pkce pkce = Pkce.s256();
+    Response r = login(CLIENT, pkce, "alice", "alice-password", ALICE_TOTP_SECRET);
+    Response tokens = exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, "demoapp://auth/callback");
+    assertEquals(200, tokens.statusCode(), tokens.asString());
+  }
+
+  @Test
+  void pkceVerifierIsEnforced() {
+    Pkce pkce = Pkce.s256();
+    Response r = login(CLIENT, pkce, "alice", "alice-password", ALICE_TOTP_SECRET);
+    Response tokens = exchange(CLIENT, r.jsonPath().getString("authorization_code"), Pkce.s256(), null);
+    assertEquals(400, tokens.statusCode(), tokens.asString());
+    assertEquals("invalid_grant", tokens.jsonPath().getString("error"));
+  }
+
+  @Test
+  void passwordOnlyUserSkipsConditionalSecondFactor() {
+    Pkce pkce = Pkce.s256();
+    Response r = login(CLIENT, pkce, "bob", "bob-password", null);
+    assertEquals(200, r.statusCode(), r.asString());
+    assertEquals(200, exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null).statusCode());
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Failure branches
+
+  @Test
+  void wrongPasswordRechallengesWithErrorDescriptorThenSucceeds() {
+    Pkce pkce = Pkce.s256();
+    Response r = start(CLIENT, pkce);
+    r = answer(r, "username", "username", "alice");
+    String firstPasswordId = challengeId(r, "password");
+
+    pauseForQuickLoginWindow();
+    r = answer(r, "password", "password", "wrong-password");
+    assertChallenge(r, "password");
+    assertEquals("invalid_credential", r.jsonPath().getString("challenges[0].error.code"), r.asString());
+    assertNotNull(r.jsonPath().getString("challenges[0].error.message"));
+    assertEquals(firstPasswordId, challengeId(r, "password"), "same execution is re-challenged");
+    assertEquals(true, r.jsonPath().getBoolean("challenges[0].required"));
+
+    r = answer(r, "password", "password", "alice-password");
+    assertChallenge(r, "totp");
+    assertEquals(null, r.jsonPath().getString("challenges[0].error"));
+  }
+
+  @Test
+  void wrongTotpRechallengesThenSucceeds() {
+    Pkce pkce = Pkce.s256();
+    Response r = start(CLIENT, pkce);
+    r = answer(r, "username", "username", "alice");
+    r = answer(r, "password", "password", "alice-password");
+    assertChallenge(r, "totp");
+    assertEquals(6, r.jsonPath().getInt("challenges[0].params.digits"));
+    assertEquals(30, r.jsonPath().getInt("challenges[0].params.period"));
+    assertEquals(List.of("Phone"), r.jsonPath().getList("challenges[0].params.credential_labels"));
+
+    pauseForQuickLoginWindow();
+    r = answer(r, "totp", "totp", wrongTotp(ALICE_TOTP_SECRET));
+    assertChallenge(r, "totp");
+    assertEquals("invalid_credential", r.jsonPath().getString("challenges[0].error.code"));
+
+    r = answer(r, "totp", "totp", totp(ALICE_TOTP_SECRET));
+    assertEquals(200, r.statusCode(), r.asString());
+    assertNotNull(r.jsonPath().getString("authorization_code"));
+  }
+
+  @Test
+  void emptyPasswordRechallengesWithoutCountingAFailure() {
+    Response r = start(CLIENT, Pkce.s256());
+    r = answer(r, "username", "username", "alice");
+    r = answer(r, "password", "password", "");
+    assertChallenge(r, "password");
+    assertEquals("missing_credential", r.jsonPath().getString("challenges[0].error.code"));
+  }
+
+  @Test
+  void unknownUsernameRechallengesWithGenericError() {
+    Response r = start(CLIENT, Pkce.s256());
+    r = answer(r, "username", "username", "nobody-" + System.nanoTime());
+    assertChallenge(r, "username");
+    assertEquals("invalid_credential", r.jsonPath().getString("challenges[0].error.code"));
+    assertEquals(null, r.jsonPath().getString("context.username"));
+  }
+
+  @Test
+  void invalidAuthSessionValuesAreRejectedWithInvalidSession() {
+    Response garbage = challenge(params("auth_session", "not-a-jwe", "challenge_type", "username", "challenge_id", "x"));
+    assertEquals(400, garbage.statusCode(), garbage.asString());
+    assertEquals("invalid_session", garbage.jsonPath().getString("error"));
+    assertEquals(null, garbage.jsonPath().getString("auth_session"));
+
+    Response r = start(CLIENT, Pkce.s256());
+    String session = r.jsonPath().getString("auth_session");
+    String[] parts = session.split("\\.");
+    char c = parts[3].charAt(0);
+    parts[3] = (c == 'A' ? 'B' : 'A') + parts[3].substring(1);
+    Response tampered =
+        challenge(params("auth_session", String.join(".", parts), "challenge_type", "username", "challenge_id", challengeId(r, "username"), "username", "alice"));
+    assertEquals(400, tampered.statusCode(), tampered.asString());
+    assertEquals("invalid_session", tampered.jsonPath().getString("error"));
+  }
+
+  @Test
+  void cancelledAuthSessionCannotBeReused() {
+    Response r = start(CLIENT, Pkce.s256());
+    String session = r.jsonPath().getString("auth_session");
+    Response cancel = challenge(params("auth_session", session, "action", "cancel"));
+    assertEquals(400, cancel.statusCode(), cancel.asString());
+    assertEquals("invalid_session", cancel.jsonPath().getString("error"));
+
+    Response reuse = challenge(params("auth_session", session, "challenge_type", "username", "challenge_id", challengeId(r, "username"), "username", "alice"));
+    assertEquals(400, reuse.statusCode(), reuse.asString());
+    assertEquals("invalid_session", reuse.jsonPath().getString("error"));
+  }
+
+  @Test
+  void expiredAuthSessionIsRejectedWithInvalidSession() throws Exception {
+    setRealmField("accessCodeLifespanLogin", 1);
+    try {
+      Response r = start(CLIENT, Pkce.s256());
+      assertChallenge(r, "username");
+      assertTrue(r.jsonPath().getLong("expires_in") <= 1);
+      Thread.sleep(2500);
+      Response late = answer(r, "username", "username", "alice");
+      assertEquals(400, late.statusCode(), late.asString());
+      assertEquals("invalid_session", late.jsonPath().getString("error"));
+    } finally {
+      setRealmField("accessCodeLifespanLogin", 1800);
+    }
+  }
+
+  @Test
+  void unknownChallengeIdIsInvalidRequestAndSessionSurvives() {
+    Response r = start(CLIENT, Pkce.s256());
+    String session = r.jsonPath().getString("auth_session");
+
+    Response unknown = challenge(params("auth_session", session, "challenge_type", "username", "challenge_id", "00000000-0000-0000-0000-000000000000", "username", "alice"));
+    assertEquals(400, unknown.statusCode(), unknown.asString());
+    assertEquals("invalid_request", unknown.jsonPath().getString("error"));
+    assertNotNull(unknown.jsonPath().getString("auth_session"), "session remains valid, auth_session echoed");
+
+    // Right id, wrong type.
+    Response mismatch = challenge(params("auth_session", unknown.jsonPath().getString("auth_session"), "challenge_type", "password", "challenge_id", challengeId(r, "username"), "password", "x"));
+    assertEquals(400, mismatch.statusCode(), mismatch.asString());
+    assertEquals("invalid_request", mismatch.jsonPath().getString("error"));
+
+    // Answering an execution that is not pending yet (password before username) is also invalid_request.
+    // The session is still usable afterwards:
+    Response ok = challenge(params("auth_session", mismatch.jsonPath().getString("auth_session"), "challenge_type", "username", "challenge_id", challengeId(r, "username"), "username", "alice"));
+    assertChallenge(ok, "password");
+  }
+
+  @Test
+  void missingOrUnknownClientIsRejected() {
+    Response noClient = challenge(params("response_type", "code"));
+    assertEquals(400, noClient.statusCode());
+    assertEquals("invalid_request", noClient.jsonPath().getString("error"));
+
+    Response unknown = challenge(params("client_id", "does-not-exist", "response_type", "code"));
+    assertEquals(401, unknown.statusCode());
+    assertEquals("invalid_client", unknown.jsonPath().getString("error"));
+
+    Response notEnabled = challenge(params("client_id", "web-app", "response_type", "code"));
+    assertEquals(401, notEnabled.statusCode());
+    assertEquals("invalid_client", notEnabled.jsonPath().getString("error"));
+
+    Response noPkce = challenge(params("client_id", CLIENT, "response_type", "code"));
+    assertEquals(400, noPkce.statusCode());
+    assertEquals("invalid_request", noPkce.jsonPath().getString("error"));
+  }
+
+  @Test
+  void pendingRequiredActionIsReportedAsAccessDenied() {
+    // carol must update her password; Phase 0 has no native required actions nor redirect_to_web.
+    Response r = login(CLIENT, Pkce.s256(), "carol", "carol-password", null);
+    assertEquals(403, r.statusCode(), r.asString());
+    assertEquals("access_denied", r.jsonPath().getString("error"));
+    assertTrue(r.jsonPath().getString("error_description").contains("UPDATE_PASSWORD"), r.asString());
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Q2: several ALTERNATIVE executions in one challenges[] set
+
+  @Test
+  void q2_alternativesAreOfferedTogetherAndEitherCanBeAnswered() {
+    // password + totp are ALTERNATIVE siblings in the 'native-alternatives' flow bound to demo-ios-alt.
+    Pkce pkce = Pkce.s256();
+    Response r = start(CLIENT_ALT, pkce);
+    r = answer(r, "username", "username", "alice");
+    assertChallenge(r, "password", "totp");
+    assertEquals(false, r.jsonPath().getBoolean("challenges[0].required"));
+    assertEquals(false, r.jsonPath().getBoolean("challenges[1].required"));
+    assertNotEquals(challengeId(r, "password"), challengeId(r, "totp"));
+
+    // Answer the second alternative (not the one the engine considers "current").
+    r = answer(r, "totp", "totp", totp(ALICE_TOTP_SECRET));
+    assertEquals(200, r.statusCode(), r.asString());
+    assertEquals(200, exchange(CLIENT_ALT, r.jsonPath().getString("authorization_code"), pkce, null).statusCode());
+
+    // And the first one, after a failed attempt on the second keeps both on offer.
+    pkce = Pkce.s256();
+    r = start(CLIENT_ALT, pkce);
+    r = answer(r, "username", "username", "alice");
+    pauseForQuickLoginWindow();
+    r = answer(r, "totp", "totp", wrongTotp(ALICE_TOTP_SECRET));
+    assertChallenge(r, "totp", "password");
+    assertEquals("invalid_credential", r.jsonPath().getString("challenges[0].error.code"));
+    r = answer(r, "password", "password", "alice-password");
+    assertEquals(200, r.statusCode(), r.asString());
+  }
+
+  @Test
+  void q2_alternativesAreFilteredByConfiguredCredentials() {
+    Response r = start(CLIENT_ALT, Pkce.s256());
+    r = answer(r, "username", "username", "bob");
+    assertChallenge(r, "password");
+    assertEquals(true, r.jsonPath().getBoolean("challenges[0].required"));
+  }
+}

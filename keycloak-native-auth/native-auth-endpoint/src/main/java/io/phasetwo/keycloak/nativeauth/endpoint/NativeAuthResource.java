@@ -76,6 +76,7 @@ public class NativeAuthResource {
         .filter(f -> f instanceof NativeAuthenticatorFactory)
         .map(f -> ((NativeAuthenticatorFactory) f).challengeType())
         .distinct()
+        .sorted()
         .forEach(types::add);
     return types;
   }

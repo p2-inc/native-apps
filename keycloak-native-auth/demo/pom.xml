@@ -10,7 +10,8 @@
   </parent>
 
   <artifactId>demo</artifactId>
-  <packaging>pom</packaging>
+  <!-- jar packaging (not pom) so that failsafe compiles and runs the integration tests. -->
+  <packaging>jar</packaging>
   <name>Keycloak Native Auth :: demo</name>
   <description>Assembles the provider JARs for docker-compose and runs the HTTP-level integration tests against a Keycloak container.</description>
 
@@ -49,10 +50,15 @@
       <artifactId>rest-assured</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- TOTP generation in tests reuses Keycloak's own implementation. -->
+    <!-- TOTP generation in tests reuses Keycloak's own implementation (TimeBasedOTP). -->
     <dependency>
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-server-spi</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-server-spi-private</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -86,7 +92,10 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <skipIfEmpty>true</skipIfEmpty>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
