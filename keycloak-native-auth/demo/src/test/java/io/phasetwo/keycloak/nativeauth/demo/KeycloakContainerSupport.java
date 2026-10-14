@@ -73,6 +73,7 @@ final class KeycloakContainerSupport {
       container = kc;
       baseUrl = "http://" + kc.getHost() + ":" + kc.getMappedPort(8080);
       Runtime.getRuntime().addShutdownHook(new Thread(kc::stop));
+      TranscriptRecorder.install();
     }
     return baseUrl;
   }

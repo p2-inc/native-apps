@@ -24,12 +24,14 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.models.utils.TimeBasedOTP;
 
 /**
  * HTTP-level tests of the native flow against a real Keycloak (Testcontainers). Each test name is
  * referenced from spec/09-phase0-decisions.md as evidence; passkeys are covered by {@link PasskeyIT}.
  */
+@ExtendWith(TranscriptRecorder.class)
 class NativeAuthIT {
 
   static final String CLIENT = "demo-ios";
@@ -148,6 +150,32 @@ class NativeAuthIT {
             .formParam("code_verifier", pkce.verifier());
     if (redirectUri != null) req = req.formParam("redirect_uri", redirectUri);
     return req.post(realmUrl() + "/protocol/openid-connect/token").andReturn();
+  }
+
+  static Response refresh(String clientId, String refreshToken) {
+    return given()
+        .formParam("grant_type", "refresh_token")
+        .formParam("client_id", clientId)
+        .formParam("refresh_token", refreshToken)
+        .post(realmUrl() + "/protocol/openid-connect/token")
+        .andReturn();
+  }
+
+  static Response revoke(String clientId, String token, String hint) {
+    return given()
+        .formParam("client_id", clientId)
+        .formParam("token", token)
+        .formParam("token_type_hint", hint)
+        .post(realmUrl() + "/protocol/openid-connect/revoke")
+        .andReturn();
+  }
+
+  static Response logout(String clientId, String refreshToken) {
+    return given()
+        .formParam("client_id", clientId)
+        .formParam("refresh_token", refreshToken)
+        .post(realmUrl() + "/protocol/openid-connect/logout")
+        .andReturn();
   }
 
   static JsonPath claims(String jwt) {
@@ -478,6 +506,73 @@ class NativeAuthIT {
     assertEquals(403, r.statusCode(), r.asString());
     assertEquals("access_denied", r.jsonPath().getString("error"));
     assertTrue(r.jsonPath().getString("error_description").contains("UPDATE_PASSWORD"), r.asString());
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Token lifecycle after a native login (standard Keycloak endpoints; fixtures for the SDK's Tokens client)
+
+  @Test
+  void tokensCanBeRefreshedLoggedOutAndRevoked() {
+    Pkce pkce = Pkce.s256();
+    Response r = login(CLIENT, pkce, "bob", "bob-password", null);
+    Response tokens = exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null);
+    assertEquals(200, tokens.statusCode(), tokens.asString());
+
+    Response refreshed = refresh(CLIENT, tokens.jsonPath().getString("refresh_token"));
+    assertEquals(200, refreshed.statusCode(), refreshed.asString());
+    assertNotNull(refreshed.jsonPath().getString("access_token"));
+    assertNotNull(refreshed.jsonPath().getString("refresh_token"));
+    assertEquals("bob", claims(refreshed.jsonPath().getString("access_token")).getString("preferred_username"));
+
+    // RP-initiated logout with the refresh token ends the session: a further refresh is refused.
+    Response loggedOut = logout(CLIENT, refreshed.jsonPath().getString("refresh_token"));
+    assertEquals(204, loggedOut.statusCode(), loggedOut.asString());
+    Response afterLogout = refresh(CLIENT, refreshed.jsonPath().getString("refresh_token"));
+    assertEquals(400, afterLogout.statusCode(), afterLogout.asString());
+    assertEquals("invalid_grant", afterLogout.jsonPath().getString("error"));
+
+    // RFC 7009 revocation of the refresh token has the same effect.
+    pkce = Pkce.s256();
+    r = login(CLIENT, pkce, "bob", "bob-password", null);
+    tokens = exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null);
+    String refreshToken = tokens.jsonPath().getString("refresh_token");
+    Response revoked = revoke(CLIENT, refreshToken, "refresh_token");
+    assertEquals(200, revoked.statusCode(), revoked.asString());
+    Response afterRevoke = refresh(CLIENT, refreshToken);
+    assertEquals(400, afterRevoke.statusCode(), afterRevoke.asString());
+    assertEquals("invalid_grant", afterRevoke.jsonPath().getString("error"));
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Brute force (spec/06 S14): repeated wrong passwords end with access_denied
+
+  @Test
+  void bruteForceLockEndsWithAccessDenied() {
+    // erin exists only for this scenario; the lock lasts a minute. failureFactor is 5 in the demo
+    // realm, and two failures within quickLoginCheckMilliSeconds lock even earlier, so at most 6
+    // attempts are needed whichever rule fires first.
+    Response r = start(CLIENT, Pkce.s256());
+    r = answer(r, "username", "username", "erin");
+    assertChallenge(r, "password");
+    boolean locked = false;
+    for (int attempt = 1; attempt <= 6 && !locked; attempt++) {
+      r = answer(r, "password", "password", "wrong-password-" + attempt);
+      if (r.statusCode() == 403 && "access_denied".equals(r.jsonPath().getString("error"))) {
+        locked = true;
+        assertTrue(r.jsonPath().getString("error_description").toLowerCase().contains("locked"), r.asString());
+        assertNull(r.jsonPath().getString("auth_session"), "the session is gone after a terminal failure");
+      } else {
+        assertOffers(r, "password");
+        assertEquals("invalid_credential", errorCode(r, "password"), r.asString());
+      }
+    }
+    assertTrue(locked, "expected access_denied within 6 attempts, last response: " + r.asString());
+
+    // A new login for the locked account must not reveal it: the username step answers generically.
+    r = start(CLIENT, Pkce.s256());
+    r = answer(r, "username", "username", "erin");
+    assertChallenge(r, "username");
+    assertEquals("invalid_credential", errorCode(r, "username"), r.asString());
   }
 
   // ---------------------------------------------------------------------------------------------

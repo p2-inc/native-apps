@@ -19,7 +19,23 @@
     <!-- Provider JARs are copied here; docker-compose.yml and the ITs mount this directory. -->
     <providers.dir>${project.build.directory}/providers</providers.dir>
     <skipITs>false</skipITs>
+    <!-- The jackson-databind version keycloak-core 26.8.1 resolves to (mvn dependency:tree). -->
+    <jackson.version>2.21.7</jackson.version>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- keycloak-core pulls jackson-databind 2.21 but jackson-annotations 2.20 onto the test classpath;
+           TranscriptRecorder's ObjectMapper needs a consistent set. -->
+      <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>

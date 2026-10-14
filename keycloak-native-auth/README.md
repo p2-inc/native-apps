@@ -30,6 +30,11 @@ mvn verify                 # unit tests + integration tests (needs Docker; pulls
 mvn verify -DskipITs       # unit tests only
 ```
 
+The integration tests also record every exchange with the native-auth and token endpoints as JSON
+transcripts under `demo/target/transcripts/` (`TranscriptRecorder`: secrets in form fields masked,
+bodies verbatim); `demo/scripts/update-transcripts.sh` copies them to the committed fixture set
+`demo/transcripts/`, which the iOS SDK's unit tests replay (`../ios/KeycloakNative`).
+
 The integration tests (`demo/src/test/java/.../NativeAuthIT.java`, `PasskeyIT.java`) start Keycloak
 with the freshly built provider JARs and the demo realm, and exercise the happy path, re-challenge on
 wrong password / wrong TOTP / wrong passkey signature, invalid / cancelled / expired `auth_session`,
@@ -79,8 +84,11 @@ Demo realm contents:
   `bob` / `bob-password` (password only, so the conditional second factor is skipped),
   `carol` / `carol-password` with a pending *Update Password* required action (shows the
   `access_denied` extension point for non-native required actions), `dave` / `dave-password` with the
-  pending `native-passkey-register` action (a passkey is enrolled in-band on the first native login).
-  No passkey is pre-registered in the export; the integration tests register them.
+  pending `native-passkey-register` action (a passkey is enrolled in-band on the first native login),
+  `erin` / `erin-password` reserved for the brute-force demo (spec/06 S14): `failureFactor` is 5 in
+  the demo realm, so five wrong passwords (or two within a second) lock the account for a minute and
+  the flow ends with `403 access_denied`. No passkey is pre-registered in the export; the
+  integration tests register them.
 - `otpPolicyCodeReusable=true` so the walkthrough and tests can log in repeatedly within one
   30 s TOTP window. Keep the Keycloak default (`false`) in real deployments.
 

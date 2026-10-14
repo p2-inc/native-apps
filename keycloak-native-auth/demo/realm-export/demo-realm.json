@@ -7,7 +7,7 @@
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "bruteForceProtected": true,
-  "failureFactor": 30,
+  "failureFactor": 5,
   "accessCodeLifespan": 60,
   "accessCodeLifespanLogin": 1800,
   "accessCodeLifespanUserAction": 300,
@@ -196,6 +196,22 @@
         {
           "type": "password",
           "value": "dave-password",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "erin",
+      "enabled": true,
+      "email": "erin@example.com",
+      "emailVerified": true,
+      "firstName": "Erin",
+      "lastName": "Lockedout",
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "erin-password",
           "temporary": false
         }
       ]

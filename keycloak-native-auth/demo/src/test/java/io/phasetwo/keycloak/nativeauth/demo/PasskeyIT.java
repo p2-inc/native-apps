@@ -34,11 +34,13 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Phase 1 passkey tests (spec/03 §4.3, §4.4, §6; spec/11). A {@link SoftwareAuthenticator} plays the
  * platform authenticator; test names are referenced from spec/11-phase1-decisions.md.
  */
+@ExtendWith(TranscriptRecorder.class)
 class PasskeyIT {
 
   static final String CLIENT_PASSKEY = "demo-ios-passkey";
@@ -49,6 +51,8 @@ class PasskeyIT {
   @BeforeAll
   static void startContainer() {
     baseUrl();
+    // Register alice's passkey up front (own transcript) so no test's transcript depends on order.
+    TranscriptRecorder.scenario("PasskeyIT.setupAlicePasskey", PasskeyIT::alicePasskey);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -68,7 +72,7 @@ class PasskeyIT {
   }
 
   static Response registerOptions(String accessToken) {
-    return given().auth().oauth2(accessToken).accept("application/json").post(realmUrl() + "/native-auth/passkey/register/options").andReturn();
+    return given().header("Authorization", "Bearer " + accessToken).accept("application/json").post(realmUrl() + "/native-auth/passkey/register/options").andReturn();
   }
 
   static Response registerFinish(String accessToken, Map<String, String> body) {
@@ -81,8 +85,7 @@ class PasskeyIT {
     }
     json.append('}');
     return given()
-        .auth()
-        .oauth2(accessToken)
+        .header("Authorization", "Bearer " + accessToken)
         .contentType("application/json")
         .accept("application/json")
         .body(json.toString())
