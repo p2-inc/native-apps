@@ -1,8 +1,8 @@
 {
   "test": "NativeAuthIT.metadataIsServedUnderRealmNativeAuthPath",
-  "recorded_at": "2026-10-14T14:54:59.801881Z",
+  "recorded_at": "2026-10-14T21:32:48.800966Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:64847",
+  "base_url": "http://localhost:55746",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -33,24 +33,37 @@
         "json": {
           "protocol_version": "1",
           "fipa_draft": "draft-ietf-oauth-first-party-apps-04",
-          "authorization_challenge_endpoint": "http://localhost:64847/realms/demo/native-auth/challenge",
-          "token_endpoint": "http://localhost:64847/realms/demo/protocol/openid-connect/token",
+          "authorization_challenge_endpoint": "http://localhost:55746/realms/demo/native-auth/challenge",
+          "token_endpoint": "http://localhost:55746/realms/demo/protocol/openid-connect/token",
+          "authorization_endpoint": "http://localhost:55746/realms/demo/protocol/openid-connect/auth",
           "code_exchange": {
             "redirect_uri_required": false
           },
           "passkey": {
             "rp_id": "localhost",
-            "register_options_endpoint": "http://localhost:64847/realms/demo/native-auth/passkey/register/options",
-            "register_finish_endpoint": "http://localhost:64847/realms/demo/native-auth/passkey/register/finish"
+            "register_options_endpoint": "http://localhost:55746/realms/demo/native-auth/passkey/register/options",
+            "register_finish_endpoint": "http://localhost:55746/realms/demo/native-auth/passkey/register/finish"
           },
           "challenge_types_supported": [
             "username",
             "password",
             "passkey",
             "passkey_registration",
-            "totp"
+            "totp",
+            "otp"
           ],
-          "dpop_signing_alg_values_supported": [ ],
+          "dpop_signing_alg_values_supported": [
+            "PS384",
+            "RS384",
+            "EdDSA",
+            "ES384",
+            "ES256",
+            "RS256",
+            "ES512",
+            "PS256",
+            "PS512",
+            "RS512"
+          ],
           "client_attestation": {
             "required": false,
             "methods": [ ]

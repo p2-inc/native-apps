@@ -52,6 +52,14 @@ public final class Protocol {
   public static final String TRANSPORTS = "transports";
   public static final String LABEL = "label";
   public static final String REGISTRATION_ID = "registration_id";
+  // otp (spec/03 §4.6)
+  public static final String OTP = "otp";
+  // redirect_to_web (spec/03 §3.4) and step-up (§5, §6)
+  public static final String REQUEST_URI = "request_uri";
+  public static final String REDIRECT_URI = "redirect_uri";
+  public static final String STATE = "state";
+  public static final String REASON = "reason";
+  public static final String EXPIRES_IN = "expires_in";
 
   // ---- error codes (spec/03 §3) ----
   public static final String ERR_INSUFFICIENT_AUTHORIZATION = "insufficient_authorization";
@@ -73,6 +81,10 @@ public final class Protocol {
   public static final String DESC_ERR_MISSING_CREDENTIAL = "missing_credential";
   /** {@code passkey_registration}: the attestation did not verify (spec/03 §4.4). */
   public static final String DESC_ERR_INVALID_ATTESTATION = "invalid_attestation";
+  /** {@code otp}: the code expired or was consumed by too many attempts; resend (spec/03 §4.6). */
+  public static final String DESC_ERR_EXPIRED_CODE = "expired_code";
+  /** {@code otp}: {@code action=resend} before {@code resend_allowed_at} (spec/03 §4.6). */
+  public static final String DESC_ERR_RESEND_TOO_SOON = "resend_too_soon";
 
   // ---- Keycloak client / realm attributes ----
   public static final String CLIENT_ATTR_ENABLED = "native-auth.enabled";
@@ -83,6 +95,8 @@ public final class Protocol {
   public static final String ATTR_PASSKEY_REGISTRATION_MAX_AGE = "native-auth.passkey-registration-max-age";
   public static final int DEFAULT_PASSKEY_REGISTRATION_MAX_AGE = 300;
   public static final String DEFAULT_FLOW_ALIAS = "native";
+  /** Client attribute: {@code redirect_uri} used for {@code redirect_to_web} (spec/03 §3.4); defaults to the first registered one. */
+  public static final String CLIENT_ATTR_WEB_FALLBACK_REDIRECT_URI = "native-auth.web-fallback-redirect-uri";
 
   /** Sentinel redirect URI stored with the code when {@code code-redirect-uri-mode=sentinel}. */
   public static final String SENTINEL_REDIRECT_URI = "urn:keycloak:native-auth";

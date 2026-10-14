@@ -5,11 +5,13 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 /** Error body for everything that is not a challenge (spec/03 §3.5). */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({"error", "error_description", "auth_session", "protocol_version"})
+@JsonPropertyOrder({"error", "error_description", "auth_session", "max_age", "protocol_version"})
 public class ErrorResponse {
   private String error;
   private String errorDescription;
   private String authSession;
+  /** spec/03 §6: the freshness limit a step-up must satisfy ({@code insufficient_authorization}). */
+  private Long maxAge;
   private String protocolVersion = Protocol.VERSION;
 
   public ErrorResponse() {}
@@ -43,6 +45,15 @@ public class ErrorResponse {
 
   public ErrorResponse setAuthSession(String authSession) {
     this.authSession = authSession;
+    return this;
+  }
+
+  public Long getMaxAge() {
+    return maxAge;
+  }
+
+  public ErrorResponse setMaxAge(Long maxAge) {
+    this.maxAge = maxAge;
     return this;
   }
 

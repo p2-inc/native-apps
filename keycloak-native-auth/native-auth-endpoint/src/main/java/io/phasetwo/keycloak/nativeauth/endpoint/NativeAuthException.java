@@ -23,4 +23,14 @@ class NativeAuthException extends RuntimeException {
   Response toResponse() {
     return Responses.error(status, error, getMessage(), authSession);
   }
+
+  /** An exception whose response is the given (already filled) error body. */
+  static NativeAuthException withBody(Response.Status status, io.phasetwo.keycloak.nativeauth.core.model.ErrorResponse body) {
+    return new NativeAuthException(status, body.getError(), body.getErrorDescription(), body.getAuthSession()) {
+      @Override
+      Response toResponse() {
+        return Responses.json(status, body);
+      }
+    };
+  }
 }

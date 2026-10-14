@@ -181,15 +181,35 @@ class PasskeyIT {
   }
 
   @Test
-  void staleAuthenticationIsRefusedForRegistration() throws Exception {
-    String token = accessTokenAfterPasswordTotpLogin();
+  void staleAuthenticationIsRefusedForRegistrationUntilAStepUpWithMaxAge() throws Exception {
+    Pkce pkce = Pkce.s256();
+    Response r = login(CLIENT, pkce, "alice", "alice-password", ALICE_TOTP_SECRET);
+    Response tokens = exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null);
+    String token = tokens.jsonPath().getString("access_token");
     setRealmAttribute("native-auth.passkey-registration-max-age", "1");
     try {
       Thread.sleep(2100);
       Response options = registerOptions(token);
       assertEquals(403, options.statusCode(), options.asString());
       assertEquals("insufficient_authorization", options.jsonPath().getString("error"));
-      assertNull(options.jsonPath().getString("auth_session"), "no step-up session until Phase 2");
+      // spec/03 §6: the body names the limit and carries a post-login auth_session for a step-up.
+      assertEquals(1, options.jsonPath().getInt("max_age"));
+      String stepUpSession = options.jsonPath().getString("auth_session");
+      assertNotNull(stepUpSession, "post-login auth_session for the step-up");
+
+      // Step up with max_age: full re-authentication of the 'native' flow, username skipped.
+      Pkce pkce2 = Pkce.s256();
+      Response s = StepUpIT.stepUp(CLIENT, pkce2, stepUpSession, "max_age", "1");
+      assertOffers(s, "password");
+      assertEquals("alice", s.jsonPath().getString("context.username"));
+      s = answer(s, "password", "password", "alice-password");
+      assertChallenge(s, "totp");
+      s = answer(s, "totp", "totp", totp(ALICE_TOTP_SECRET));
+      assertEquals(200, s.statusCode(), s.asString());
+      Response fresh = exchange(CLIENT, s.jsonPath().getString("authorization_code"), pkce2, null);
+      assertEquals(200, fresh.statusCode(), fresh.asString());
+      Response optionsAgain = registerOptions(fresh.jsonPath().getString("access_token"));
+      assertEquals(200, optionsAgain.statusCode(), optionsAgain.asString());
     } finally {
       setRealmAttribute("native-auth.passkey-registration-max-age", "300");
     }
@@ -227,10 +247,10 @@ class PasskeyIT {
     assertEquals(200, tokens.statusCode(), tokens.asString());
     assertEquals("alice", NativeAuthIT.claims(tokens.jsonPath().getString("access_token")).getString("preferred_username"));
 
-    // Step-up is Phase 2: presenting the post-login value is rejected honestly.
+    // The post-login value is for step-up (§5, StepUpIT); as a plain continuation it is invalid_request.
     Response resumed = challenge(params("auth_session", postLogin, "challenge_type", "passkey", "challenge_id", "x"));
     assertEquals(400, resumed.statusCode(), resumed.asString());
-    assertEquals("invalid_session", resumed.jsonPath().getString("error"));
+    assertEquals("invalid_request", resumed.jsonPath().getString("error"));
     assertTrue(resumed.jsonPath().getString("error_description").contains("step-up"), resumed.asString());
   }
 

@@ -12,6 +12,7 @@ import java.util.List;
   "fipa_draft",
   "authorization_challenge_endpoint",
   "token_endpoint",
+  "authorization_endpoint",
   "code_exchange",
   "passkey",
   "push",
@@ -24,6 +25,8 @@ public class Metadata {
   private String fipaDraft = Protocol.FIPA_DRAFT;
   private String authorizationChallengeEndpoint;
   private String tokenEndpoint;
+  /** The realm's OIDC authorization endpoint, needed for {@code redirect_to_web} (spec/03 §3.4). */
+  private String authorizationEndpoint;
   private CodeExchange codeExchange;
   private Passkey passkey;
   private List<ChallengeType> challengeTypesSupported = new ArrayList<>();
@@ -60,6 +63,14 @@ public class Metadata {
 
   public void setTokenEndpoint(String tokenEndpoint) {
     this.tokenEndpoint = tokenEndpoint;
+  }
+
+  public String getAuthorizationEndpoint() {
+    return authorizationEndpoint;
+  }
+
+  public void setAuthorizationEndpoint(String authorizationEndpoint) {
+    this.authorizationEndpoint = authorizationEndpoint;
   }
 
   public CodeExchange getCodeExchange() {

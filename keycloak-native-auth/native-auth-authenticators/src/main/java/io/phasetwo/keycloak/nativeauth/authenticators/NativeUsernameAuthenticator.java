@@ -3,6 +3,7 @@ package io.phasetwo.keycloak.nativeauth.authenticators;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeDescriptor;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeType;
 import io.phasetwo.keycloak.nativeauth.core.model.Protocol;
+import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequestContext;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
@@ -25,6 +26,18 @@ public class NativeUsernameAuthenticator extends NativeAuthenticatorBase {
   @Override
   public ChallengeType challengeType() {
     return ChallengeType.USERNAME;
+  }
+
+  @Override
+  public void authenticate(AuthenticationFlowContext context) {
+    if (NativeRequestContext.isNative(context) && context.getUser() != null) {
+      // Step-up / re-authentication inside an existing user session (spec/03 §5): the endpoint
+      // identified the user from the post-login auth_session, so there is nothing to ask here.
+      context.getEvent().detail(Details.USERNAME, context.getUser().getUsername());
+      context.success();
+      return;
+    }
+    super.authenticate(context);
   }
 
   @Override

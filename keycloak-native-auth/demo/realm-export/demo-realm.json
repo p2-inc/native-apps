@@ -19,6 +19,15 @@
   "otpPolicyPeriod": 30,
   "otpPolicyLookAheadWindow": 1,
   "otpPolicyCodeReusable": true,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "noreply@demo.local",
+    "fromDisplayName": "Native Auth Demo",
+    "auth": "false",
+    "ssl": "false",
+    "starttls": "false"
+  },
   "webAuthnPolicyPasswordlessRpEntityName": "Native Auth Demo",
   "webAuthnPolicyPasswordlessSignatureAlgorithms": [
     "ES256",
@@ -108,6 +117,48 @@
         "pkce.code.challenge.method": "S256",
         "native-auth.enabled": "true",
         "native-auth.flow-alias": "native-passkey-first"
+      }
+    },
+    {
+      "clientId": "demo-ios-stepup",
+      "name": "Demo iOS App (step-up flow)",
+      "description": "Bound to the native-step-up flow: acr 1 after a primary factor, acr 2 after TOTP (spec/06 S6, S8)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "demoapp://auth/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "native-auth.enabled": "true",
+        "native-auth.flow-alias": "native-step-up"
+      }
+    },
+    {
+      "clientId": "demo-ios-otp",
+      "name": "Demo iOS App (email OTP flow)",
+      "description": "Bound to the native-otp flow: email one-time code as second factor (spec/06 S4)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "demoapp://auth/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "native-auth.enabled": "true",
+        "native-auth.flow-alias": "native-otp"
       }
     },
     {
@@ -565,6 +616,201 @@
           "authenticator": "native-totp"
         }
       ]
+    },
+    {
+      "alias": "native-step-up",
+      "description": "Native flow with step-up levels (spec/03 §5): level 1 = primary factor (passkey or password, valid 10 h), level 2 = TOTP (re-asked on every step-up); client demo-ios-stepup",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "native-username"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "flowAlias": "native-step-up - level 1"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "flowAlias": "native-step-up - level 2"
+        }
+      ]
+    },
+    {
+      "alias": "native-step-up - level 1",
+      "description": "Level 1: a primary factor, reusable for 10 hours (loa-max-age 36000)",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorConfig": "native-step-up - level 1 condition"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "flowAlias": "native-step-up - primary factor"
+        }
+      ]
+    },
+    {
+      "alias": "native-step-up - primary factor",
+      "description": "Passkey or password",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 5,
+          "userSetupAllowed": false,
+          "authenticator": "native-passkey"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "native-password"
+        }
+      ]
+    },
+    {
+      "alias": "native-step-up - level 2",
+      "description": "Level 2: TOTP, never reused (loa-max-age 0); only for users who have one",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorConfig": "native-step-up - level 2 condition"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 15,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-configured"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "native-totp"
+        }
+      ]
+    },
+    {
+      "alias": "native-otp",
+      "description": "Native flow with a one-time code second factor (spec/03 §4.6): username -> password -> [totp | email otp]; client demo-ios-otp",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "native-username"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "native-password"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "flowAlias": "native-otp - second factor"
+        }
+      ]
+    },
+    {
+      "alias": "native-otp - second factor",
+      "description": "TOTP when configured, email OTP for everyone with an address; offered together, the code is only sent when the client picks otp",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-configured"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "native-totp"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "authenticator": "native-otp",
+          "authenticatorConfig": "native-otp - email"
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "native-step-up - level 1 condition",
+      "config": {
+        "loa-condition-level": "1",
+        "loa-max-age": "36000"
+      }
+    },
+    {
+      "alias": "native-step-up - level 2 condition",
+      "config": {
+        "loa-condition-level": "2",
+        "loa-max-age": "0"
+      }
+    },
+    {
+      "alias": "native-otp - email",
+      "config": {
+        "channel": "email",
+        "digits": "6",
+        "ttl": "300",
+        "resend-cooldown": "10",
+        "max-attempts": "3"
+      }
     }
   ]
 }

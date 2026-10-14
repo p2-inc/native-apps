@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
@@ -22,7 +23,12 @@ final class KeycloakContainerSupport {
   static final String ADMIN_PASSWORD = "admin";
 
   private static GenericContainer<?> container;
+  private static GenericContainer<?> mailpit;
   private static String baseUrl;
+  private static String mailpitUrl;
+
+  /** Image of the SMTP sink the realm's {@code smtpServer} points at (host {@code mailpit}). */
+  static final String MAILPIT_IMAGE = "axllent/mailpit:v1.27";
 
   private KeycloakContainerSupport() {}
 
@@ -36,8 +42,21 @@ final class KeycloakContainerSupport {
         throw new IllegalStateException(
             "No provider JARs in " + providers.getAbsolutePath() + "; run 'mvn package' first");
       }
+      Network network = Network.newNetwork();
+      GenericContainer<?> mp =
+          new GenericContainer<>(MAILPIT_IMAGE)
+              .withNetwork(network)
+              .withNetworkAliases("mailpit")
+              .withExposedPorts(8025)
+              .waitingFor(Wait.forHttp("/readyz").forPort(8025).forStatusCode(200).withStartupTimeout(Duration.ofMinutes(2)));
+      mp.start();
+      mailpit = mp;
+      mailpitUrl = "http://" + mp.getHost() + ":" + mp.getMappedPort(8025);
+      Runtime.getRuntime().addShutdownHook(new Thread(mp::stop));
+
       GenericContainer<?> kc =
           new GenericContainer<>(image)
+              .withNetwork(network)
               .withCommand("start-dev", "--import-realm")
               .withEnv("KC_BOOTSTRAP_ADMIN_USERNAME", ADMIN)
               .withEnv("KC_BOOTSTRAP_ADMIN_PASSWORD", ADMIN_PASSWORD)
@@ -76,6 +95,12 @@ final class KeycloakContainerSupport {
       TranscriptRecorder.install();
     }
     return baseUrl;
+  }
+
+  /** Base URL of the mailpit HTTP API ({@code /api/v1/messages}) for the email OTP tests. */
+  static String mailpitUrl() {
+    baseUrl();
+    return mailpitUrl;
   }
 
   static String realmUrl() {

@@ -24,4 +24,15 @@ public interface NativeAuthenticator extends Authenticator {
    * {@code error}; the implementation sets {@code type}, {@code label} and {@code params}.
    */
   ChallengeDescriptor describe(AuthenticationFlowContext context, AuthenticationExecutionModel execution);
+
+  /**
+   * Called once the whole challenge set is assembled, with {@code required} telling whether this
+   * descriptor is the only entry. Factors with a side effect (sending an OTP) do it here, and only
+   * when they are the single option (spec/03 §4.6); the default does nothing.
+   */
+  default void prepare(
+      AuthenticationFlowContext context,
+      AuthenticationExecutionModel execution,
+      ChallengeDescriptor descriptor,
+      boolean required) {}
 }

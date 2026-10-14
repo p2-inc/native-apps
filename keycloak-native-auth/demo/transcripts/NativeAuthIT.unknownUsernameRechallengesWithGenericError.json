@@ -1,8 +1,8 @@
 {
   "test": "NativeAuthIT.unknownUsernameRechallengesWithGenericError",
-  "recorded_at": "2026-10-14T14:55:01.157321Z",
+  "recorded_at": "2026-10-14T21:32:50.157797Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:64847",
+  "base_url": "http://localhost:55746",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -27,7 +27,7 @@
           "client_id": "demo-ios",
           "response_type": "code",
           "scope": "openid profile",
-          "code_challenge": "EKo88ld2WaEtTbvfnde-uvnmZ5l724nJBQZ__nXZGSQ",
+          "code_challenge": "iYADikXZ01ECPAVRt8NWzdItCcTiTKfJHLty0Hid0dg",
           "code_challenge_method": "S256",
           "device_name": "NativeAuthIT"
         }
@@ -42,13 +42,13 @@
         "json": {
           "error": "insufficient_authorization",
           "error_description": "Authentication required",
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiODJhYjU5ZTYtM2IwZi00ODZlLWI3MDMtMGQwMGIzMzQzNDUxIn0..bAQW8fmUp-47W7Cj.g145ROmeZVePtK2MvsegA1hy4ckhmulwItvP_milwoR86LcjdAWC0QPnCExnKK4nfm4F1iLhlmXqWhtfCg-2FE83gCyOly6S71uIOdIyOl827dKujF-6WagLsWNGhQVjw7f49wMJ6rFDImZ-iFHAZbHnZ5H4LCCavQBIp4vM0Fz8YcRx0Yz_jyVRr7dSGjVebA.wRm_WMopU0-klzU4hS_rQQ",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..LOpv2dLOuynTciwK.kAYZtLocF5hX02Hedad6GVPdIs6ob4Ld3vXOGKCINklYGF0gUc8CvAPr0IaGJlxMP5pq7c_4ZqA65PzyB3zGLeDbaMibZ-r3MOmltygbEaQqZ3-WTRChGcI5oXggRsVvfri9AJveRLXBwONVXYh4wz3OIwitd4n1CDMqPidrMW9o-7afLifZKBAMOXc2iqANQA.K7cVS6S8hscc-_tsIU_ZgQ",
           "protocol_version": "1",
           "expires_in": 1800,
           "challenges": [
             {
               "type": "username",
-              "id": "6997e437-08f7-4607-b7ca-8eb880f39231",
+              "id": "eab07373-997b-4cc8-9239-53cf11619353",
               "label": "Username",
               "required": true,
               "params": {
@@ -72,10 +72,10 @@
           "Accept": "application/json"
         },
         "form": {
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiODJhYjU5ZTYtM2IwZi00ODZlLWI3MDMtMGQwMGIzMzQzNDUxIn0..bAQW8fmUp-47W7Cj.g145ROmeZVePtK2MvsegA1hy4ckhmulwItvP_milwoR86LcjdAWC0QPnCExnKK4nfm4F1iLhlmXqWhtfCg-2FE83gCyOly6S71uIOdIyOl827dKujF-6WagLsWNGhQVjw7f49wMJ6rFDImZ-iFHAZbHnZ5H4LCCavQBIp4vM0Fz8YcRx0Yz_jyVRr7dSGjVebA.wRm_WMopU0-klzU4hS_rQQ",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..LOpv2dLOuynTciwK.kAYZtLocF5hX02Hedad6GVPdIs6ob4Ld3vXOGKCINklYGF0gUc8CvAPr0IaGJlxMP5pq7c_4ZqA65PzyB3zGLeDbaMibZ-r3MOmltygbEaQqZ3-WTRChGcI5oXggRsVvfri9AJveRLXBwONVXYh4wz3OIwitd4n1CDMqPidrMW9o-7afLifZKBAMOXc2iqANQA.K7cVS6S8hscc-_tsIU_ZgQ",
           "challenge_type": "username",
-          "challenge_id": "6997e437-08f7-4607-b7ca-8eb880f39231",
-          "username": "nobody-3698799633995291"
+          "challenge_id": "eab07373-997b-4cc8-9239-53cf11619353",
+          "username": "nobody-3722668692354583"
         }
       },
       "response": {
@@ -88,13 +88,13 @@
         "json": {
           "error": "insufficient_authorization",
           "error_description": "Authentication required",
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiODJhYjU5ZTYtM2IwZi00ODZlLWI3MDMtMGQwMGIzMzQzNDUxIn0..30kxPzUMAHs57Xtu.69OtFSmrS3qVfsV_Dmleef4MeeqcXXJ4allPkGCpJ2rFd983hYoZos1a2R2R8x5FV9827f6uppzBhY9Ra87JU3L2QHcA1dyk4eMEuqpJ_TRkfQtBJi7G02KapGIq1lLsQBuEOA0xROX8xsVj7Je6dMxO_ik6nPUE16KtPVQup35kdteJDpxkDtNlmsPFAguxEQ.ybfmztPNatwl9M95e1S5Qg",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..ApNpjrxLsEKjrtOr.D94y0nAYXBjhxGlxob8hSA3xrfbgddXzxU1Os7FjyGBGoAYvPQv7YEY6ZMX2rpgb2tsbdJqExXC3CL66aZbcnqYVzI1JQudIi_0r-lehTyOjiqW-QMyH57Ak8Fd_qvGA_BjSMVNTI3hEnOfgKILqXSqKnuuqbJbtSHcKsnPZqIp_Y8XiPmPErztyncfTiLTZkQ.jzHPwBPEwCaTvv253SUo2w",
           "protocol_version": "1",
           "expires_in": 1800,
           "challenges": [
             {
               "type": "username",
-              "id": "6997e437-08f7-4607-b7ca-8eb880f39231",
+              "id": "eab07373-997b-4cc8-9239-53cf11619353",
               "label": "Username",
               "required": true,
               "error": {

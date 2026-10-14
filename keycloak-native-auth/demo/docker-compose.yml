@@ -4,7 +4,8 @@
 #   docker compose up --wait                           # KC_PORT=8089 docker compose up --wait  to use another host port
 #   ./scripts/walkthrough.sh                           # KC_BASE=http://localhost:8089 ./scripts/walkthrough.sh
 #
-# Admin console: http://localhost:${KC_PORT:-8080}/admin (admin / admin)
+# Admin console: http://localhost:${KC_PORT:-8080}/admin (admin / admin); email OTP inbox: http://localhost:${MAILPIT_PORT:-8025};
+# step-up demo API: http://localhost:${RS_PORT:-8091}/transfer (set RS_EXTRA_ISSUERS=",https://<tunnel-host>/realms/demo" behind a tunnel)
 services:
   postgres:
     image: postgres:17-alpine
@@ -17,6 +18,36 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  mailpit:
+    # Email OTP inbox (spec/06 S4): UI + API http://localhost:${MAILPIT_PORT:-8025}, SMTP mailpit:1025 (realm smtpServer).
+    image: axllent/mailpit:v1.27
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  resource-server:
+    # Step-up demo API (spec/06 S6): GET /me, GET /transfer (401 insufficient_user_authentication below acr 2).
+    # Tokens are validated against Keycloak's JWKS; the issuer the app sees must match ISSUER_PUBLIC.
+    image: node:22-alpine
+    command: ["node", "/srv/server.mjs"]
+    environment:
+      PORT: "8091"
+      ISSUER: "http://keycloak:8080/realms/demo"
+      ISSUER_PUBLIC: "http://localhost:${KC_PORT:-8080}/realms/demo${RS_EXTRA_ISSUERS:-}"
+      PUBLIC_BASE: "http://localhost:${RS_PORT:-8091}"
+      REQUIRED_ACR: "2"
+    volumes:
+      - ./resource-server/server.mjs:/srv/server.mjs:ro
+    ports:
+      - "${RS_PORT:-8091}:8091"
+    depends_on:
+      keycloak:
+        condition: service_healthy
 
   keycloak:
     # Keep in sync with keycloak.version in ../pom.xml (spec/08 Q4).
@@ -40,6 +71,8 @@ services:
       - ./realm-export:/opt/keycloak/data/import:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
     healthcheck:
       # The image has no curl/wget; use bash's /dev/tcp against the management port.

@@ -195,6 +195,11 @@ public final class TranscriptRecorder implements Filter, BeforeEachCallback, Aft
         // not JSON after all: fall through
       }
     }
+    if (contentType != null && contentType.toLowerCase(Locale.ROOT).contains("html")) {
+      // Browser pages (the authorization endpoint during redirect_to_web) are not part of the contract.
+      target.put("body_omitted", contentType + ", " + text.length() + " chars");
+      return;
+    }
     target.put("body", text);
   }
 

@@ -86,6 +86,20 @@ public final class NativeAuthConfig {
   }
 
   /**
+   * The {@code redirect_uri} for {@code redirect_to_web} (spec/03 §3.4): the client attribute, else
+   * the client's first registered redirect URI without a wildcard; {@code null} when there is none.
+   */
+  public static String webFallbackRedirectUri(ClientModel client) {
+    String uri = client.getAttribute(Protocol.CLIENT_ATTR_WEB_FALLBACK_REDIRECT_URI);
+    if (uri != null && !uri.isBlank()) return uri.trim();
+    return client.getRedirectUris().stream()
+        .filter(u -> u != null && !u.isBlank() && !u.contains("*"))
+        .sorted()
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
    * Maximum age (seconds) of the authentication behind an access token presented to the passkey
    * registration endpoints (spec/07 §5); 0 disables the check.
    */

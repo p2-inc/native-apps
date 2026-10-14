@@ -44,6 +44,12 @@ public final class NativeRequestContext {
 
   public static final String CLIENT_NOTE_DEVICE_NAME = "native-auth.device_name";
 
+  /** Client note: this authentication session is a step-up inside an existing user session (spec/03 §5). */
+  public static final String CLIENT_NOTE_STEP_UP = "native-auth.step-up";
+
+  /** Client note: id of the user session a step-up continues. */
+  public static final String CLIENT_NOTE_STEP_UP_USER_SESSION = "native-auth.step-up.user-session";
+
   /** {@link KeycloakSession} attribute holding the envelope for the current request. */
   public static final String SESSION_ATTR_ENVELOPE = "native-auth.envelope";
 

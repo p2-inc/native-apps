@@ -35,14 +35,17 @@ The server SHOULD also advertise `authorization_challenge_endpoint` in `/.well-k
   "fipa_draft": "draft-ietf-oauth-first-party-apps-04",
   "authorization_challenge_endpoint": "https://idp.example.com/realms/demo/native-auth/challenge",
   "token_endpoint": "https://idp.example.com/realms/demo/protocol/openid-connect/token",
+  "authorization_endpoint": "https://idp.example.com/realms/demo/protocol/openid-connect/auth",
   "code_exchange": { "redirect_uri_required": false },
   "passkey": { "rp_id": "idp.example.com", "register_options_endpoint": "…", "register_finish_endpoint": "…" },
   "push": { "enabled": true, "enroll_start_endpoint": "…", "device_api_base": "https://idp.example.com/realms/demo/push-mfa", "device_client_id": "push-device-client" },
   "challenge_types_supported": ["username", "password", "passkey", "totp", "otp", "push", "recovery_code", "select", "redirect_to_web"],
-  "dpop_signing_alg_values_supported": ["ES256", "RS256"],
+  "dpop_signing_alg_values_supported": ["ES256", "ES384", "ES512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"],
   "client_attestation": { "required": false, "methods": [] }
 }
 ```
+
+`authorization_endpoint` is the realm's standard OIDC authorization endpoint; clients need it only for §3.4. `dpop_signing_alg_values_supported` lists the proof algorithms the challenge endpoint verifies (§8); it is empty when the server does not verify proofs at all.
 
 ---
 
@@ -59,10 +62,10 @@ The server SHOULD also advertise `authorization_challenge_endpoint` in `/.well-k
 | `scope` | opt | e.g. `openid profile offline_access`. |
 | `code_challenge`, `code_challenge_method` | SHOULD | PKCE S256. Required if the client wants `redirect_to_web` to carry a `request_uri`. |
 | `acr_values`, `max_age`, `login_hint`, `prompt`, `nonce`, `ui_locales` | opt | Standard OIDC semantics. `acr_values` drives step-up. `login_hint` pre-fills the `username` challenge. |
-| `auth_session` | opt | Present when continuing a previous session (step-up, re-auth after `insufficient_authorization` from the token endpoint). |
+| `auth_session` | opt | A **post-login** value (§3.1, §5) when the client wants to step up or re-authenticate inside an existing user session; the other §2.1 parameters are sent as for a fresh login (a new PKCE pair, `acr_values`, `max_age`, `prompt`, `scope`). Sending an **in-flow** value here is a §2.2 continuation instead. |
 | `device_name`, `device_id` | opt | Free-text label + stable app-generated UUID; used in events and push prompts. |
 
-Optional headers: `DPoP: <proof>` (see §8). If present on the first request, the server binds `auth_session` and the eventual authorization code to the key (FiPA §9.5.1/9.6.1) and MUST reject later requests presenting a different key.
+Optional headers: `DPoP: <proof>` (see §8). If present on the first request, the server binds `auth_session` and the eventual authorization code to the key (FiPA §9.5.1/9.6.1) and rejects later requests of the same session that present a different key or no key (`invalid_session`); an unverifiable proof is `invalid_dpop_proof`.
 
 ### 2.2 Continuation request parameters
 
@@ -88,7 +91,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
 { "authorization_code": "…", "auth_session": "…" }
 ```
 
-`auth_session` MAY be present; if so the client MUST store it (needed for step-up). Since Phase 1 the Keycloak implementation always returns it (a post-login value bound to the user session, lifetime = SSO session max, 11 D4); presenting it to the challenge endpoint is answered with `invalid_session` until step-up is implemented (Phase 2). Exchange the code at the token endpoint with `grant_type=authorization_code`, `client_id`, `code`, `code_verifier`, and **no** `redirect_uri` — unless metadata says otherwise: `code_exchange.redirect_uri_required` is `false` by default (Keycloak accepts a code stored without a redirect URI when the token request omits the parameter; verified in 09 Q1). When it is `true` the client MUST send exactly `code_exchange.redirect_uri` (operator-chosen `sentinel` or `client-fixed` mode).
+`auth_session` MAY be present; if so the client MUST store it and replace any earlier copy. The Keycloak implementation always returns it: a **post-login** value bound to the user session (lifetime = SSO session max, 11 D4) that the client presents in a §2.1 request to step up or re-authenticate without typing the username again (§5, 13 D1). It is also bound to the DPoP key when the login used one (§8). Exchange the code at the token endpoint with `grant_type=authorization_code`, `client_id`, `code`, `code_verifier`, and **no** `redirect_uri` — unless metadata says otherwise: `code_exchange.redirect_uri_required` is `false` by default (Keycloak accepts a code stored without a redirect URI when the token request omits the parameter; verified in 09 Q1). When it is `true` the client MUST send exactly `code_exchange.redirect_uri` (operator-chosen `sentinel` or `client-fixed` mode).
 
 ### 3.2 Challenge — more input required
 
@@ -113,7 +116,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
 ```
 
 - `challenges` is ordered by server preference — in the Keycloak implementation the operator's flow layout (depth-first execution order, 11 D3). Entries are the **ALTERNATIVE** executions currently eligible; the client MAY present a chooser or auto-pick the first it supports.
-- `context` is informational, present once the user is identified. Never include secrets.
+- `context` is informational, present once the user is identified. Never include secrets. During a step-up (§5) `step_up` is `true` and `acr_requested` echoes the requested `acr_values`.
 - `expires_in` is the remaining lifetime of the authentication session.
 
 ### 3.3 Challenge descriptor (common fields)
@@ -135,18 +138,23 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
 `403 Forbidden`
 
 ```json
-{ "error": "redirect_to_web", "request_uri": "urn:ietf:params:oauth:request_uri:…", "expires_in": 90, "reason": "required_action:TERMS_AND_CONDITIONS" }
+{ "error": "redirect_to_web", "error_description": "Complete the login in a browser",
+  "request_uri": "urn:ietf:params:oauth:request_uri:…", "expires_in": 60,
+  "redirect_uri": "demoapp://auth/callback", "state": "…",
+  "reason": "required_action:UPDATE_PASSWORD" }
 ```
 
-The client MUST open the system browser (`ASWebAuthenticationSession`) on the realm's authorization endpoint with `client_id` and `request_uri` (PAR, RFC 9126) and complete a normal code flow. `request_uri` is only returned if the initial request carried a PKCE challenge. `reason` is informational (e.g. an unsupported required action, risk decision, account locked).
+The server has stored a pushed authorization request (PAR, RFC 9126) for the client: the §2.1 parameters of the native flow (`scope`, PKCE `code_challenge`/`code_challenge_method`, `nonce`, `acr_values`, `ui_locales`), `redirect_uri`, a server-generated `state`, and `login_hint` = the identified username. The client MUST open the system browser (`ASWebAuthenticationSession`) on `authorization_endpoint` (§1.1) with exactly `client_id=<client_id>&request_uri=<request_uri>` and complete a normal code flow there: the user signs in again in the browser flow, completes whatever the native flow could not serve (e.g. the required action named in `reason`), and the browser is redirected to `redirect_uri` with `code` and `state`. The client MUST check `state`, then exchanges the code at the token endpoint with the **native flow's** `code_verifier` and the same `redirect_uri` (this exchange always sends `redirect_uri`, whatever `code_exchange` says, because the code was issued by the browser flow). `request_uri` is single use and expires after `expires_in` seconds (the realm's PAR request URI lifespan). `redirect_uri` is the client's `native-auth.web-fallback-redirect-uri` attribute or, when unset, its first registered redirect URI; it MUST be a registered redirect URI of the client. `reason` is informational (e.g. `required_action:<alias>`, risk decision, account locked).
+
+The answer is only possible when the initial request carried a PKCE challenge **and** the client has a usable `redirect_uri`; otherwise the server answers `403 access_denied` with the same `reason` in `error_description`. The native authentication session is removed in both cases; the browser flow is a new login, the native `auth_session` is no longer valid.
 
 ### 3.5 Other errors
 
 | HTTP | `error` | Meaning |
 |------|---------|---------|
 | 400 | `invalid_request` | Malformed / missing parameter, unknown `challenge_type`, `challenge_id` not pending. |
-| 400 | `invalid_session` | `auth_session` missing, expired, revoked, cancelled, or bound to a different DPoP key / client. Client restarts from §2.1. |
-| 400 | `invalid_dpop_proof` | Per RFC 9449. |
+| 400 | `invalid_session` | `auth_session` missing, expired, revoked, cancelled, bound to a different client, bound to a DPoP key the request did not prove, or (post-login shape) pointing at a user session that has ended. Client restarts from §2.1 without `auth_session`. |
+| 400 | `invalid_dpop_proof` | The `DPoP` header is present but does not verify (RFC 9449 §4.3: `typ`, `alg`, `jwk`, `htm`, `htu`, `iat` window, `jti` replay). |
 | 401 | `invalid_client` | Client not found or not enabled for native auth. |
 | 403 | `access_denied` | Flow failed terminally (e.g. user disabled, too many attempts). `error_description` is user-safe. |
 | 429 | `slow_down` | Rate limited; `Retry-After` header. |
@@ -225,8 +233,10 @@ params:
 { "channel": "email", "destination_masked": "a***@example.com", "digits": 6, "ttl": 300,
   "resend_allowed_at": 1760000000, "sent": true }
 ```
-On first issue the server sends the code and sets `sent: true`. response: `otp=<digits>`; or `action=resend` (no code) to request a new one, subject to `resend_allowed_at`.
-Delivery is via the `native-auth` email sender (Keycloak's `EmailSenderProvider`) or a pluggable SMS SPI (`NativeOtpSender`), see 04.
+`sent` says whether a code is currently outstanding. The server sends a code without being asked only when `otp` is the **only** entry of the challenge set (`required: true`); when it is one of several alternatives the descriptor arrives with `sent: false` and the client requests the first code with `action=resend` (no side effect before the user picks the factor, cf. §4.9). `resend_allowed_at` (absent while `sent` is `false`) is the earliest time another `action=resend` is accepted; `ttl` is the code lifetime in seconds from sending.
+response: `otp=<digits>`; or `action=resend` (no code) to (re)send a code.
+Error codes on the descriptor: `missing_credential` (empty `otp`), `invalid_credential` (wrong code; counted as a failure), `expired_code` (the code's `ttl` passed or too many wrong attempts consumed it: `sent` is `false`, the client must resend), `resend_too_soon` (`action=resend` before `resend_allowed_at`; not a failure). After five wrong attempts the outstanding code is invalidated.
+Delivery goes through the `native-otp-sender` SPI (13 D4): `email` uses the realm's SMTP settings, `sms-webhook` POSTs JSON to a configured URL. `channel` and `destination_masked` come from the sender.
 
 ### 4.7 `push` — approve on an enrolled device (cross-device)
 
@@ -260,8 +270,9 @@ Types not understood by a client MUST be ignored unless they are the only `requi
 
 - `auth_session` is opaque (a JWE). Encodes `{ root_session_id, tab_id, client_id, issued_at, dpop_jkt? }`. Lifetime = realm *login timeout* (default 30 min) while a flow is in progress; after code issuance it is re-minted with lifetime = SSO session max so it can be used for step-up.
 - A new `auth_session` value MAY be returned on **any** response; the client MUST always replace its stored copy.
-- Step-up: send `auth_session` + `acr_values` (+ `max_age`) in a §2.1 request. The server resumes the user's SSO session, runs the native flow with LoA conditions, and only the executions needed for the requested level produce challenges. On success a new code is issued; the resulting tokens carry the new `acr`.
-- Re-authentication triggered by the token endpoint: a refresh request MAY answer `400 {"error":"insufficient_authorization","auth_session":"…"}`; the client then enters §2.1 with that `auth_session`.
+- Step-up / re-authentication (13 D1): send the **post-login** `auth_session` together with a complete §2.1 request (new PKCE pair, `scope`, and `acr_values` and/or `max_age`/`prompt=login`). The server checks that the client matches, that the user session behind the value is still valid and the user enabled (else `invalid_session`: start a fresh login), and the DPoP binding (§8). It then runs the native flow as an SSO re-authentication: the user is already identified (the `username` challenge is skipped and `context.username` is set from the first response), the levels already authenticated in the user session are carried over, and only the "Condition - Level of Authentication" sub-flows whose level the request needs produce challenges. `acr_values` is mapped to a level through the client/realm ACR-to-LoA map, or taken literally when numeric (Keycloak semantics). `max_age` (when the authentication is older) and `prompt=login` force every level to be authenticated again. When nothing has to be asked the server answers `200` with a code at once. On success a new code is issued for the **same** user session (same `sid`), the tokens carry the new `acr` and, when a factor was run, a new `auth_time`; the success body carries a fresh post-login `auth_session`. A flow without LoA conditions re-runs all its factors.
+- Freshness for §6: `/passkey/register/*` answer a stale authentication with `403 insufficient_authorization` **plus** `auth_session` (post-login) and `max_age` (the realm's limit); the client steps up with that `auth_session` and `max_age`, then retries.
+- Re-authentication triggered by the token endpoint: a refresh request MAY answer `400 {"error":"insufficient_authorization","auth_session":"…"}`; the client then enters §2.1 with that `auth_session`. (Not emitted by the Keycloak implementation today; the SDK handles it.)
 - Logout: client discards `auth_session` and calls the standard logout/revocation endpoints.
 
 ---
@@ -276,7 +287,7 @@ For enrolling a passkey from inside the app after login (not mid-flow):
 
 Policy (attestation conveyance, UV requirement, allowed algorithms, exclude-credentials) comes from the realm's WebAuthn Passwordless policy.
 
-Errors: `401 invalid_token` (+ `WWW-Authenticate: Bearer …`) when the token is missing, invalid, expired or has no user session; `403 insufficient_authorization` when the authentication behind the token is older than the realm's `native-auth.passkey-registration-max-age` (default 300 s; 07 §5) — the client MUST re-authenticate (a new login until step-up exists; no `auth_session` is returned); `400 invalid_request` for a malformed body, an unknown/expired/already used `registration_id`, or an attestation that does not verify (`error_description` is user-safe). `registration_id` is single use and valid for the realm's user-action timeout.
+Errors: `401 invalid_token` (+ `WWW-Authenticate: Bearer …`) when the token is missing, invalid, expired or has no user session; `403 insufficient_authorization` when the authentication behind the token is older than the realm's `native-auth.passkey-registration-max-age` (default 300 s; 07 §5) — the body carries `auth_session` (post-login, for the token's user session and client) and `max_age` so the client can step up (§5) and retry; `400 invalid_request` for a malformed body, an unknown/expired/already used `registration_id`, or an attestation that does not verify (`error_description` is user-safe). `registration_id` is single use and valid for the realm's user-action timeout.
 
 ---
 
@@ -303,9 +314,9 @@ Keycloak-side, scenario B (§02 Architecture §3) exposes the same challenge thr
 
 - Algorithms: `ES256` (preferred), `RS256`.
 - Proof JWT header `typ: dpop+jwt`, `jwk` = device public key; payload `htm`, `htu` (no query/fragment), `iat`, `jti`, `ath` when an access token is presented, `nonce` if the server issued one.
-- Native login flow: the client MAY send `DPoP` on every `/native-auth/challenge` request and MUST then send it on the token request with the same key; the server binds `auth_session` and the code to the key's thumbprint (`jkt`).
+- Native login flow: the client MAY send `DPoP` on every `/native-auth/challenge` request and MUST then send it on every later request of that session and on the token request, with the same key. The server verifies the proof (`htm` = `POST`, `htu` = the challenge endpoint URL without query, `iat` within the proof lifetime, `jti` single use; no `ath`, no nonce) and binds the in-flow `auth_session`, the post-login `auth_session` and the authorization code (`dpop_jkt`) to the key's thumbprint (`jkt`): a continuation or step-up with another key or without a proof is `invalid_session`, a code exchange with another key is refused by the token endpoint. A session started without a proof stays unbound; a proof on a later request of such a session is verified but does not bind.
 - Push device API: required by ba-itsys; additionally carries `sub` and `deviceId` claims in the proof as that extension specifies.
-- Implementation note (12 D2): Keycloak's own DPoP support already binds **tokens** when the token request carries a `DPoP` header (`token_type: "DPoP"`, `cnf.jkt`), and the bearer-authenticated endpoints of §6 then require `Authorization: DPoP <token>` plus a proof with `ath`. Binding of `auth_session` and the authorization code at the challenge endpoint is still future work, which is why `dpop_signing_alg_values_supported` is `[]`; clients MUST treat that as normal and read `token_type` to learn whether their tokens are bound.
+- Implementation note (12 D2, 13 D3): Keycloak's own DPoP support binds **tokens** when the token request carries a `DPoP` header (`token_type: "DPoP"`, `cnf.jkt`), and the bearer-authenticated endpoints of §6 then require `Authorization: DPoP <token>` plus a proof with `ath`. Since Phase 2 the challenge endpoint verifies proofs and binds `auth_session` and the code as described above; `dpop_signing_alg_values_supported` lists the verified algorithms. Clients MUST still read `token_type` to learn whether their tokens are bound (an operator may disable the feature).
 
 ---
 
@@ -346,4 +357,11 @@ curl -s -X POST $B/native-auth/challenge -d auth_session=$S3 -d challenge_type=t
 
 # 5. tokens
 curl -s -X POST $B/protocol/openid-connect/token -d grant_type=authorization_code -d client_id=demo-ios -d code=C -d code_verifier=$CV
+
+# 6. later: step up to acr "2" inside the same user session (§5), with a new PKCE pair
+curl -s -X POST $B/native-auth/challenge -d client_id=demo-ios -d response_type=code -d scope=openid \
+  -d code_challenge=$CC2 -d code_challenge_method=S256 -d acr_values=2 -d auth_session=$S4
+# -> 403, context.step_up=true, context.username=alice, challenges=[{type:totp,id:E5}]  (no username step)
+curl -s -X POST $B/native-auth/challenge -d auth_session=$S5 -d challenge_type=totp -d challenge_id=E5 -d totp=123456
+# -> 200 {"authorization_code":"C2","auth_session":"S6"}; tokens from C2 carry acr=2 and the same sid
 ```

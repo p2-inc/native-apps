@@ -167,12 +167,18 @@ final class PasskeyRegistrationDriver {
       int age = Time.currentTime() - authTime;
       if (age > maxAge) {
         log.debugf("Passkey registration refused for user %s: authentication is %d s old (max %d)", auth.getUser().getUsername(), age, maxAge);
-        // FiPA's answer for an insufficiently fresh authentication; no auth_session/challenges
-        // because step-up through the challenge endpoint is Phase 2.
-        throw new NativeAuthException(
+        // FiPA's answer for an insufficiently fresh authentication, with a post-login auth_session and
+        // the limit so the client can step up with max_age and retry (spec/03 §5, §6; spec/13 D1).
+        String jkt =
+            auth.getToken().getConfirmation() == null ? null : auth.getToken().getConfirmation().getKeyThumbprint();
+        String clientId = auth.getClient() == null ? auth.getToken().getIssuedFor() : auth.getClient().getClientId();
+        throw NativeAuthException.withBody(
             Response.Status.FORBIDDEN,
-            Protocol.ERR_INSUFFICIENT_AUTHORIZATION,
-            "Authentication is older than " + maxAge + " s; re-authenticate before registering a passkey");
+            new io.phasetwo.keycloak.nativeauth.core.model.ErrorResponse(
+                    Protocol.ERR_INSUFFICIENT_AUTHORIZATION,
+                    "Authentication is older than " + maxAge + " s; re-authenticate (step up with max_age) before registering a passkey")
+                .setAuthSession(PostLoginAuthSession.mint(session, realm, userSession.getId(), clientId, jkt))
+                .setMaxAge((long) maxAge));
       }
     }
     return new Authenticated(auth.getUser(), userSession, auth.getClient());

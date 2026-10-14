@@ -1,0 +1,477 @@
+{
+  "test": "OtpIT.tooManyWrongCodesInvalidateTheCodeUntilItIsResent",
+  "recorded_at": "2026-10-14T21:32:43.479357Z",
+  "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
+  "base_url": "http://localhost:55746",
+  "masked_form_fields": [
+    "client_secret",
+    "code_verifier",
+    "otp",
+    "password",
+    "recovery_code",
+    "refresh_token",
+    "token",
+    "totp"
+  ],
+  "exchanges": [
+    {
+      "seq": 1,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "client_id": "demo-ios-otp",
+          "response_type": "code",
+          "scope": "openid profile",
+          "code_challenge": "rTTA6Eq-dNgwY1EACMXL5rOo_pQQVwIUnsBjGe07hT8",
+          "code_challenge_method": "S256",
+          "device_name": "NativeAuthIT"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..6T8ZblxjCkal0Cnq.Q4ObWcfoDhRDXcvhQKOtIYyWDAThtJyWuG37zih_GpsMpuA7HpQVrGbi3RbvBFgKU9P11fzDy1IqYUVKjCoWlFsSq3QB-CTEm2z8Z9kLtfr1fFSN7fD5jbb0BF1ygRPzq5WW61OPbCeC-Q3NPyM-ieljdrete1p3jF6MTLQ62Opr6ZRr3LgiANjrLt5_89ZACL5sUmg.iRn4ob-4fsyA2n2mrQ-2Eg",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "username",
+              "id": "0cc129b6-b8df-441b-b888-064d6001d49f",
+              "label": "Username",
+              "required": true,
+              "params": {
+                "allow_email": true
+              }
+            }
+          ],
+          "context": {
+            "client_name": "Demo iOS App (email OTP flow)"
+          }
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..6T8ZblxjCkal0Cnq.Q4ObWcfoDhRDXcvhQKOtIYyWDAThtJyWuG37zih_GpsMpuA7HpQVrGbi3RbvBFgKU9P11fzDy1IqYUVKjCoWlFsSq3QB-CTEm2z8Z9kLtfr1fFSN7fD5jbb0BF1ygRPzq5WW61OPbCeC-Q3NPyM-ieljdrete1p3jF6MTLQ62Opr6ZRr3LgiANjrLt5_89ZACL5sUmg.iRn4ob-4fsyA2n2mrQ-2Eg",
+          "challenge_type": "username",
+          "challenge_id": "0cc129b6-b8df-441b-b888-064d6001d49f",
+          "username": "bob"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..mRK1n2m1l9JV7p1h.hp_WgBfqcnE8BoFezLXkSqWIkm1TNAaTBQGXpS26RciO0ZTFb6FoX03FdsPshefK5H_uPamKJWO_Y9iVt-BtysEXoZ5EEBUyRSXBLtp5Q1BKoVGEBTS-2eY26SJvZ1nfk3Tj_CWQ9Dj8IWGG3GGkZltAF_QmvvehsuUerFDgg8UHuXBS6JHJ2qCg-PMRcUgeNDvlNr0.0m1iaR2Z1pTVZPwbXUHtmQ",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "password",
+              "id": "4945b364-19ba-41f0-b105-7a93dc7eb4b2",
+              "label": "Password",
+              "required": true,
+              "params": {
+                "username_known": true
+              }
+            }
+          ],
+          "context": {
+            "username": "bob",
+            "display_name": "Bob Passwordonly",
+            "client_name": "Demo iOS App (email OTP flow)"
+          }
+        }
+      }
+    },
+    {
+      "seq": 3,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..mRK1n2m1l9JV7p1h.hp_WgBfqcnE8BoFezLXkSqWIkm1TNAaTBQGXpS26RciO0ZTFb6FoX03FdsPshefK5H_uPamKJWO_Y9iVt-BtysEXoZ5EEBUyRSXBLtp5Q1BKoVGEBTS-2eY26SJvZ1nfk3Tj_CWQ9Dj8IWGG3GGkZltAF_QmvvehsuUerFDgg8UHuXBS6JHJ2qCg-PMRcUgeNDvlNr0.0m1iaR2Z1pTVZPwbXUHtmQ",
+          "challenge_type": "password",
+          "challenge_id": "4945b364-19ba-41f0-b105-7a93dc7eb4b2",
+          "password": "***"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..YMmHyyaZ7HSm47jy.y5EqNRM7S6tkg3gBcL_fcozkWh9r2y9AgZIHQ2lwsFi3CfTMEhZfoF9T-3UGGVYZtcDTky2YOQ0Ve4Tce95CCTahuIeOnSHcO8-R42K2pP3nYWXP-KRTpoRCrF9_Jarh0jRoWfseuvfIXdkXd8bLz-f3lroGUZ7e168MERDF2cEw0e6e1L21qywm61TpHsnRVxCx-2k.rjurGS2lzbjJ0LlvqFyYxQ",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "otp",
+              "id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+              "label": "One-time code by email",
+              "required": true,
+              "params": {
+                "channel": "email",
+                "digits": 6,
+                "ttl": 300,
+                "sent": true,
+                "destination_masked": "b***@example.com",
+                "resend_allowed_at": 1792013559
+              }
+            }
+          ],
+          "context": {
+            "username": "bob",
+            "display_name": "Bob Passwordonly",
+            "client_name": "Demo iOS App (email OTP flow)"
+          }
+        }
+      }
+    },
+    {
+      "seq": 4,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..YMmHyyaZ7HSm47jy.y5EqNRM7S6tkg3gBcL_fcozkWh9r2y9AgZIHQ2lwsFi3CfTMEhZfoF9T-3UGGVYZtcDTky2YOQ0Ve4Tce95CCTahuIeOnSHcO8-R42K2pP3nYWXP-KRTpoRCrF9_Jarh0jRoWfseuvfIXdkXd8bLz-f3lroGUZ7e168MERDF2cEw0e6e1L21qywm61TpHsnRVxCx-2k.rjurGS2lzbjJ0LlvqFyYxQ",
+          "challenge_type": "otp",
+          "challenge_id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+          "otp": "***"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..jj0QAj-0VjEiSb73.CmyD37mKIQTuoYpwuKV5p0MuNTY6YtDkmMyOLSTCJ8TfJVmaZE4lO7gRqmvFlC2sGidP9qdgaMZSSuPcK5lt1ljCnUmVIakLrMzWdwFQuo0uZhJsFMrJ3FjdEbHwEpLylF9qRrm5vfXb7M9DLFp-nmpcORS81MFuI0a__Y3AkAPh8zIWkvhPrIapWCiZq2VddW7tF9o.dfA90yujCFSocW5YMU2kJQ",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "otp",
+              "id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+              "label": "One-time code by email",
+              "required": true,
+              "error": {
+                "code": "invalid_credential",
+                "message": "Invalid code"
+              },
+              "params": {
+                "channel": "email",
+                "digits": 6,
+                "ttl": 300,
+                "sent": true,
+                "destination_masked": "b***@example.com",
+                "resend_allowed_at": 1792013559
+              }
+            }
+          ],
+          "context": {
+            "username": "bob",
+            "display_name": "Bob Passwordonly",
+            "client_name": "Demo iOS App (email OTP flow)"
+          }
+        }
+      }
+    },
+    {
+      "seq": 5,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..jj0QAj-0VjEiSb73.CmyD37mKIQTuoYpwuKV5p0MuNTY6YtDkmMyOLSTCJ8TfJVmaZE4lO7gRqmvFlC2sGidP9qdgaMZSSuPcK5lt1ljCnUmVIakLrMzWdwFQuo0uZhJsFMrJ3FjdEbHwEpLylF9qRrm5vfXb7M9DLFp-nmpcORS81MFuI0a__Y3AkAPh8zIWkvhPrIapWCiZq2VddW7tF9o.dfA90yujCFSocW5YMU2kJQ",
+          "challenge_type": "otp",
+          "challenge_id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+          "otp": "***"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..zC69Y3JgVKarhzFG.EyOXh9FMgupb9RZhjcKk7OAaD0lHqsO_RrVtHiStnwDsaIcQn4_dv2q1FUQLQPH47AmANkGBnoT3c3JA8p6IsqRHbYPuME4E0Md35eZu2nEb1y2sY8BqvpZQeaQTBvt_JeiEJ_6A8NZbGhlN1mr4gxnKJAuC2S0_8Llf1YftqomjxNkLMx1wHoBFUzPanWNpeM6-u70.jmCj5iXwQ6nccl7QRk_7uQ",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "otp",
+              "id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+              "label": "One-time code by email",
+              "required": true,
+              "error": {
+                "code": "invalid_credential",
+                "message": "Invalid code"
+              },
+              "params": {
+                "channel": "email",
+                "digits": 6,
+                "ttl": 300,
+                "sent": true,
+                "destination_masked": "b***@example.com",
+                "resend_allowed_at": 1792013559
+              }
+            }
+          ],
+          "context": {
+            "username": "bob",
+            "display_name": "Bob Passwordonly",
+            "client_name": "Demo iOS App (email OTP flow)"
+          }
+        }
+      }
+    },
+    {
+      "seq": 6,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..zC69Y3JgVKarhzFG.EyOXh9FMgupb9RZhjcKk7OAaD0lHqsO_RrVtHiStnwDsaIcQn4_dv2q1FUQLQPH47AmANkGBnoT3c3JA8p6IsqRHbYPuME4E0Md35eZu2nEb1y2sY8BqvpZQeaQTBvt_JeiEJ_6A8NZbGhlN1mr4gxnKJAuC2S0_8Llf1YftqomjxNkLMx1wHoBFUzPanWNpeM6-u70.jmCj5iXwQ6nccl7QRk_7uQ",
+          "challenge_type": "otp",
+          "challenge_id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+          "otp": "***"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..EVfMWcFeNXT8i__L.cGECEU2LdHyIxP3hxKffdB8cVgnyuAN9IeOGod06aodmBhLiSHUCoSSA3qfMwH8bdLo6HySK9NJCMGOJfq8EmI5Fmj8GVh7beQHtnJACd523SKvmoG44Mcs25FKF2ZgJRakX-CHG3Mz7xsP6m8gf0NCwIc96c7KoEzbS-TZXPkOsLhN-9gOj_xF8vsFhHFFXSSWLGR0.frnzyU9Ya2UgY-rLop-Lug",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "otp",
+              "id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+              "label": "One-time code by email",
+              "required": true,
+              "error": {
+                "code": "expired_code",
+                "message": "Too many wrong codes; request a new one"
+              },
+              "params": {
+                "channel": "email",
+                "digits": 6,
+                "ttl": 300,
+                "sent": false,
+                "destination_masked": "b***@example.com",
+                "resend_allowed_at": 1792013559
+              }
+            }
+          ],
+          "context": {
+            "username": "bob",
+            "display_name": "Bob Passwordonly",
+            "client_name": "Demo iOS App (email OTP flow)"
+          }
+        }
+      }
+    },
+    {
+      "seq": 7,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..EVfMWcFeNXT8i__L.cGECEU2LdHyIxP3hxKffdB8cVgnyuAN9IeOGod06aodmBhLiSHUCoSSA3qfMwH8bdLo6HySK9NJCMGOJfq8EmI5Fmj8GVh7beQHtnJACd523SKvmoG44Mcs25FKF2ZgJRakX-CHG3Mz7xsP6m8gf0NCwIc96c7KoEzbS-TZXPkOsLhN-9gOj_xF8vsFhHFFXSSWLGR0.frnzyU9Ya2UgY-rLop-Lug",
+          "challenge_type": "otp",
+          "challenge_id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+          "otp": "***"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..arA1RHqzUjwOJ8r6.LGuMLLERJSbv4jSsNXHY9Q272fdiNL4Qe-F5HOrBVXN89gqgI_PVywin7FGBh3yYu813zxa3RQgAAlwnNDin6BLpNBSYDDahdIcJRQ24-tFtkqC8xg0YJd5UxPEGHUBGU0neI3BFeP3jyQ4TS8NnpccsqrHuZd5cqHYamP4e4JcikWYi62M0-HM-XqzcgdR_SRVFwVE.Lzq6suufhDCUZoaSC7-aBw",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "otp",
+              "id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+              "label": "One-time code by email",
+              "required": true,
+              "error": {
+                "code": "expired_code",
+                "message": "No valid code outstanding; request a new one"
+              },
+              "params": {
+                "channel": "email",
+                "digits": 6,
+                "ttl": 300,
+                "sent": false,
+                "destination_masked": "b***@example.com",
+                "resend_allowed_at": 1792013559
+              }
+            }
+          ],
+          "context": {
+            "username": "bob",
+            "display_name": "Bob Passwordonly",
+            "client_name": "Demo iOS App (email OTP flow)"
+          }
+        }
+      }
+    },
+    {
+      "seq": 8,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..arA1RHqzUjwOJ8r6.LGuMLLERJSbv4jSsNXHY9Q272fdiNL4Qe-F5HOrBVXN89gqgI_PVywin7FGBh3yYu813zxa3RQgAAlwnNDin6BLpNBSYDDahdIcJRQ24-tFtkqC8xg0YJd5UxPEGHUBGU0neI3BFeP3jyQ4TS8NnpccsqrHuZd5cqHYamP4e4JcikWYi62M0-HM-XqzcgdR_SRVFwVE.Lzq6suufhDCUZoaSC7-aBw",
+          "challenge_type": "otp",
+          "challenge_id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+          "action": "resend"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..ZFfEQeXWDce6I0Kd.ytIKp1SrkVSN4vUXLW0n9Z2FoBJPoNk977PFLexmiF5JWoUj2493SVApYFMo2muB0AtnjVvL6dSrd3yGezZCWnpcxPdtPspS2tJW3CQiWjHpnyor-6Yg94b9LXrqfIVUtv8z1sRb4hzpITVaWqdsITbxbAaKUrXi9jdRIiWLoQ1tw_psBEhzhnpzKILjaes3dj5cJL0.GgwzVPP9BUHZEd_HrGmvtQ",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "otp",
+              "id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+              "label": "One-time code by email",
+              "required": true,
+              "params": {
+                "channel": "email",
+                "digits": 6,
+                "ttl": 300,
+                "sent": true,
+                "destination_masked": "b***@example.com",
+                "resend_allowed_at": 1792013573
+              }
+            }
+          ],
+          "context": {
+            "username": "bob",
+            "display_name": "Bob Passwordonly",
+            "client_name": "Demo iOS App (email OTP flow)"
+          }
+        }
+      }
+    },
+    {
+      "seq": 9,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..ZFfEQeXWDce6I0Kd.ytIKp1SrkVSN4vUXLW0n9Z2FoBJPoNk977PFLexmiF5JWoUj2493SVApYFMo2muB0AtnjVvL6dSrd3yGezZCWnpcxPdtPspS2tJW3CQiWjHpnyor-6Yg94b9LXrqfIVUtv8z1sRb4hzpITVaWqdsITbxbAaKUrXi9jdRIiWLoQ1tw_psBEhzhnpzKILjaes3dj5cJL0.GgwzVPP9BUHZEd_HrGmvtQ",
+          "challenge_type": "otp",
+          "challenge_id": "6398757e-2a21-4f10-b659-bf51256ac6c8",
+          "otp": "***"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "authorization_code": "45e1e385-54ba-74a9-da09-560da7656823.sUIneAMUsSYShJOBG294uyqx.454ea248-0588-4c81-8b68-b09dc4aca8ff",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOTViNDJiYzEtNDA0Yy00MjQzLTliMzEtYWY3NWNmMTY1ZjYwIn0..E7NI7nlckroCL4mF.0eG1ARqkSQaRtH0thcLiy_vlxBLjUa1bEIwZFnjVCB8L1RDFJ3GreeQneIb5QPxGQ09j4A05OJ3JFKzOruN5J2JtsbVtVTUdloNdBAVEKePNZWiWfJCiMvR0rwKAM9LpprFRuZAFGFsvzr7DSzpTn7G2D9eSoDR5zC49H9nhGCl_CUdnacec6KcJ-YstEdM.tpxiAZlWZCXqCL7x6c2dIA"
+        }
+      }
+    }
+  ]
+}

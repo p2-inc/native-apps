@@ -1,0 +1,2 @@
+io.phasetwo.keycloak.nativeauth.otp.EmailOtpSenderFactory
+io.phasetwo.keycloak.nativeauth.otp.SmsWebhookOtpSenderFactory

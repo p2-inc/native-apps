@@ -61,6 +61,14 @@ final class CodeIssuer {
   }
 
   Outcome complete(AuthenticationSessionModel authSession) {
+    return complete(authSession, null);
+  }
+
+  /**
+   * @param existingUserSession the user session a step-up continues (spec/03 §5), or {@code null}
+   *     for a fresh login (a new user session is created)
+   */
+  Outcome complete(AuthenticationSessionModel authSession, UserSessionModel existingUserSession) {
     // Same preamble as AuthenticationProcessor.authenticationComplete():
     new AcrStore(session, authSession).setAuthFlowLevelAuthenticatedToCurrentRequest();
     AuthenticationManager.setClientScopesInSession(session, authSession);
@@ -85,7 +93,7 @@ final class CodeIssuer {
     String resource = authSession.getClientNote(OAuth2Constants.RESOURCE);
     String codeChallenge = authSession.getClientNote(OIDCLoginProtocol.CODE_CHALLENGE_PARAM);
     String codeChallengeMethod = authSession.getClientNote(OIDCLoginProtocol.CODE_CHALLENGE_METHOD_PARAM);
-    String dpopJkt = authSession.getClientNote(OIDCLoginProtocol.DPOP_JKT); // null until Phase 4
+    String dpopJkt = authSession.getClientNote(OIDCLoginProtocol.DPOP_JKT); // set when the login carried DPoP proofs (13 D3)
     String rootSessionId = authSession.getParentSession().getId();
     boolean ssoAuthentication = AuthenticatorUtil.isSSOAuthentication(authSession);
     int authTime =
@@ -95,7 +103,7 @@ final class CodeIssuer {
 
     event.detail(Details.CODE_ID, rootSessionId);
     ClientSessionContext clientSessionCtx =
-        AuthenticationProcessor.attachSession(authSession, null, session, realm, connection, event);
+        AuthenticationProcessor.attachSession(authSession, existingUserSession, session, realm, connection, event);
     AuthenticatedClientSessionModel clientSession = clientSessionCtx.getClientSession();
     UserSessionModel userSession = clientSession.getUserSession();
 

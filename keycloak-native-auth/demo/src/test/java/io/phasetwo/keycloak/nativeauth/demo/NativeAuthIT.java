@@ -498,15 +498,7 @@ class NativeAuthIT {
     assertEquals("invalid_request", noPkce.jsonPath().getString("error"));
   }
 
-  @Test
-  void pendingRequiredActionIsReportedAsAccessDenied() {
-    // carol must update her password: a non-native required action still ends with access_denied
-    // (redirect_to_web is Phase 2); native ones are served in-band, see PasskeyIT.
-    Response r = login(CLIENT, Pkce.s256(), "carol", "carol-password", null);
-    assertEquals(403, r.statusCode(), r.asString());
-    assertEquals("access_denied", r.jsonPath().getString("error"));
-    assertTrue(r.jsonPath().getString("error_description").contains("UPDATE_PASSWORD"), r.asString());
-  }
+  // carol's pending UPDATE_PASSWORD (a non-native required action) is covered by RedirectToWebIT.
 
   // ---------------------------------------------------------------------------------------------
   // Token lifecycle after a native login (standard Keycloak endpoints; fixtures for the SDK's Tokens client)

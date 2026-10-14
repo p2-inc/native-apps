@@ -54,6 +54,8 @@ public class NativeAuthResource {
             .toString());
     m.setTokenEndpoint(
         OIDCLoginProtocolService.tokenUrl(UriBuilder.fromUri(baseUri)).build(realm.getName()).toString());
+    m.setAuthorizationEndpoint(
+        OIDCLoginProtocolService.authUrl(UriBuilder.fromUri(baseUri)).build(realm.getName()).toString());
     m.setCodeExchange(NativeAuthConfig.codeExchangeMetadata(realm));
     m.setPasskey(
         new Metadata.Passkey(
@@ -61,8 +63,8 @@ public class NativeAuthResource {
             realmPath(baseUri, realm, "passkey/register/options"),
             realmPath(baseUri, realm, "passkey/register/finish")));
     m.setChallengeTypesSupported(installedChallengeTypes());
-    // DPoP binding of auth_session/code is a Phase 4 item; advertise nothing until it is enforced.
-    m.setDpopSigningAlgValuesSupported(List.of());
+    // The challenge endpoint verifies proofs and binds auth_session/code to the key (spec/03 §8, 13 D3).
+    m.setDpopSigningAlgValuesSupported(DPoPProofChecker.supportedAlgorithms(session));
     return Responses.json(Response.Status.OK, m);
   }
 

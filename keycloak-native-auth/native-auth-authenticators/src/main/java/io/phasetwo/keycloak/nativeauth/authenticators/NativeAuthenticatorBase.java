@@ -79,8 +79,12 @@ public abstract class NativeAuthenticatorBase implements NativeAuthenticator {
   protected List<ChallengeDescriptor> buildChallengeSet(
       AuthenticationFlowContext context, ChallengeDescriptor.ChallengeError errorForCurrent) {
     List<ChallengeDescriptor> set = new ArrayList<>();
+    Map<String, NativeAuthenticator> authenticators = new HashMap<>();
+    Map<String, AuthenticationExecutionModel> executions = new HashMap<>();
     AuthenticationExecutionModel current = context.getExecution();
     set.add(describe(context, current).setId(current.getId()).setError(errorForCurrent));
+    authenticators.put(current.getId(), this);
+    executions.put(current.getId(), current);
 
     List<AuthenticationSelectionOption> selections = context.getAuthenticationSelections();
     if (selections != null) {
@@ -109,6 +113,8 @@ public abstract class NativeAuthenticatorBase implements NativeAuthenticator {
           continue;
         }
         set.add(siblingAuthenticator.describe(context, sibling).setId(sibling.getId()));
+        authenticators.put(sibling.getId(), siblingAuthenticator);
+        executions.put(sibling.getId(), sibling);
       }
     }
     // Order follows the operator's flow layout (depth-first execution order), not the engine's
@@ -119,6 +125,14 @@ public abstract class NativeAuthenticatorBase implements NativeAuthenticator {
     boolean single = set.size() == 1;
     for (ChallengeDescriptor d : set) {
       d.setRequired(single);
+    }
+    // Side effects that depend on the set's shape (an OTP is only sent unasked when it is the single
+    // option, spec/03 §4.6) happen now that `required` is known.
+    for (ChallengeDescriptor d : set) {
+      NativeAuthenticator a = authenticators.get(d.getId());
+      if (a != null) {
+        a.prepare(context, executions.get(d.getId()), d, single);
+      }
     }
     return set;
   }
