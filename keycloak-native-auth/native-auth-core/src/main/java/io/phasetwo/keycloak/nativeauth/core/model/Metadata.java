@@ -25,6 +25,7 @@ public class Metadata {
   private String authorizationChallengeEndpoint;
   private String tokenEndpoint;
   private CodeExchange codeExchange;
+  private Passkey passkey;
   private List<ChallengeType> challengeTypesSupported = new ArrayList<>();
   private List<String> dpopSigningAlgValuesSupported = new ArrayList<>();
   private ClientAttestation clientAttestation = new ClientAttestation();
@@ -67,6 +68,14 @@ public class Metadata {
 
   public void setCodeExchange(CodeExchange codeExchange) {
     this.codeExchange = codeExchange;
+  }
+
+  public Passkey getPasskey() {
+    return passkey;
+  }
+
+  public void setPasskey(Passkey passkey) {
+    this.passkey = passkey;
   }
 
   public List<ChallengeType> getChallengeTypesSupported() {
@@ -124,6 +133,47 @@ public class Metadata {
 
     public void setRedirectUri(String redirectUri) {
       this.redirectUri = redirectUri;
+    }
+  }
+
+  /** The {@code passkey} block (spec/03 §1.1): RP ID and the authenticated registration endpoints (§6). */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonPropertyOrder({"rp_id", "register_options_endpoint", "register_finish_endpoint"})
+  public static class Passkey {
+    private String rpId;
+    private String registerOptionsEndpoint;
+    private String registerFinishEndpoint;
+
+    public Passkey() {}
+
+    public Passkey(String rpId, String registerOptionsEndpoint, String registerFinishEndpoint) {
+      this.rpId = rpId;
+      this.registerOptionsEndpoint = registerOptionsEndpoint;
+      this.registerFinishEndpoint = registerFinishEndpoint;
+    }
+
+    public String getRpId() {
+      return rpId;
+    }
+
+    public void setRpId(String rpId) {
+      this.rpId = rpId;
+    }
+
+    public String getRegisterOptionsEndpoint() {
+      return registerOptionsEndpoint;
+    }
+
+    public void setRegisterOptionsEndpoint(String registerOptionsEndpoint) {
+      this.registerOptionsEndpoint = registerOptionsEndpoint;
+    }
+
+    public String getRegisterFinishEndpoint() {
+      return registerFinishEndpoint;
+    }
+
+    public void setRegisterFinishEndpoint(String registerFinishEndpoint) {
+      this.registerFinishEndpoint = registerFinishEndpoint;
     }
   }
 

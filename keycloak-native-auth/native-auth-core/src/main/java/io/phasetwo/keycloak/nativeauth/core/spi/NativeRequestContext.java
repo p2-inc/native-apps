@@ -29,8 +29,15 @@ public final class NativeRequestContext {
   /** Auth note with the profile version the client negotiated. */
   public static final String AUTH_NOTE_PROTOCOL_VERSION = "native-auth.protocol_version";
 
-  /** Auth note: JSON object {@code {executionId: challengeType}} of the challenges last issued. */
+  /**
+   * Auth note: JSON object {@code {challengeId: challengeType}} of the challenges last issued. Ids are
+   * execution ids while the flow runs and the required action's provider id once the flow has
+   * finished and a native required action is being served (spec/11 D1).
+   */
   public static final String AUTH_NOTE_PENDING = "native-auth.pending";
+
+  /** Auth note: provider id of the native required action whose challenge is currently pending. */
+  public static final String AUTH_NOTE_REQUIRED_ACTION = "native-auth.required-action";
 
   /** Client note copied from the request's optional {@code device_id} / {@code device_name}. */
   public static final String CLIENT_NOTE_DEVICE_ID = "native-auth.device_id";
@@ -86,7 +93,28 @@ public final class NativeRequestContext {
     authSession.setAuthNote(AUTH_NOTE_PENDING, NativeAuthJson.write(pending));
   }
 
-  /** @return {@code {executionId: challengeTypeWire}} of the last issued challenge set (possibly empty). */
+  /**
+   * Records that the next continuation must go to the native required action {@code providerId}
+   * (its {@code challenge_id} is the provider id). Clears any flow-level pending ids.
+   */
+  public static void setPendingRequiredAction(
+      AuthenticationSessionModel authSession, String providerId, ChallengeDescriptor descriptor) {
+    descriptor.setId(providerId);
+    setPending(authSession, List.of(descriptor));
+    authSession.setAuthNote(AUTH_NOTE_REQUIRED_ACTION, providerId);
+  }
+
+  /** @return the provider id of the pending native required action, or {@code null} while the flow runs. */
+  public static String pendingRequiredAction(AuthenticationSessionModel authSession) {
+    return authSession.getAuthNote(AUTH_NOTE_REQUIRED_ACTION);
+  }
+
+  public static void clearPendingRequiredAction(AuthenticationSessionModel authSession) {
+    authSession.removeAuthNote(AUTH_NOTE_REQUIRED_ACTION);
+    authSession.removeAuthNote(AUTH_NOTE_PENDING);
+  }
+
+  /** @return {@code {challengeId: challengeTypeWire}} of the last issued challenge set (possibly empty). */
   @SuppressWarnings("unchecked")
   public static Map<String, String> pending(AuthenticationSessionModel authSession) {
     String note = authSession.getAuthNote(AUTH_NOTE_PENDING);

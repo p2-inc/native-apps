@@ -3,8 +3,21 @@ package io.phasetwo.keycloak.nativeauth.core.session;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
- * Plaintext of the {@code auth_session} JWE (spec/02 D5, spec/03 §5): {@code {root_session_id, tab_id,
- * client_id, iat, jkt?}}. The value is opaque to clients; only the server decrypts it.
+ * Plaintext of the {@code auth_session} JWE (spec/02 D5, spec/03 §5).
+ *
+ * <p>Two shapes share the codec (spec/11 D4):
+ *
+ * <ul>
+ *   <li><b>in-flow</b>: {@code {root_session_id, tab_id, client_id, iat, jkt?}} points at the
+ *       authentication session tab while a login is in progress; lifetime is enforced by the login
+ *       timeout of the authentication session, not by a claim;
+ *   <li><b>post-login</b>: {@code {user_session_id, client_id, iat, exp, jkt?}} points at the user
+ *       session created by a successful login and is returned in the success body so the client can
+ *       keep it for step-up (consumption of this shape is Phase 2; the endpoint rejects it until
+ *       then).
+ * </ul>
+ *
+ * The value is opaque to clients; only the server decrypts it.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AuthSessionClaims {
@@ -17,6 +30,10 @@ public class AuthSessionClaims {
   private String tabId;
   private String clientId;
   private long iat;
+  /** Post-login shape only: the user session the login created. */
+  private String userSessionId;
+  /** Post-login shape only: absolute expiry (Unix seconds), set to the SSO session max lifespan. */
+  private Long exp;
   /** DPoP key thumbprint (spec/03 §8). Null until DPoP binding is implemented (Phase 4). */
   private String jkt;
 
@@ -70,6 +87,30 @@ public class AuthSessionClaims {
   public AuthSessionClaims setIat(long iat) {
     this.iat = iat;
     return this;
+  }
+
+  public String getUserSessionId() {
+    return userSessionId;
+  }
+
+  public AuthSessionClaims setUserSessionId(String userSessionId) {
+    this.userSessionId = userSessionId;
+    return this;
+  }
+
+  public Long getExp() {
+    return exp;
+  }
+
+  public AuthSessionClaims setExp(Long exp) {
+    this.exp = exp;
+    return this;
+  }
+
+  /** @return true for the post-login shape (a user session reference), false for the in-flow shape. */
+  @com.fasterxml.jackson.annotation.JsonIgnore
+  public boolean isPostLogin() {
+    return userSessionId != null;
   }
 
   public String getJkt() {

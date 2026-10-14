@@ -43,6 +43,15 @@ public final class Protocol {
   public static final String PASSWORD = "password";
   public static final String TOTP = "totp";
   public static final String CREDENTIAL_ID = "credential_id";
+  // passkey (spec/03 §4.3) and passkey_registration (§4.4, §6)
+  public static final String CLIENT_DATA_JSON = "client_data_json";
+  public static final String AUTHENTICATOR_DATA = "authenticator_data";
+  public static final String SIGNATURE = "signature";
+  public static final String USER_HANDLE = "user_handle";
+  public static final String ATTESTATION_OBJECT = "attestation_object";
+  public static final String TRANSPORTS = "transports";
+  public static final String LABEL = "label";
+  public static final String REGISTRATION_ID = "registration_id";
 
   // ---- error codes (spec/03 §3) ----
   public static final String ERR_INSUFFICIENT_AUTHORIZATION = "insufficient_authorization";
@@ -55,17 +64,24 @@ public final class Protocol {
   public static final String ERR_SLOW_DOWN = "slow_down";
   public static final String ERR_CLIENT_ATTESTATION_REQUIRED = "client_attestation_required";
   public static final String ERR_SERVER_ERROR = "server_error";
+  /** RFC 6750 error for the bearer-authenticated endpoints (spec/03 §6). */
+  public static final String ERR_INVALID_TOKEN = "invalid_token";
 
   // ---- descriptor error codes (spec/03 §3.3 / §4) ----
   public static final String DESC_ERR_INVALID_CREDENTIAL = "invalid_credential";
   public static final String DESC_ERR_INVALID_USER = "invalid_user";
   public static final String DESC_ERR_MISSING_CREDENTIAL = "missing_credential";
+  /** {@code passkey_registration}: the attestation did not verify (spec/03 §4.4). */
+  public static final String DESC_ERR_INVALID_ATTESTATION = "invalid_attestation";
 
   // ---- Keycloak client / realm attributes ----
   public static final String CLIENT_ATTR_ENABLED = "native-auth.enabled";
   public static final String ATTR_FLOW_ALIAS = "native-auth.flow-alias";
   public static final String ATTR_CODE_REDIRECT_URI_MODE = "native-auth.code-redirect-uri-mode";
   public static final String ATTR_CODE_REDIRECT_URI = "native-auth.code-redirect-uri";
+  /** Realm attribute: max age (s) of the authentication behind a token used for passkey registration (spec/07 §5). */
+  public static final String ATTR_PASSKEY_REGISTRATION_MAX_AGE = "native-auth.passkey-registration-max-age";
+  public static final int DEFAULT_PASSKEY_REGISTRATION_MAX_AGE = 300;
   public static final String DEFAULT_FLOW_ALIAS = "native";
 
   /** Sentinel redirect URI stored with the code when {@code code-redirect-uri-mode=sentinel}. */

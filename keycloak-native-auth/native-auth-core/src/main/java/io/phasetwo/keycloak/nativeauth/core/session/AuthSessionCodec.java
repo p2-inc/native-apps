@@ -68,11 +68,15 @@ public final class AuthSessionCodec {
     } catch (IOException e) {
       throw new InvalidAuthSessionException("auth_session payload malformed", e);
     }
-    if (!AuthSessionClaims.TYPE.equals(claims.getTyp())
-        || claims.getRootSessionId() == null
-        || claims.getTabId() == null
-        || claims.getClientId() == null) {
+    if (!AuthSessionClaims.TYPE.equals(claims.getTyp()) || claims.getClientId() == null) {
       throw new InvalidAuthSessionException("auth_session payload incomplete");
+    }
+    boolean inFlow = claims.getRootSessionId() != null && claims.getTabId() != null;
+    if (!inFlow && !claims.isPostLogin()) {
+      throw new InvalidAuthSessionException("auth_session payload incomplete");
+    }
+    if (claims.getExp() != null && claims.getExp() <= org.keycloak.common.util.Time.currentTime()) {
+      throw new InvalidAuthSessionException("auth_session expired");
     }
     return claims;
   }

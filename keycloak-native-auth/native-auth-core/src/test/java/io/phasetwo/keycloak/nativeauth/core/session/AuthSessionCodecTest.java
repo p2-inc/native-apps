@@ -132,4 +132,44 @@ class AuthSessionCodecTest {
     assertEquals(AuthSessionCodec.hashPrefix(token), AuthSessionCodec.hashPrefix(token));
     assertNotEquals(AuthSessionCodec.hashPrefix(token), AuthSessionCodec.hashPrefix(token + "x"));
   }
+
+  @Test
+  void postLoginShapeRoundTripsAndIsDistinguishable() throws Exception {
+    AuthSessionCodec codec = new AuthSessionCodec(keys("k1", aesKey(16)));
+    long now = org.keycloak.common.util.Time.currentTime();
+    String token =
+        codec.encode(
+            new AuthSessionClaims()
+                .setUserSessionId("user-session-1")
+                .setClientId("demo-ios")
+                .setIat(now)
+                .setExp(now + 3600));
+    AuthSessionClaims decoded = codec.decode(token);
+    assertTrue(decoded.isPostLogin());
+    assertEquals("user-session-1", decoded.getUserSessionId());
+    assertNull(decoded.getRootSessionId());
+    assertEquals(now + 3600, decoded.getExp());
+    assertFalse(codec.decode(codec.encode(claims())).isPostLogin());
+  }
+
+  @Test
+  void expiredPostLoginTokenIsRejected() {
+    AuthSessionCodec codec = new AuthSessionCodec(keys("k1", aesKey(16)));
+    long now = org.keycloak.common.util.Time.currentTime();
+    String token =
+        codec.encode(
+            new AuthSessionClaims()
+                .setUserSessionId("user-session-1")
+                .setClientId("demo-ios")
+                .setIat(now - 10)
+                .setExp(now - 1));
+    assertThrows(InvalidAuthSessionException.class, () -> codec.decode(token));
+  }
+
+  @Test
+  void payloadWithNeitherShapeIsRejected() {
+    AuthSessionCodec codec = new AuthSessionCodec(keys("k1", aesKey(16)));
+    String token = codec.encode(new AuthSessionClaims().setClientId("demo-ios").setIat(1L));
+    assertThrows(InvalidAuthSessionException.class, () -> codec.decode(token));
+  }
 }
