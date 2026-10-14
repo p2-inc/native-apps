@@ -89,3 +89,6 @@ jobs:
       - name: Example app package type-checks
         working-directory: ios/KeycloakNativeDemo
         run: swift build
+      - name: Example app + XCUITests compile for the iOS simulator (not run: they need the compose stack)
+        working-directory: ios/KeycloakNativeDemo
+        run: xcodebuild -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build-for-testing | tail -n 20

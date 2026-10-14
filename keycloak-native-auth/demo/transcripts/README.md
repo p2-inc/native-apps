@@ -28,7 +28,8 @@ Format:
   recorded; admin API calls the tests make are not part of the contract.
 - `request.form` holds form fields; `request.json` a JSON body (passkey `finish`); `response.json` the
   parsed body, verbatim. Values in `masked_form_fields` and the `Authorization`/`DPoP` headers are
-  replaced by `***`.
+  replaced by `***`. HTML responses (the authorization endpoint during `redirect_to_web`) are
+  recorded as `body_omitted` with their size: browser pages are not part of the contract.
 - `auth_session`, codes and tokens are recorded verbatim: they are JWEs/JWTs under keys of a test
   container that no longer exists, so they are inert. `base_url` carries the container's random port;
   the SDK tests rebase on `path`.
@@ -37,3 +38,5 @@ Format:
   WebAuthn responses through a scripted passkey platform so every other field matches exactly.
 
 Refresh after a server change: `mvn verify && scripts/update-transcripts.sh`, then run the SDK tests.
+The script copies everything under `target/transcripts/`, so delete the recordings of renamed or
+removed tests there first (they are not cleaned by `mvn verify`).

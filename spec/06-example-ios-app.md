@@ -50,7 +50,7 @@ Each scenario is a button on Home with a short description, and the FlowLogView 
    - Use a tunnel (`cloudflared`/`ngrok`) with a fixed hostname and set `rp_id` + Associated Domain to it; or
    - Use `?mode=developer` Associated Domains with a local HTTPS host — documented in the app README.
 3. APNs: sandbox environment, `.p8` key configured in `docker-compose.override.yml` env; simulator can't receive APNs — the app's "Pending approvals" pull-to-refresh covers that.
-4. Demo resource server: `demo/resource-server` (tiny Node/Java service) validating tokens and returning `401 insufficient_user_authentication` with `acr_values="2"` for `/transfer`.
+4. Demo resource server: `demo/resource-server/server.mjs` (Node 22, no dependencies, compose service `resource-server` on `:8091`) validating tokens (JWKS; DPoP proofs for bound tokens) and returning `401 insufficient_user_authentication` with `acr_values="2"` for `/transfer` — done in Phase 2 (13).
 5. Test users: `alice` (password + TOTP seeded), `bob` (password only, passkey registration required action → S7-like native variant), `carol` (push enrolled via simulator script).
 
 ## 4. What the example app intentionally does *not* do

@@ -1,7 +1,7 @@
 # Keycloak Native Mobile Authentication — Investigation & Build Plan
 
 **Date:** 14 October 2026
-**Status:** Phase 0 spike (`09`), Phase 1a server passkeys (`11`) and Phase 1b iOS SDK core + example app (`12`) done; username + password + TOTP + passkeys (login and registration) work end to end against Keycloak 26.8.1 from curl, the Java integration tests and the Swift SDK (verified on macOS, not yet on an iOS device)
+**Status:** Phase 0 spike (`09`), Phase 1a server passkeys (`11`), Phase 1b iOS SDK core + example app (`12`), Phase 1c simulator pass and Phase 2 step-up / redirect-to-web / OTP / UI product (`13`) done; username + password + TOTP + passkeys + email OTP, step-up and the browser fallback work end to end against Keycloak 26.8.1 from curl, the Java integration tests, the Swift SDK and the example app on the iOS 27 simulator (not yet on a physical device)
 **Scope:** Browserless native authentication for Keycloak (passkeys, TOTP, OTP codes, push MFA), delivered as (1) a set of Keycloak extensions, (2) an iOS SDK, and (3) an example iOS app.
 
 ## Documents in this folder
@@ -20,6 +20,7 @@
 | 10 | `10-status-and-task-list.md` | **Current state and task list**: what exists and is verified, protocol coverage, known limitations, open tasks per phase. Start here when picking up the project. |
 | 11 | `11-phase1-decisions.md` | **Phase 1a (server passkeys) decisions** (14 Oct 2026): native required actions in-band, `native-passkey` eligibility/discoverable login, flow-order challenge sets, post-login `auth_session`, registration endpoints and freshness rule, the test software authenticator. |
 | 12 | `12-phase1b-decisions.md` | **Phase 1b (iOS SDK core + example app) decisions** (14 Oct 2026): transcript fixture format, DPoP token binding found on the server, RP ID rule and tunnel strategy, public API deviations from 05, what was verified on macOS only. |
+| 13 | `13-phase2-decisions.md` | **Phase 1c (simulator pass) and Phase 2 decisions** (14 Oct 2026): step-up re-entering the flow like the cookie authenticator, `redirect_to_web` as a server-stored PAR, DPoP binding of session/code/post-login session, `native-otp` with the sender SPI and the single-option send rule, SDK/UI product shape, what ran on the simulator. |
 
 ## Executive summary
 

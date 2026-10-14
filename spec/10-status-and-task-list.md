@@ -1,7 +1,7 @@
 # 10 — Project status and task list
 
-**Updated:** 14 October 2026 (end of Phase 1b — iOS SDK core + example app)
-**Authoritative for:** what exists, what is verified, what comes next. Decisions and their evidence are in `09-phase0-decisions.md` (Phase 0), `11-phase1-decisions.md` (Phase 1a) and `12-phase1b-decisions.md` (Phase 1b); the phase plan and estimates are in `08-roadmap-and-open-questions.md`.
+**Updated:** 14 October 2026 (end of Phase 1c simulator pass + Phase 2 — step-up, redirect-to-web, OTP, UI product)
+**Authoritative for:** what exists, what is verified, what comes next. Decisions and their evidence are in `09-phase0-decisions.md` (Phase 0), `11-phase1-decisions.md` (Phase 1a), `12-phase1b-decisions.md` (Phase 1b) and `13-phase2-decisions.md` (Phase 1c + 2); the phase plan and estimates are in `08-roadmap-and-open-questions.md`.
 
 ## 1. Current state
 
@@ -11,34 +11,36 @@
 |---|---|---|
 | Parent POM, Keycloak **26.8.1**, Java 21 | done | `mvn verify` |
 | `native-auth-core`: protocol model (snake_case), `AuthSessionCodec` (JWE, in-flow and post-login shapes), `NativeAuthenticator` + `NativeRequiredAction` SPIs, `NativeRequestContext`/`ChallengeEnvelope` | done | 14 unit tests |
-| `native-auth-endpoint`: `GET /realms/{r}/native-auth/metadata`, `POST …/challenge`, `POST …/passkey/register/options|finish`; `ChallengeFlowDriver`, `CodeIssuer`, `RequiredActionDriver`, `PasskeyRegistrationDriver`, `NativeAuthConfig` | done | 1 unit test + ITs |
-| `native-auth-authenticators`: `native-username`, `native-password`, `native-totp`, `native-passkey`, `NativeAuthenticatorBase` (multi-alternative `challenges[]`, flow-ordered) | done | ITs |
+| `native-auth-endpoint`: `GET /realms/{r}/native-auth/metadata`, `POST …/challenge`, `POST …/passkey/register/options|finish`; `ChallengeFlowDriver` (incl. step-up), `CodeIssuer`, `RequiredActionDriver`, `PasskeyRegistrationDriver`, `DPoPProofChecker`, `RedirectToWebBuilder`, `NativeAuthConfig` | done | 1 unit test + ITs |
+| `native-auth-authenticators`: `native-username` (skips itself on step-up), `native-password`, `native-totp`, `native-passkey`, `NativeAuthenticatorBase` (multi-alternative `challenges[]`, flow-ordered, `prepare` hook) | done | ITs |
+| `native-auth-otp-sender`: `native-otp`, SPI `native-otp-sender` with `email` and `sms-webhook` | done (sms-webhook untested) | `OtpIT` |
 | `native-auth-required-actions`: `native-passkey-register`, `PasskeyRegistrationOptions`, `PasskeyRegistrationVerifier` | done | ITs |
-| `demo/`: docker-compose (Keycloak + Postgres), `realm-export/demo-realm.json` (flows `native`, `native-alternatives`, `native-passkey-first`; clients `demo-ios`, `demo-ios-alt`, `demo-ios-passkey`, `web-app`; users alice/bob/carol/dave; Passwordless WebAuthn policy; required actions incl. `native-passkey-register`), `scripts/walkthrough.sh`, `scripts/passkey-walkthrough.md` | done | walkthrough exits 0 from a clean clone |
-| Integration tests `demo/src/test/java/.../NativeAuthIT.java` (21) + `PasskeyIT.java` (8, software authenticator `SoftwareAuthenticator`/`Cbor`); `TranscriptRecorder` writes one wire transcript per test; committed fixture set `demo/transcripts/` (30 files, `scripts/update-transcripts.sh`) | done, green | `mvn verify` ≈ 2.5 min after image pull |
-| `ios/KeycloakNative`: Swift package, product `KeycloakNativeCore` (metadata, challenge state machine, PKCE, DPoP with Secure Enclave/software key, passkey bridge, registration client, tokens, Keychain `CredentialsManager`, redacting logger + flow observer) | done | 65 Swift Testing tests replaying the transcripts + 4 live tests against the compose stack — **on macOS only** (12) |
-| `ios/KeycloakNativeDemo`: example app (S1, S2, S3, S11, S14, dave enrolment, Diagnostics), XcodeGen project, tunnel/AASA setup notes | written, `swift build` OK on macOS | **not run on a simulator or device** (no Xcode on the build Mac, 12) |
-| CI `.github/workflows/ci.yml`: `mvn verify` job + `docker compose up` & walkthrough job | written, **not yet executed on GitHub** (repo not pushed) | — |
+| `demo/`: docker-compose (Keycloak + Postgres + mailpit + Node resource server), `realm-export/demo-realm.json` (flows `native`, `native-alternatives`, `native-passkey-first`, `native-step-up`, `native-otp`; clients `demo-ios`, `demo-ios-alt`, `demo-ios-passkey`, `demo-ios-stepup`, `demo-ios-otp`, `web-app`; users alice/bob/carol/dave/erin; SMTP → mailpit), `scripts/walkthrough.sh`, `scripts/passkey-walkthrough.md`, `resource-server/server.mjs` | done | walkthrough exits 0 from a clean clone |
+| Integration tests `NativeAuthIT` (20), `PasskeyIT` (8), `StepUpIT` (5), `OtpIT` (3), `RedirectToWebIT` (1), `DPoPBindingIT` (4); `TranscriptRecorder`; committed fixture set `demo/transcripts/` (42 files) | done, green | `mvn verify` ≈ 3 min after image pulls |
+| `ios/KeycloakNative`: products `KeycloakNativeCore` (metadata, state machine, PKCE, DPoP, passkeys, step-up, `WebFallback`, OTP, tokens, Keychain `CredentialsManager`, redaction) and `KeycloakNativeUI` (`NativeLoginView`, default screens, chooser, presenter overrides) | done | 80 Swift Testing tests replaying the transcripts (both toolchain modes) + 7 live tests against the compose stack |
+| `ios/KeycloakNativeDemo`: example app (S1–S8, S11, S13, S14, dave enrolment, Diagnostics), XcodeGen project with an XCUITest target, tunnel/AASA setup notes | done | XCUITests on the **iOS 27 simulator**: S3, relaunch/refresh/logout, DPoP `jkt`, S14 (13); passkey scenarios still need a device |
+| CI `.github/workflows/ci.yml`: `mvn verify` job, `docker compose up` & walkthrough job, Swift package build + tests + app `build-for-testing` | written, **not yet executed on GitHub** (repo not pushed) | — |
 | `keycloak-native-auth/README.md` (build, run, configuration reference) | done | — |
 
 ### Protocol coverage vs `03-protocol-spec.md`
 
 | Spec item | Status |
 |---|---|
-| §1 metadata, challenge endpoint | ✅ (`code_exchange`, `passkey` block; `push` block absent until Phase 3) |
-| §2 initial / continuation requests, `action=cancel` | ✅ (`action=resend`/`select` unused yet) |
-| §3.1 success body | ✅ with post-login `auth_session` (minted; consumption = step-up is Phase 2, presenting it → `invalid_session`) |
-| §3.2/3.3 challenge envelope, descriptors, `error`, `required`, `context`, `expires_in` | ✅ (`retry.remaining` not emitted; order = flow layout, 11 D3) |
-| §3.4 `redirect_to_web` | ❌ not implemented — pending **non-native** required actions answer `403 access_denied` (extension point in `ChallengeFlowDriver.complete`); native ones run in-band (11 D1) |
-| §3.5 errors | ✅ `invalid_request`, `invalid_session`, `invalid_client`, `access_denied`, `server_error`; `invalid_dpop_proof`, `slow_down`, `client_attestation_required` not yet |
-| §4.1 username | ✅ with limitation: unknown user re-challenges `username`, so existence is still observable (phantom password challenge = Phase 2) |
-| §4.2 password, §4.5 totp | ✅ (`params.credentials` added to totp) |
+| §1 metadata, challenge endpoint | ✅ (`code_exchange`, `passkey`, `authorization_endpoint`, verified DPoP algorithms; `push` block absent until Phase 3) |
+| §2 initial / continuation requests, `action=cancel`, `action=resend` | ✅ (`action=select` unused: no `native-select`) |
+| §3.1 success body | ✅ with post-login `auth_session` (consumed by step-up, 13 D1; DPoP-bound when the login used a key, 13 D3) |
+| §3.2/3.3 challenge envelope, descriptors, `error`, `required`, `context` (incl. `step_up`, `acr_requested`), `expires_in` | ✅ (`retry.remaining` not emitted; order = flow layout, 11 D3) |
+| §3.4 `redirect_to_web` | ✅ PAR `request_uri` for non-native required actions when PKCE + a redirect URI exist (13 D2); otherwise `access_denied` |
+| §3.5 errors | ✅ `invalid_request`, `invalid_session`, `invalid_client`, `access_denied`, `server_error`, `invalid_dpop_proof`; `slow_down`, `client_attestation_required` not yet |
+| §4.1 username | ✅ with limitation: unknown user re-challenges `username`, so existence is still observable (phantom password challenge still open) |
+| §4.2 password, §4.5 totp | ✅ |
 | §4.3 passkey (allow-list and discoverable), §4.4 passkey_registration (required action) | ✅ (11 D2, D1) |
-| §4.6 otp, §4.7 push, §4.8 recovery_code, §4.9 select | ❌ Phases 2–3 |
-| §5 session semantics | ✅ in-flow; post-login `auth_session` minted ✅; step-up / refresh-triggered re-auth ❌ |
-| §6 passkey registration endpoints (bearer/DPoP token, freshness rule, single-use `registration_id`) | ✅ (11 D5) |
+| §4.6 otp | ✅ email (and an untested sms-webhook sender); sent only when the single option or on `action=resend` (13 D4) |
+| §4.7 push, §4.8 recovery_code, §4.9 select | ❌ Phase 3 / optional |
+| §5 session semantics | ✅ in-flow, post-login `auth_session` minted and consumed by step-up (LoA conditions, `max_age`, `prompt=login`); refresh-triggered `insufficient_authorization` ❌ (Keycloak's token endpoint has no hook; the SDK handles it) |
+| §6 passkey registration endpoints (bearer/DPoP token, freshness rule → `insufficient_authorization` + `auth_session` + `max_age`, single-use `registration_id`) | ✅ (11 D5, 13 D1) |
 | §7 push device API | ❌ |
-| §8 DPoP | challenge endpoint ❌ (claims/`OAuth2Code.dpopJkt` plumbed, always null; metadata advertises `[]`); **token endpoint binds** when a proof is sent (Keycloak built-in, 12 D2) and the SDK handles `token_type: DPoP` |
+| §8 DPoP | ✅ proofs verified at the challenge endpoint; in-flow `auth_session`, code (`dpop_jkt`) and post-login `auth_session` bound to the key when the first request carried a proof (13 D3); token binding by Keycloak (12 D2); no nonces, binding not mandatory |
 | §9 attestation | ❌ (reserved) |
 
 ### Known limitations / debt carried into Phase 1
@@ -67,21 +69,29 @@
 - Keycloak binds tokens to the SDK's DPoP key (token endpoint) although the challenge endpoint does not bind `auth_session`/code yet; a client that drops or rotates its key loses the ability to refresh.
 - Transcript fixtures contain inert but real-looking JWTs; secret scanners may flag them.
 - Demo realm `failureFactor` is 5 (was 30) and user `erin` exists for S14.
-- The SDK has no Combine/completion-handler API, no `KeycloakNativeUI`, no `WebFallback`, no step-up; `redirect_to_web` surfaces as an error.
+- The SDK has no Combine/completion-handler API.
+
+### Known limitations added in Phase 1c / Phase 2 (details in 13)
+
+- The passkey ceremonies, the Secure Enclave key and Associated Domains are still unverified on hardware: no device and no signing identity on the build Mac. Simulator builds must be code-signed (ad hoc is enough); otherwise the simulator Keychain answers `-34018` and the SDK fails with `keychain_error`.
+- A step-up on a flow without `conditional-level-of-authentication` executions re-runs every factor and keeps `acr=1`; LoA levels need the step-up flow layout (`native-step-up` is the template).
+- `redirect_to_web` requires a full browser login (no hand-off of the native session), PKCE on the native request and a registered redirect URI; the `request_uri` is single use and lives 60 s (realm PAR lifespan).
+- DPoP binding is opportunistic (a session started without a proof stays unbound); no `DPoP-Nonce` at the challenge endpoint; a failed code exchange consumes the code (Keycloak).
+- `native-otp`'s `configuredFor` uses the realm-default channel (`email`), not the execution's config; the SMS webhook sender has no integration test; OTP codes are hashed in the authentication session and die with it.
+- The `KeycloakNativeUI` strings are English literals (no localisation catalogue yet); the product has no tests of its own beyond the demo app's S5/S13 screens.
+- S4–S8/S13 app screens were exercised through the SDK's live tests and compiled for the simulator, not driven by XCUITest.
 
 ## 2. Task list
 
 Legend: `[x]` done · `[ ]` open · `[~]` partially done. Phase numbering follows 08.
 
-**Where we are (14 Oct 2026):** Phases 0, 1a and 1b are complete on `main`; the SDK and example app
-are verified on macOS against the compose stack but **not yet on an iOS simulator/device** (12).
-**Next:** (1) a device pass of the example app (Xcode needed: S3 on a simulator, then S1/S2/S11/dave
-behind a tunnel per `ios/KeycloakNativeDemo/README.md`); (2) Phase 2 server items (OTP, step-up
-consuming the post-login `auth_session`, `redirect_to_web`, native update-password/verify-email/terms)
-and the matching SDK pieces (`WebFallback`, `stepUp`, `KeycloakNativeUI`). Server and SDK work can
-proceed in parallel; the shared contract is `spec/03-protocol-spec.md` plus the recorded transcripts
-(change the spec first, re-record with `mvn verify && demo/scripts/update-transcripts.sh`, then fix
-the SDK tests).
+**Where we are (14 Oct 2026):** Phases 0, 1a, 1b, the simulator half of 1c and Phase 2 are complete
+on `main` (13). **Next:** (1) the hardware half of 1c (a device behind a tunnel with a team: S1, S2,
+S11, dave, the cancel path); (2) the Phase 2 leftovers below (native update-password/verify-email/
+terms, recovery codes, phantom username challenge, enrol-on-first-login, SMS webhook IT, UI
+localisation); (3) Phase 3 push MFA. The shared contract is `spec/03-protocol-spec.md` plus the
+recorded transcripts (change the spec first, re-record with `mvn verify &&
+demo/scripts/update-transcripts.sh`, delete transcripts of renamed tests, then fix the SDK tests).
 
 ### Phase 0 — Spike ✅
 - [x] Maven multi-module skeleton; pin Keycloak 26.8.1 (Q4)
@@ -130,12 +140,11 @@ Example app (06):
 - [x] Local setup against the demo compose stack: document `KC_PORT`, hostnames, HTTPS/tunnel for passkeys, and the Passwordless policy's **extra origins** (`https://<rp_id>`, 11 D2) that a tunnel setup needs
 
 
-### Phase 1c — Device pass (needs a Mac with Xcode; first thing to do next)
-Nothing of 1b has run on iOS. Expected to be a short phase; record findings as a section in 12 (or a new 13 if the API has to move).
-- [ ] Open `ios/KeycloakNativeDemo/KeycloakNativeDemo.xcodeproj` (XcodeGen output; regenerate with `xcodegen generate` if Xcode rejects it), set the team, run on an iOS 17+ simulator against `KC_PORT=8089 docker compose up --wait`; S3 (alice, password + TOTP) and S14 (erin) must pass
-- [ ] Device behind a tunnel per `ios/KeycloakNativeDemo/README.md` §2 (fixed hostname, AASA via a Caddy front, policy RP ID = tunnel host, `webcredentials:<host>?mode=developer`): S11 (register), S1 (allow-list), S2 (discoverable, client `demo-ios-passkey`), dave enrolment; cancel the sheet once (must stay on the challenge set, `passkey_cancelled`)
-- [ ] Verify on hardware: `DPoPMode.automatic` picks the Secure Enclave (Diagnostics shows `jkt`; `token_type` is `DPoP`), the Keychain `CredentialsManager` survives a relaunch (`hasValid`, refresh), `logout` clears
-- [ ] `swift test` with Xcode's toolchain (no `KEYCLOAK_NATIVE_TESTING_FROM_SOURCE`) and the `ios-sdk` CI job on GitHub Actions
+### Phase 1c — Device pass (simulator half done, 13; hardware half needs a device + team)
+- [x] Open `ios/KeycloakNativeDemo/KeycloakNativeDemo.xcodeproj` (XcodeGen output), run on an iOS 27 simulator against `KC_PORT=8089 docker compose up --wait`; S3 (alice, password + TOTP) and S14 (erin) pass — as XCUITests (`UITests/DemoAppUITests.swift`); the app must be code-signed (ad hoc) for the simulator Keychain
+- [ ] Device behind a tunnel per `ios/KeycloakNativeDemo/README.md` §2 (fixed hostname, AASA via a Caddy front, policy RP ID = tunnel host, `webcredentials:<host>?mode=developer`): S11 (register), S1 (allow-list), S2 (discoverable, client `demo-ios-passkey`), dave enrolment; cancel the sheet once (must stay on the challenge set, `passkey_cancelled`) — **blocked: no device, no signing identity**
+- [~] Verify on hardware: `DPoPMode.automatic` picks the Secure Enclave (Diagnostics shows `jkt`; `token_type` is `DPoP`) — simulator shows the software key's `jkt` and `token_type DPoP`; Secure Enclave needs hardware. The Keychain `CredentialsManager` survives a relaunch and `logout` clears — verified on the simulator
+- [x] `swift test` with Xcode's toolchain (no `KEYCLOAK_NATIVE_TESTING_FROM_SOURCE`); the `ios-sdk` CI job on GitHub Actions is still unexecuted (repo not pushed)
 - [ ] Fix whatever the real `ASAuthorizationController` reveals (presentation anchor, `excludedCredentials` on 17.4+, transports reported by iOS); keep `PasskeyPlatform` as the seam
 - [ ] Optional: a Settings bundle for issuer/client (06 §1) instead of editing `Config.plist`
 
@@ -144,27 +153,31 @@ Working rule (12): **change `spec/03` first**, implement on the server, re-recor
 (`mvn verify && demo/scripts/update-transcripts.sh`), then make the SDK pass the new transcripts.
 Server and SDK can be worked by different agents; the transcripts are the hand-off.
 
-Server (`keycloak-native-auth`):
-- [ ] Step-up (03 §5): `ChallengeFlowDriver.resume` accepts the post-login `auth_session` (`AuthSessionClaims.isPostLogin`), resumes the user session, maps `acr_values` to `REQUESTED_LEVEL_OF_AUTHENTICATION`/LoA conditions, runs only the executions the level needs, issues a new code; `expires_in` from the SSO session. Also lets `/passkey/register/*` answer a stale token with `insufficient_authorization` **plus** `auth_session` instead of "log in again" (11 D5). Note DPoP: the user's tokens are already bound (12 D2); the step-up code must be bound to the same key or exchange without a proof must be refused consistently
-- [ ] Refresh-triggered re-auth: token endpoint answers `400 insufficient_authorization` + `auth_session` when the realm/client policy demands (03 §5); IT + transcript (the SDK's `CredentialsManager` already maps it to `reauthentication_required` with the session)
-- [ ] `RedirectToWebBuilder`: PAR `request_uri` for non-native required actions (03 §3.4) at the extension point in `ChallengeFlowDriver.complete`; only when PKCE was present; IT with carol + transcript
+Server (`keycloak-native-auth`) — **done in Phase 2 (13)** unless marked:
+- [x] Step-up (03 §5): `ChallengeFlowDriver.stepUp` accepts the post-login `auth_session`, resumes the user session, maps `acr_values` to the requested LoA, runs only what the LoA conditions need, issues a new code for the same session; `/passkey/register/*` answer a stale token with `insufficient_authorization` + `auth_session` + `max_age`; the step-up code and the post-login session are bound to the login's DPoP key (13 D1, D3)
+- [ ] Refresh-triggered re-auth from the token endpoint — **not implementable without a custom grant**; left out (13 D1)
+- [x] `RedirectToWebBuilder`: PAR `request_uri` for non-native required actions (03 §3.4), only with PKCE and a redirect URI; `RedirectToWebIT` with carol + transcript (13 D2)
 - [ ] Native variants of UPDATE_PASSWORD, VERIFY_EMAIL, TERMS as `NativeRequiredAction`s (08 Q7); new challenge types go into 03 §4 first
-- [ ] `native-otp` (email via Keycloak templates, `sms-webhook` sender) in `native-auth-otp-sender`; `action=resend` with cooldown (03 §4.6); mailpit in compose
+- [x] `native-otp` (`email` via the realm SMTP settings, `sms-webhook` sender) in `native-auth-otp-sender`; `action=resend` with cooldown; mailpit in compose and in the ITs (13 D4)
+- [ ] IT for the `sms-webhook` sender (host-side sink through Testcontainers' `exposeHostPorts`)
+- [x] DPoP proof verification and binding of `auth_session` / code at the challenge endpoint (13 D3; was a Phase 4 item)
 - [ ] `native-recovery-code` (03 §4.8); `native-select` (03 §4.9, optional)
 - [ ] Username phantom challenge (03 §4.1) and `retry.remaining`
 - [ ] "Enrol on first login" for `native-passkey` (`setRequiredActions`, 04 §4); optional restriction of `/passkey/register/*` to native clients (11 D5)
 - [ ] Well-known `authorization_challenge_endpoint` override (04 §2.3, optional)
 
-iOS SDK (`ios/KeycloakNative`):
-- [ ] `Authentication.stepUp(acrValues:maxAge:)` sending the stored post-login `auth_session` (`Credentials.authSession`); `continueAfterTokenChallenge(_:)` from `reauthentication_required` errors; the extension points are marked in `Authentication.swift`, `NativeLoginFlow.start()` and `CredentialsManager.credentials()`
-- [ ] `FlowStep.redirectToWeb` + `WebFallback` (`ASWebAuthenticationSession` with PAR `request_uri`, PKCE of the original flow, code exchange); today `redirect_to_web` is a `NativeAuthError`
-- [ ] `ChallengeAnswer` cases `otp`, `otpResend`, `recoveryCode`, `select`, plus typed params (`OTPParams` with `resend_allowed_at`); `ChallengeType.isSupported` grows accordingly
-- [ ] `KeycloakNativeUI` product: `NativeLoginView`, default screens per type, `ChallengeChooser`, presenter override, localisation, accessibility (05 §4); the example app's hand-rolled screens become the "full control" sample
+iOS SDK (`ios/KeycloakNative`) — **done in Phase 2 (13 D5)** unless marked:
+- [x] `Authentication.stepUp(acrValues:maxAge:)` / `stepUp(_:authSession:)` sending the stored post-login `auth_session`; `continueAfterTokenChallenge(_:)` from `insufficient_authorization` / `reauthentication_required` errors
+- [x] `FlowStep.redirectToWeb` + `WebFallback` (`ASWebAuthenticationSession` behind a presenter seam, PAR `request_uri`, `state` check, PKCE of the original flow, exchange with `redirect_uri`)
+- [x] `ChallengeAnswer` cases `otp`, `otpResend` plus `OTPParams` (`sent`, `resend_allowed_at`); `recoveryCode`, `select` wait for their authenticators
+- [x] `KeycloakNativeUI` product: `NativeLoginView`, default screens per type, chooser, presenter override, accessibility identifiers; the example app's hand-rolled screens are the "full control" sample
+- [ ] Localisation catalogue for `KeycloakNativeUI` (05 §4); tests of the product itself
 - [ ] Completion-handler / Combine variants (05 §2) if UIKit consumers need them
-- [ ] Transcript matcher: extend `MockTransport.volatileFormFields` if new per-run fields appear (e.g. `nonce`); keep the strict field-set rule
+- [x] Transcript replay: `Harness.replay(seqs:)` for non-contiguous exchanges; the strict field-set rule is kept
 
-Example app:
-- [ ] S4 (email OTP + resend, mailpit), S5 (chooser UI), S6 (step-up with a tiny resource server returning `401 insufficient_user_authentication`), S7 (redirect-to-web for carol), S8 (refresh forces re-auth), S13 (custom presenter)
+Example app — **done in Phase 2** (compiled for the simulator; S4/S6/S7 paths verified through the SDK's live tests, not through XCUITest):
+- [x] S4 (email OTP + resend, mailpit), S5 (default UI with chooser), S6 (step-up with the compose resource server returning `401 insufficient_user_authentication`), S7 (redirect-to-web for carol), S8 (revoked session → `reauthentication_required`), S13 (custom presenter)
+- [ ] XCUITests for S4–S8/S13 (S7 needs a user in Safari)
 
 Spec:
 - [ ] Freeze protocol v1.0-rc for the Phase 1 challenge types (`username`, `password`, `totp`, `passkey`, `passkey_registration`); conformance suite = the recorded transcripts (04 §8)
@@ -179,7 +192,7 @@ Spec:
 - [ ] Upstream contributions to ba-itsys
 
 ### Phase 4 — Hardening & release
-- [ ] DPoP binding of `auth_session` and code at the challenge endpoint (03 §8; tokens are already bound by Keycloak, 12 D2), metadata `dpop_signing_alg_values_supported`; decide whether to make the bound token the default for native clients or let operators disable it (`dpop.bound.access.tokens`)
+- [~] DPoP: binding at the challenge endpoint and metadata advertisement are done (13 D3); remaining: `DPoP-Nonce` support, and whether to make binding mandatory for native clients (`dpop.bound.access.tokens`) or let operators disable it
 - [ ] Attestation-based client auth + `client_attestation_required`
 - [ ] Rate limiting (`slow_down`), `NativeRiskEvaluator` SPI hook
 - [ ] Custom event types, metrics (04 §9)
