@@ -103,6 +103,38 @@ actor DPoPSigner {
     return try loadOrCreateKey().publicJWK
   }
 
+  /// The key itself (created on first use), for device-signed JWTs (spec/03 §7, spec/14 D9).
+  func currentKey() throws -> any DPoPKey {
+    try loadOrCreateKey()
+  }
+
+  /// A proof with extra claims (`sub`, `deviceId` for the push device API, spec/03 §7.1).
+  func proof(method: String, url: URL, accessToken: String?, extraClaims: [String: JSONValue]) throws -> String? {
+    guard mode != .disabled else { return nil }
+    let key = try loadOrCreateKey()
+    return try DPoPProofBuilder(key: key).proof(method: method, url: url, accessToken: accessToken, nonce: nonces[DPoPProofBuilder.origin(of: url)], extraClaims: extraClaims)
+  }
+
+  /// A fresh key of the configured kind, not yet in use: the caller registers it with the server
+  /// (signing that request with the current key) and then calls `commitRotation`.
+  func prepareRotation() throws -> any DPoPKey {
+    try makeKey().key
+  }
+
+  /// Makes `key` (from `prepareRotation`) the DPoP key from now on. Tokens bound to the previous key
+  /// stop matching proofs: the caller re-authenticates.
+  func commitRotation(_ newKey: any DPoPKey) throws {
+    let persisted: Persisted
+    switch newKey {
+    case let k as SecureEnclaveDPoPKey: persisted = Persisted(kind: "secure_enclave", key: k.dataRepresentation)
+    case let k as SoftwareDPoPKey: persisted = Persisted(kind: "software", key: k.rawRepresentation)
+    default: throw NativeAuthError(code: NativeAuthError.Code.dpopKeyError, description: "Unsupported key type for rotation")
+    }
+    try store.set(try JSONEncoder().encode(persisted), forKey: storeKey)
+    logger.log(.info, "Rotated DPoP key (\(persisted.kind)), jkt=\(newKey.publicJWK.thumbprint)")
+    key = newKey
+  }
+
   func setNonce(_ nonce: String, for url: URL) {
     nonces[DPoPProofBuilder.origin(of: url)] = nonce
   }
@@ -136,32 +168,29 @@ actor DPoPSigner {
         logger.log(.warning, "Stored DPoP key could not be restored (\(persisted.kind)); creating a new one")
       }
     }
-    let created: any DPoPKey
-    let persisted: Persisted
+    let (created, persisted) = try makeKey()
+    try store.set(try JSONEncoder().encode(persisted), forKey: storeKey)
+    logger.log(.info, "Created DPoP key (\(persisted.kind)), jkt=\(created.publicJWK.thumbprint)")
+    key = created
+    return created
+  }
+
+  private func makeKey() throws -> (key: any DPoPKey, persisted: Persisted) {
     switch mode {
     case .disabled:
       throw NativeAuthError(code: NativeAuthError.Code.dpopKeyError, description: "DPoP is disabled")
     case .software:
       let k = SoftwareDPoPKey()
-      created = k
-      persisted = Persisted(kind: "software", key: k.rawRepresentation)
+      return (k, Persisted(kind: "software", key: k.rawRepresentation))
     case .secureEnclave:
       let k = try SecureEnclaveDPoPKey()
-      created = k
-      persisted = Persisted(kind: "secure_enclave", key: k.dataRepresentation)
+      return (k, Persisted(kind: "secure_enclave", key: k.dataRepresentation))
     case .automatic:
       if SecureEnclaveDPoPKey.isAvailable, let k = try? SecureEnclaveDPoPKey() {
-        created = k
-        persisted = Persisted(kind: "secure_enclave", key: k.dataRepresentation)
-      } else {
-        let k = SoftwareDPoPKey()
-        created = k
-        persisted = Persisted(kind: "software", key: k.rawRepresentation)
+        return (k, Persisted(kind: "secure_enclave", key: k.dataRepresentation))
       }
+      let k = SoftwareDPoPKey()
+      return (k, Persisted(kind: "software", key: k.rawRepresentation))
     }
-    try store.set(try JSONEncoder().encode(persisted), forKey: storeKey)
-    logger.log(.info, "Created DPoP key (\(persisted.kind)), jkt=\(created.publicJWK.thumbprint)")
-    key = created
-    return created
   }
 }

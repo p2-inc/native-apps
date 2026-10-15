@@ -129,12 +129,12 @@ import Testing
     #expect(metadata.codeExchange.redirectUriRequired == false)
     #expect(metadata.passkey?.rpId == "localhost")
     #expect(metadata.passkey?.registerFinishEndpoint?.path == "/realms/demo/native-auth/passkey/register/finish")
-    #expect(Set(metadata.challengeTypesSupported) == ["otp", "passkey", "passkey_registration", "password", "totp", "username", "update_password", "verify_email", "terms", "recovery_code"])
-    #expect(metadata.supports(.passkey) && metadata.supports(.otp) && !metadata.supports(.push))
+    #expect(Set(metadata.challengeTypesSupported) == ["otp", "passkey", "passkey_registration", "password", "totp", "username", "update_password", "verify_email", "terms", "recovery_code", "push", "push_enrollment"])
+    #expect(metadata.supports(.passkey) && metadata.supports(.otp) && metadata.supports(.push))
     #expect(metadata.dpopSigningAlgValuesSupported.contains("ES256"), "the challenge endpoint verifies and binds proofs (spec/13 D3)")
     #expect(metadata.authorizationEndpoint?.path == "/realms/demo/protocol/openid-connect/auth")
     #expect(metadata.clientAttestation?.required == false)
-    #expect(metadata.raw?["push"] == nil)
+    #expect(metadata.raw?["push"] != nil && metadata.push?.deviceToken == "native" && metadata.push?.enabled == true)
   }
 
   @Test func minimalDocumentAndExtraFields() throws {

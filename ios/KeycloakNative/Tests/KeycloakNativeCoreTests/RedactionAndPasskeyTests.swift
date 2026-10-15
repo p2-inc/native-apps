@@ -22,6 +22,21 @@ import Testing
     #expect(json["challenges"]?[0]?["params"]?["signature"]?.stringValue == "***")
     #expect(json["challenges"]?[0]?["params"]?["rp_id"]?.stringValue == "localhost")
     #expect(Redactor.redact(headers: ["Authorization": "Bearer abc", "DPoP": "eyJ", "Accept": "application/json"]) == ["Authorization": "Bearer ***", "DPoP": "***", "Accept": "application/json"])
+    // Phase 3 (spec/03 §4.15, §7): enrolment token, device-signed JWTs, confirm token, APNs token.
+    let push = Redactor.redact(json: [
+      "enrollment_token": "eyJ", "token": "eyJ", "confirmToken": "eyJ", "pushProviderId": "0123abcd", "publicKeyJwk": ["x": "keep"],
+      "challenges": [["params": ["enrollment_token": "eyJ", "device_api_base": "https://idp/push-mfa", "cid": "c1"]]],
+    ])
+    for key in ["enrollment_token", "token", "confirmToken", "pushProviderId"] {
+      #expect(push[key]?.stringValue == "***", "\(key) must be masked")
+    }
+    #expect(push["publicKeyJwk"]?["x"]?.stringValue == "keep")
+    #expect(push["challenges"]?[0]?["params"]?["enrollment_token"]?.stringValue == "***")
+    #expect(push["challenges"]?[0]?["params"]?["device_api_base"]?.stringValue == "https://idp/push-mfa")
+    for answer: ChallengeAnswer in [.pushEnrollment(token: "eyJ.device.jwt")] {
+      #expect(Redactor.redact(form: answer.formFields).allSatisfy { $0.value == "***" })
+    }
+    #expect(Redactor.redact(form: ChallengeAnswer.pushResend.formFields).map(\.value) == ["resend"], "actions are not secrets")
   }
 
   @Test func flowLogNeverContainsSecrets() async throws {

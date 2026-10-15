@@ -99,7 +99,7 @@ public struct NativeAuthError: Error, CustomStringConvertible {
   }
 
   /// Maps a JSON error body from any endpoint to an error, keeping the server's `error` code.
-  static func from(response: HTTPResponse, fallbackCode: String = Code.invalidResponse) -> NativeAuthError {
+  public static func from(response: HTTPResponse, fallbackCode: String = Code.invalidResponse) -> NativeAuthError {
     let json = response.json
     let code = json?["error"]?.stringValue ?? fallbackCode
     let retryAfter = response.header("Retry-After").flatMap(TimeInterval.init)

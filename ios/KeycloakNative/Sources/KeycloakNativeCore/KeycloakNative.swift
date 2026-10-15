@@ -34,7 +34,8 @@ public final class KeycloakNative: Sendable {
   public let clientId: String
   public let options: Options
 
-  let transport: any Transport
+  /// The (observing, redacting) transport every module of this instance sends through.
+  public let transport: any Transport
   let store: any SecureStore
   let metadataClient: MetadataClient
   let dpopSigner: DPoPSigner?
@@ -105,5 +106,44 @@ public final class KeycloakNative: Sendable {
   /// RFC 7638 thumbprint of the DPoP public key (`jkt`), `nil` when DPoP is disabled.
   public func dpopKeyThumbprint() async throws -> String? {
     try await dpopSigner?.publicJWK()?.thumbprint
+  }
+
+  // MARK: - Surface for the KeycloakNativePush module (spec/14 D9: the DPoP key is the device key)
+
+  /// The DPoP key (created on first use). Throws `dpop_key_error` when DPoP is disabled.
+  public func dpopKey() async throws -> any DPoPKey {
+    guard let dpopSigner else { throw NativeAuthError(code: NativeAuthError.Code.dpopKeyError, description: "DPoP is disabled; the push device API needs a DPoP-bound token (spec/03 §7.1)") }
+    return try await dpopSigner.currentKey()
+  }
+
+  /// A proof for a request outside Core (the push device API), with extra claims; `nil` when
+  /// DPoP is disabled. Server nonces remembered per origin are included; register a new one with
+  /// `rememberDPoPNonce`.
+  public func dpopProof(method: String, url: URL, accessToken: String?, extraClaims: [String: JSONValue] = [:]) async throws -> String? {
+    try await dpopSigner?.proof(method: method, url: url, accessToken: accessToken, extraClaims: extraClaims)
+  }
+
+  public func rememberDPoPNonce(_ nonce: String, for url: URL) async {
+    await dpopSigner?.setNonce(nonce, for: url)
+  }
+
+  /// Key rotation in two steps: a fresh key to register with the server (signing that request with
+  /// the current key), then `commitDPoPKeyRotation` once the server accepted it.
+  public func prepareDPoPKeyRotation() async throws -> any DPoPKey {
+    guard let dpopSigner else { throw NativeAuthError(code: NativeAuthError.Code.dpopKeyError, description: "DPoP is disabled") }
+    return try await dpopSigner.prepareRotation()
+  }
+
+  public func commitDPoPKeyRotation(_ key: any DPoPKey) async throws {
+    guard let dpopSigner else { throw NativeAuthError(code: NativeAuthError.Code.dpopKeyError, description: "DPoP is disabled") }
+    try await dpopSigner.commitRotation(key)
+  }
+
+  /// The secure store of this instance and a key under its issuer + client scope, for state other
+  /// modules persist next to the credentials (the push enrolment).
+  public var secureStore: any SecureStore { store }
+
+  public func scopedStorageKey(_ suffix: String) -> String {
+    "\(issuer.absoluteString)|\(clientId)|\(suffix)"
   }
 }

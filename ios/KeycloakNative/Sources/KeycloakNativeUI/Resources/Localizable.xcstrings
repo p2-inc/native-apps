@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ asks you to enrol this device so you can approve sign-ins from here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ bittet Sie, dieses Gerät zu registrieren, damit Sie Anmeldungen von hier bestätigen können."
+          }
+        }
+      }
+    },
     "%@ requires a passkey for %@ before you can continue.": {
       "localizations": {
         "de": {
@@ -41,6 +51,26 @@
         }
       }
     },
+    "Approve": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bestätigen"
+          }
+        }
+      }
+    },
+    "Approve on your phone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf dem Telefon bestätigen"
+          }
+        }
+      }
+    },
     "Authenticator": {
       "localizations": {
         "de": {
@@ -71,12 +101,32 @@
         }
       }
     },
+    "Check now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt prüfen"
+          }
+        }
+      }
+    },
     "Choose a new password": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Neues Passwort wählen"
+          }
+        }
+      }
+    },
+    "Choose this number on your phone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie diese Zahl auf Ihrem Telefon"
           }
         }
       }
@@ -191,6 +241,26 @@
         }
       }
     },
+    "Deny": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ablehnen"
+          }
+        }
+      }
+    },
+    "Device name (optional)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerätename (optional)"
+          }
+        }
+      }
+    },
     "Email code": {
       "localizations": {
         "de": {
@@ -207,6 +277,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Code per E-Mail senden"
+          }
+        }
+      }
+    },
+    "Enrol this device": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Gerät registrieren"
           }
         }
       }
@@ -251,12 +331,32 @@
         }
       }
     },
+    "Expires %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läuft ab %@"
+          }
+        }
+      }
+    },
     "New password": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Neues Passwort"
+          }
+        }
+      }
+    },
+    "No sign-in requests are waiting.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es warten keine Anmeldeanfragen."
           }
         }
       }
@@ -301,6 +401,16 @@
         }
       }
     },
+    "Pick the number shown on the other screen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie die Zahl, die auf dem anderen Bildschirm angezeigt wird"
+          }
+        }
+      }
+    },
     "Read the full terms": {
       "localizations": {
         "de": {
@@ -317,6 +427,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wiederherstellungscode"
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisieren"
           }
         }
       }
@@ -381,6 +501,36 @@
         }
       }
     },
+    "Send request": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfrage senden"
+          }
+        }
+      }
+    },
+    "Send request (%lld s)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfrage senden (%lld s)"
+          }
+        }
+      }
+    },
+    "Set up sign-in approvals": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldebestätigungen einrichten"
+          }
+        }
+      }
+    },
     "Sign in": {
       "localizations": {
         "de": {
@@ -397,6 +547,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mit Passkey anmelden"
+          }
+        }
+      }
+    },
+    "Sign-in requests": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldeanfragen"
+          }
+        }
+      }
+    },
+    "Sign-in to %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldung bei %@"
           }
         }
       }
@@ -437,6 +607,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "SMS-Code"
+          }
+        }
+      }
+    },
+    "This device": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Gerät"
           }
         }
       }
@@ -611,12 +791,32 @@
         }
       }
     },
+    "Waiting for your approval…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warten auf Ihre Bestätigung…"
+          }
+        }
+      }
+    },
     "We can send a %lld-digit code to %@.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Wir können einen %lld-stelligen Code an %@ senden."
+          }
+        }
+      }
+    },
+    "We can send a sign-in request to %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wir können eine Anmeldeanfrage an %@ senden."
           }
         }
       }
@@ -637,6 +837,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wir haben einen %lld-stelligen Code an %@ gesendet."
+          }
+        }
+      }
+    },
+    "We sent a sign-in request to %@. Approve it there to continue.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wir haben eine Anmeldeanfrage an %@ gesendet. Bestätigen Sie sie dort, um fortzufahren."
           }
         }
       }

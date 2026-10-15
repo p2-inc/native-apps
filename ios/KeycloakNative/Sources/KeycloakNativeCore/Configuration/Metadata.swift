@@ -31,6 +31,27 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
     }
   }
 
+  /// spec/03 §1.1 `push`: present when the push-MFA extension is installed (spec/03 §7).
+  public struct Push: Sendable, Equatable, Codable {
+    public var enabled: Bool
+    public var enrollStartEndpoint: URL?
+    /// ba-itsys device API root (`…/realms/{realm}/push-mfa`).
+    public var deviceApiBase: URL?
+    /// `native` (the user's DPoP-bound native token, spec/03 §7.1) or `client_credentials`.
+    public var deviceToken: String
+    public var deviceClientId: String?
+    /// Installed senders (`apns`, `fcm`, `log`, `none`).
+    public var pushProviderTypes: [String]
+    public init(enabled: Bool = true, enrollStartEndpoint: URL? = nil, deviceApiBase: URL? = nil, deviceToken: String = "native", deviceClientId: String? = nil, pushProviderTypes: [String] = []) {
+      self.enabled = enabled
+      self.enrollStartEndpoint = enrollStartEndpoint
+      self.deviceApiBase = deviceApiBase
+      self.deviceToken = deviceToken
+      self.deviceClientId = deviceClientId
+      self.pushProviderTypes = pushProviderTypes
+    }
+  }
+
   public var protocolVersion: String
   public var fipaDraft: String?
   public var authorizationChallengeEndpoint: URL
@@ -44,7 +65,8 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
   /// not verify proofs. The SDK sends ES256 proofs either way and reads `token_type` for the result.
   public var dpopSigningAlgValuesSupported: [String]
   public var clientAttestation: ClientAttestation?
-  /// The raw document, for fields this version of the SDK does not model (e.g. `push`).
+  public var push: Push?
+  /// The raw document, for fields this version of the SDK does not model.
   public var raw: JSONValue?
 
   enum CodingKeys: String, CodingKey {
@@ -58,6 +80,7 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
     case challengeTypesSupported = "challenge_types_supported"
     case dpopSigningAlgValuesSupported = "dpop_signing_alg_values_supported"
     case clientAttestation = "client_attestation"
+    case push
   }
 
   public init(from decoder: any Decoder) throws {
@@ -72,6 +95,7 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
     challengeTypesSupported = try c.decodeIfPresent([String].self, forKey: .challengeTypesSupported) ?? []
     dpopSigningAlgValuesSupported = try c.decodeIfPresent([String].self, forKey: .dpopSigningAlgValuesSupported) ?? []
     clientAttestation = try c.decodeIfPresent(ClientAttestation.self, forKey: .clientAttestation)
+    push = try c.decodeIfPresent(Push.self, forKey: .push)
     raw = nil
   }
 
@@ -87,6 +111,7 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
     try c.encode(challengeTypesSupported, forKey: .challengeTypesSupported)
     try c.encode(dpopSigningAlgValuesSupported, forKey: .dpopSigningAlgValuesSupported)
     try c.encodeIfPresent(clientAttestation, forKey: .clientAttestation)
+    try c.encodeIfPresent(push, forKey: .push)
   }
 
   /// Major version only (spec/03 §10).
@@ -109,6 +134,27 @@ extension NativeAuthMetadata.CodeExchange {
   enum CodingKeys: String, CodingKey {
     case redirectUriRequired = "redirect_uri_required"
     case redirectUri = "redirect_uri"
+  }
+}
+
+extension NativeAuthMetadata.Push {
+  enum CodingKeys: String, CodingKey {
+    case enabled
+    case enrollStartEndpoint = "enroll_start_endpoint"
+    case deviceApiBase = "device_api_base"
+    case deviceToken = "device_token"
+    case deviceClientId = "device_client_id"
+    case pushProviderTypes = "push_provider_types"
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+    enrollStartEndpoint = try c.decodeIfPresent(URL.self, forKey: .enrollStartEndpoint)
+    deviceApiBase = try c.decodeIfPresent(URL.self, forKey: .deviceApiBase)
+    deviceToken = try c.decodeIfPresent(String.self, forKey: .deviceToken) ?? "native"
+    deviceClientId = try c.decodeIfPresent(String.self, forKey: .deviceClientId)
+    pushProviderTypes = try c.decodeIfPresent([String].self, forKey: .pushProviderTypes) ?? []
   }
 }
 

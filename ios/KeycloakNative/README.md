@@ -10,9 +10,18 @@ dependencies):
   browser fallback (`WebFallback` over `ASWebAuthenticationSession`), email/SMS one-time codes, the
   in-band required actions (`updatePassword`, `verifyEmail`, `terms`, `passkeyRegistration`), token
   exchange/refresh/revoke/logout and a Keychain-backed `CredentialsManager`.
+- `KeycloakNativePush`: push MFA for this device (spec/05 §5, spec/14 D9) — `kc.push()`: enrolment
+  from inside the app (`enroll`, through `/native-auth/push/enroll/start` and ba-itsys'
+  `/push-mfa/enroll/complete`) or mid-flow (`prepareEnrollment` for the `push_enrollment` challenge,
+  then `commit`), `pendingApprovals`, `respond(to:_:)` with number match, `handleNotification`,
+  `updateAPNsToken`, `rotateKey`, `lockout`, `DeviceTokenProvider` (default: the user's own
+  DPoP-bound native tokens — the DPoP key is the device key, spec/03 §7.1) and a
+  `UNNotificationServiceExtension` helper (`PushNotificationService.rewrite`).
 - `KeycloakNativeUI`: `NativeLoginView` drives a flow with default SwiftUI screens for every
   challenge type (username, password, TOTP, OTP with resend countdown, passkey, passkey registration,
-  recovery code, update password with policy hints, verify email, terms, browser fallback) and a
+  recovery code, update password with policy hints, verify email, terms, push with number match and
+  polling, push enrolment, browser fallback), `PushApprovalsView` (the pending sign-in requests with
+  approve / deny / number buttons and pull-to-refresh) and a
   "Try another way" chooser; any screen is replaceable with `.challengePresenter(for:)`, the chooser
   with `.challengeChooser`. Texts come from the package's `Localizable.xcstrings` (English, German);
   `.nativeLoginStrings(bundle:)` overrides any key from the app's own bundle.
@@ -88,9 +97,29 @@ which adds Apple's `swift-testing` package as a test-only dependency (nothing is
 library). Live tests against the demo compose stack run when `KEYCLOAK_NATIVE_LIVE_BASE` is set
 (e.g. `http://localhost:8089`; they also use mailpit on `:8025` and the resource server on `:8091`,
 override with `KEYCLOAK_NATIVE_LIVE_MAILPIT` / `KEYCLOAK_NATIVE_LIVE_RESOURCE`), see
-`Tests/KeycloakNativeCoreTests/LiveServerTests.swift`.
+`Tests/KeycloakNativeCoreTests/LiveServerTests.swift` and `LivePushTests.swift` (push: the test is
+both the native client and the "phone"; the realm's `web-app` browser login is driven with a
+cookie-keeping `URLSession`).
+
+## Push MFA in an app (spec/14 D9)
+
+```swift
+let push = kc.push()                                   // device token = the stored native login (DPoP-bound)
+try await push.enroll(deviceLabel: UIDevice.current.name, pushProviderType: "apns", pushProviderId: apnsTokenHex)
+let pending = try await push.pendingApprovals()        // also on foreground / pull-to-refresh: APNs may be late
+try await push.respond(to: pending[0], .approve(userVerification: "42"))   // number match
+try await push.updateAPNsToken(deviceToken)            // from didRegisterForRemoteNotificationsWithDeviceToken
+try await push.rotateKey()                             // new DPoP key; the stored tokens are dropped, sign in again
+try await push.lockout()                               // panic button: ba-itsys disables the account
+```
+
+The enrolment, the device JWTs, the confirm token and the APNs token are masked by the `Redactor`
+before anything reaches a log. Key rotation rotates the SDK's DPoP key (the push credential and the
+token binding share it), so a new login follows. `DeviceTokenProvider` is the extension point for a
+stock ba-itsys install that wants `client_credentials` on a device client (no such provider ships:
+it would need a secret the app cannot hold).
 
 ## Not in this phase (marked extension points, no stubs)
 
-`push` and `select` answers (Phase 3 authenticators), `KeycloakNativePush`, completion-handler /
-Combine variants of the async API.
+`select` answers (no server-side authenticator emits them), completion-handler / Combine variants
+of the async API, a `client_credentials` `DeviceTokenProvider`.

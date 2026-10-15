@@ -17,8 +17,8 @@
 | `native-auth-required-actions`: `native-passkey-register`, `PasskeyRegistrationOptions`, `PasskeyRegistrationVerifier` | done | ITs |
 | `demo/`: docker-compose (Keycloak + Postgres + mailpit + Node resource server), `realm-export/demo-realm.json` (flows `native`, `native-alternatives`, `native-passkey-first`, `native-step-up`, `native-otp`; clients `demo-ios`, `demo-ios-alt`, `demo-ios-passkey`, `demo-ios-stepup`, `demo-ios-otp`, `web-app`; users alice/bob/carol/dave/erin; SMTP → mailpit), `scripts/walkthrough.sh`, `scripts/passkey-walkthrough.md`, `resource-server/server.mjs` | done | walkthrough exits 0 from a clean clone |
 | Integration tests `NativeAuthIT` (20), `PasskeyIT` (8), `StepUpIT` (5), `OtpIT` (3), `RedirectToWebIT` (1), `DPoPBindingIT` (4); `TranscriptRecorder`; committed fixture set `demo/transcripts/` (42 files) | done, green | `mvn verify` ≈ 3 min after image pulls |
-| `ios/KeycloakNative`: products `KeycloakNativeCore` (metadata, state machine, PKCE, DPoP, passkeys, step-up, `WebFallback`, OTP, tokens, Keychain `CredentialsManager`, redaction) and `KeycloakNativeUI` (`NativeLoginView`, default screens, chooser, presenter overrides) | done | 80 Swift Testing tests replaying the transcripts (both toolchain modes) + 7 live tests against the compose stack |
-| `ios/KeycloakNativeDemo`: example app (S1–S8, S11, S13, S14, dave enrolment, Diagnostics), XcodeGen project with an XCUITest target, tunnel/AASA setup notes | done | XCUITests on the **iOS 27 simulator**: S3, relaunch/refresh/logout, DPoP `jkt`, S14 (13); passkey scenarios still need a device |
+| `ios/KeycloakNative`: products `KeycloakNativeCore` (metadata, state machine, PKCE, DPoP, passkeys, step-up, `WebFallback`, OTP, tokens, Keychain `CredentialsManager`, redaction), `KeycloakNativePush` (enrolment, approvals, APNs token, key rotation, lockout, notification-service helper) and `KeycloakNativeUI` (`NativeLoginView`, default screens incl. push, `PushApprovalsView`, chooser, presenter overrides, string catalogue) | done | 115 Swift Testing tests replaying the transcripts (both toolchain modes) + 14 live tests against the compose stack |
+| `ios/KeycloakNativeDemo`: example app (S1–S14, dave / carol / grace / hank / ivy / judy, Diagnostics), XcodeGen project with an XCUITest target, tunnel/AASA setup notes | done | 14 XCUITests on the **iOS 27 simulator** (13, 14 D7, 14 D9); passkey scenarios and real APNs still need a device |
 | CI `.github/workflows/ci.yml`: `mvn verify` job, `docker compose up` & walkthrough job, Swift package build + tests + app `build-for-testing` | written, **not yet executed on GitHub** (repo not pushed) | — |
 | `keycloak-native-auth/README.md` (build, run, configuration reference) | done | — |
 
@@ -26,7 +26,7 @@
 
 | Spec item | Status |
 |---|---|
-| §1 metadata, challenge endpoint | ✅ (`code_exchange`, `passkey`, `authorization_endpoint`, verified DPoP algorithms; `push` block absent until Phase 3) |
+| §1 metadata, challenge endpoint | ✅ (`code_exchange`, `passkey`, `authorization_endpoint`, verified DPoP algorithms, `push` block when `native-auth-push` is installed) |
 | §2 initial / continuation requests, `action=cancel`, `action=resend` | ✅ (`action=select` unused: no `native-select`) |
 | §3.1 success body | ✅ with post-login `auth_session` (consumed by step-up, 13 D1; DPoP-bound when the login used a key, 13 D3) |
 | §3.2/3.3 challenge envelope, descriptors, `error`, `required`, `context` (incl. `step_up`, `acr_requested`), `expires_in` | ✅ (`retry.remaining` not emitted; order = flow layout, 11 D3) |
@@ -36,10 +36,11 @@
 | §4.2 password, §4.5 totp | ✅ |
 | §4.3 passkey (allow-list and discoverable), §4.4 passkey_registration (required action) | ✅ (11 D2, D1) |
 | §4.6 otp | ✅ email (and an untested sms-webhook sender); sent only when the single option or on `action=resend` (13 D4) |
-| §4.7 push, §4.8 recovery_code, §4.9 select | ❌ Phase 3 / optional |
+| §4.7 push (number match, `action=resend` / `action=poll`), §4.8 recovery_code, §4.15 push_enrollment | ✅ (14 D9, `PushMfaIT`) |
+| §4.9 select | ❌ optional, no authenticator emits it |
 | §5 session semantics | ✅ in-flow, post-login `auth_session` minted and consumed by step-up (LoA conditions, `max_age`, `prompt=login`); refresh-triggered `insufficient_authorization` ❌ (Keycloak's token endpoint has no hook; the SDK handles it) |
 | §6 passkey registration endpoints (bearer/DPoP token, freshness rule → `insufficient_authorization` + `auth_session` + `max_age`, single-use `registration_id`) | ✅ (11 D5, 13 D1) |
-| §7 push device API | ❌ |
+| §7 push device API | ✅ ba-itsys' API unchanged, the DPoP key as device key and the native token as device token (§7.1, 14 D9); `/native-auth/push/enroll/start` added; `apns` sender (14 D10) |
 | §8 DPoP | ✅ proofs verified at the challenge endpoint; in-flow `auth_session`, code (`dpop_jkt`) and post-login `auth_session` bound to the key when the first request carried a proof (13 D3); token binding by Keycloak (12 D2); no nonces, binding not mandatory |
 | §9 attestation | ❌ (reserved) |
 
@@ -84,17 +85,18 @@
 
 Legend: `[x]` done · `[ ]` open · `[~]` partially done. Phase numbering follows 08.
 
-**Where we are (15 Oct 2026, end of Phase 2b):** Phases 0, 1a, 1b, the simulator half of 1c, Phase 2
-and **Phase 2b** are complete on `main` and pushed to `origin` (14). Verified by `mvn verify` (52 ITs,
-15 unit tests), `swift test` (102 tests across Core and UI, both toolchain modes), 10 live SDK tests
-against the compose stack, the curl walkthrough from a clean clone and 10 XCUITests on the iOS 27
-simulator. The protocol is frozen as v1.0-rc for everything implemented (03 §10.1).
+**Where we are (15 Oct 2026, end of Phase 3):** Phases 0, 1a, 1b, the simulator half of 1c, Phase 2,
+Phase 2b and **Phase 3 (push MFA)** are complete on `main` and pushed to `origin` (14). Verified by
+`mvn verify` (58 ITs, 17 unit tests), `swift test` (115 tests across Core, Push and UI, both toolchain
+modes), 14 live SDK tests against the compose stack, the curl walkthrough from a clean compose stack
+and 14 XCUITests on the iOS 27 simulator. The protocol is frozen as v1.0-rc for everything
+implemented (03 §10.1); `push`, §4.15 and §7 are now implemented on both sides too.
 
 **Next, in this order:**
-1. **Phase 3 — push MFA** (below; 08 Q5/Q6 answered: build the programmatic enrolment API and the
-   APNs sender in this repo and offer them upstream; no shipped client secret).
-2. **Phase 1c — hardware half** whenever a device and an Apple team are available (S1, S2, S11,
-   dave, the cancel path, Secure Enclave, Associated Domains behind a tunnel, a VoiceOver pass).
+1. **Hardware half of Phase 1c and Phase 3** whenever a device and an Apple team are available (S1,
+   S2, S11, dave, the cancel path, Secure Enclave, Associated Domains behind a tunnel, real APNs
+   delivery with the `apns` sender, the notification service extension, a VoiceOver pass).
+2. **Upstream to ba-itsys** (14 D10) and **Phase 4** hardening.
 
 Working rule (unchanged): change `spec/03` first, implement on the server, re-record with
 `mvn verify && demo/scripts/update-transcripts.sh` (delete the recordings of renamed tests in
@@ -113,7 +115,7 @@ worked by different agents with the transcripts as the hand-off. Each phase gets
 - [x] Integration tests + CI workflow
 - [x] Decisions memo `09`, spec edits
 - [ ] Push the repository and confirm both CI jobs pass on GitHub Actions
-- [ ] Decide Q6 (push device client credentials) before Phase 3 starts (08 recommends token exchange)
+- [x] Q6 decided in Phase 3 (14 D9): no token exchange for public clients in Keycloak 26.8; the DPoP key is the device key
 
 ### Phase 1 — Passkeys (server) + SDK core + example app
 Server (`keycloak-native-auth`) — **Phase 1a done** (decisions in 11):
@@ -190,7 +192,7 @@ Example app — **done in Phase 2** (compiled for the simulator; S4/S6/S7 paths 
 
 Spec:
 - [x] Freeze protocol v1.0-rc for the implemented challenge types; conformance suite = the recorded transcripts (03 §10.1, 14 D8)
-- [ ] Spec v1.0 once Phase 3's `push` block and §7 are implemented on both sides
+- [ ] Spec v1.0: `push`, §4.15 and §7 are implemented on both sides (Phase 3); a final editorial pass and the device run are what remain
 
 ### Phase 2b — Close-out of Phase 2 (no hardware needed)
 Server:
@@ -208,13 +210,14 @@ SDK / UI / app:
 - [ ] Completion-handler / Combine variants of the async API (05 §2) if UIKit consumers need them
 - [x] Protocol v1.0-rc freeze for all implemented types (03 §10.1, 14 D8); `push`, §7, `select`, §9 stay draft
 
-### Phase 3 — Push MFA
-- [ ] Integrate ba-itsys `keycloak-push-mfa-extension` (scenario A) in the demo compose
-- [ ] `native-auth-push-apns` sender (HTTP/2, token auth)
-- [ ] `/native-auth/push/enroll/start`, `native-push-enroll` required action, `native-push` authenticator (scenario B, `action=poll`)
-- [ ] Q6 implementation (token exchange for the device client)
-- [ ] SDK `KeycloakNativePush`, approval UI, notification service extension; example app S9, S10, S12
-- [ ] Upstream contributions to ba-itsys
+### Phase 3 — Push MFA ✅ (server, SDK, app on the simulator; 14 D9, D10)
+- [x] ba-itsys `keycloak-push-mfa-extension` 2.3.7 in the demo compose and ITs: rebuilt for Java 21 from its sources jar (`push-mfa-extension-java21`; the published jars target Java 25 and the Keycloak image runs 21; `@RunOnVirtualThread` dropped), realm browser flow `browser-push` (scenario A, `PushMfaIT.scenarioA…`)
+- [x] `native-auth-push-apns`: `apns` sender (HTTP/2, provider-token auth, no third-party client), unit tests, fake APNs sink in the ITs
+- [x] `/native-auth/push/enroll/start`, `native-push-enroll` (substitutes for `push-mfa-register`), `native-push` authenticator (scenario B, `action=resend` / `action=poll`, number match), metadata `push` block (`PushMfaIT`, 6 tests, transcripts)
+- [x] Q6: token exchange is impossible for public clients in Keycloak 26.8 → the DPoP key is the device key and the native token the device token (03 §7.1, 14 D9); `DeviceTokenProvider` stays abstract
+- [x] SDK `KeycloakNativePush` (enrol in-app / mid-flow, approvals with number match, APNs token sync, key rotation, lockout, notification-service helper), `PushApprovalsView` + push screens in the UI product, example app S9 / S10 / S12 / judy, `PushUITests` on the simulator, `LivePushTests`
+- [ ] Upstream to ba-itsys (listed in 14 D10): `--release 21` build, programmatic enrolment service, the `apns` sender, a reusable challenge issuer for non-HTML authenticators
+- [ ] Real APNs delivery and the notification service extension on a device (needs an Apple team; 14 "Left out")
 
 ### Phase 4 — Hardening & release
 - [~] DPoP: binding at the challenge endpoint and metadata advertisement are done (13 D3); remaining: `DPoP-Nonce` support, and whether to make binding mandatory for native clients (`dpop.bound.access.tokens`) or let operators disable it

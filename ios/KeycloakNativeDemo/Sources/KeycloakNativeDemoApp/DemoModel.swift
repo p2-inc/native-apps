@@ -1,5 +1,6 @@
 import Foundation
 import KeycloakNativeCore
+import KeycloakNativePush
 import KeycloakNativeUI
 import Observation
 
@@ -22,6 +23,13 @@ public final class DemoModel {
   public private(set) var registeredPasskeys: [RegisteredPasskey] = []
   /// S6: the last answer of the demo resource server.
   public private(set) var resourceResult: String?
+  /// S9/S10/S12: this device's push enrolment (per issuer + client; the standard client here).
+  public private(set) var pushEnrollment: PushEnrollment?
+  /// The APNs device token the app delegate received (a device), or the simulated one (S12).
+  public private(set) var apnsToken: Data?
+  public var pushDeviceLabel = "KC Native demo device"
+  /// Set by the app target (`RootView`): requests notification permission and an APNs token.
+  public var enableNotifications: (@MainActor () async -> Void)?
 
   public var username = ""
   public var password = ""
@@ -65,9 +73,13 @@ public final class DemoModel {
 
   public var sdk: KeycloakNative { sdk(for: activeClientId) }
 
+  /// Push MFA for the standard client (spec/05 §5): the enrolment belongs to that instance.
+  public var push: Push { sdk(for: config.clientId).push() }
+
   /// Restores credentials stored by a previous launch (the Keychain `CredentialsManager`, spec/05 §6).
   /// Called once at launch; expired tokens are refreshed on demand (`refreshTokens`, `credentials()`).
   public func restoreSession() async {
+    refreshPushState()
     let manager = sdk(for: config.clientId).credentialsManager()
     do {
       if let stored = try await manager.stored() {
@@ -98,6 +110,112 @@ public final class DemoModel {
     flow = nil
     lastError = nil
     status = scenario.details
+    refreshPushState()
+  }
+
+  // MARK: - Push MFA (S9, S10, S12, judy; spec/05 §5, spec/14 D9)
+
+  public func refreshPushState() {
+    pushEnrollment = push.enrollment
+  }
+
+  /// S9: enrol after a native login (scenario C). `apns` when the app has an APNs token, else
+  /// `none` (the app pulls its approvals).
+  public func enrolPush() async {
+    await run("Enrolling this device for push MFA") {
+      let hex = apnsToken.map { $0.map { String(format: "%02x", $0) }.joined() }
+      let enrollment = try await push.enroll(deviceLabel: pushDeviceLabel, pushProviderType: hex == nil ? "none" : "apns", pushProviderId: hex)
+      self.pushEnrollment = enrollment
+      self.status = "Push MFA enrolled (credential \(enrollment.credentialId.prefix(8))…, provider \(enrollment.pushProviderType)). Browser logins of \(enrollment.username ?? "this user") now ask this device."
+    }
+  }
+
+  /// judy: `push_enrollment` mid-flow (spec/03 §4.15).
+  public func enrolPushInFlow(_ challenge: Challenge) async {
+    guard let flow, let params = challenge.pushEnrollmentParams else { return }
+    await run("Enrolling this device in-flow (\(challenge.id))") {
+      let prepared = try await push.prepareEnrollment(for: params, deviceLabel: pushDeviceLabel)
+      let step = try await flow.respond(prepared.answer, to: challenge)
+      if step.challenges?.first(where: { $0.type == .pushEnrollment && $0.error != nil }) == nil {
+        try push.commit(prepared)
+        self.pushEnrollment = prepared.enrollment
+      }
+      self.apply(step)
+    }
+  }
+
+  /// S10: `action=poll` without touching the status line (the Login screen polls on a timer).
+  public func pollPush(_ challenge: Challenge) async {
+    guard let flow, !isBusy else { return }
+    do {
+      apply(try await flow.respond(.pushPoll, to: challenge))
+    } catch let error as NativeAuthError {
+      lastError = error
+      status = "\(error.code): \(error.errorDescription ?? "")"
+      if [NativeAuthError.Code.invalidSession, NativeAuthError.Code.accessDenied].contains(error.code) {
+        self.flow = nil
+        step = nil
+      }
+    } catch {
+      status = "Unexpected: \(error)"
+    }
+  }
+
+  /// S12: a device registers its real token through the app delegate; the simulator fakes one.
+  public func apnsTokenReceived(_ token: Data) async {
+    apnsToken = token
+    guard push.isEnrolled else {
+      status = "APNs token received (\(token.count) bytes); it is sent with the next enrolment."
+      return
+    }
+    await run("Updating the push provider (PUT /device/push-provider)") {
+      try await push.updateAPNsToken(token)
+      self.refreshPushState()
+      self.status = "Push provider updated: apns, token \(token.prefix(4).map { String(format: "%02x", $0) }.joined())…"
+    }
+  }
+
+  public func simulateApnsToken() async {
+    var bytes = [UInt8](repeating: 0, count: 32)
+    _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+    await apnsTokenReceived(Data(bytes))
+  }
+
+  public func rotatePushKey() async {
+    await run("Rotating the device key (PUT /device/rotate-key)") {
+      try await push.rotateKey()
+      self.refreshPushState()
+      self.credentials = nil
+      self.dpopThumbprint = try await sdk.dpopKeyThumbprint()
+      self.status = "Device key rotated (jkt \(self.dpopThumbprint?.prefix(8) ?? "")…). The stored tokens were bound to the old key: sign in again."
+    }
+  }
+
+  public func lockoutPush() async {
+    await run("Locking the account out (POST /login/lockout)") {
+      try await push.lockout()
+      self.status = "Account locked out: ba-itsys disabled the user. An admin re-enables it (admin console → Users → alice → Enabled)."
+    }
+  }
+
+  public func forgetPush() {
+    try? push.forgetEnrollment()
+    refreshPushState()
+    status = "Local push enrolment forgotten (the server credential stays until an admin removes it)."
+  }
+
+  public func noteApproval(_ approval: PendingApproval, status: String) {
+    self.status = "Sign-in to \(approval.clientDisplayName) \(status)." + (status == "approved" ? " Back on Login the poll completes the native login (S10); a browser login continues by itself (S9)." : "")
+  }
+
+  /// A tapped push notification (device): let Home show the request.
+  public func notificationTapped(confirmToken: String?, cid: String?) {
+    var userInfo: [AnyHashable: Any] = [:]
+    if let confirmToken { userInfo["confirmToken"] = confirmToken }
+    if let cid { userInfo["cid"] = cid }
+    if let payload = push.handleNotification(userInfo) {
+      status = "Sign-in request \(payload.cid.prefix(8))… — open Home → Sign-in requests."
+    }
   }
 
   // MARK: - Login flow
@@ -276,7 +394,7 @@ public final class DemoModel {
       self.registeredPasskeys = []
       self.step = nil
       self.flow = nil
-      self.status = "Logged out."
+      self.status = "Logged out." + (self.pushEnrollment == nil ? "" : " The push enrolment stays; approvals need a login again.")
     }
   }
 

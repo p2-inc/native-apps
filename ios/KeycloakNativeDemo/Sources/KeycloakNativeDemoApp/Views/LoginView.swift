@@ -137,10 +137,62 @@ struct LoginView: View {
       TextField("XXXX-XXXX-XXXX", text: $model.recoveryCode).autocorrectionDisabled().accessibilityIdentifier("recoveryCode")
       Button("Sign in with a recovery code") { Task { await model.answer(.recoveryCode(model.recoveryCode), to: challenge) } }
         .disabled(model.isBusy || model.recoveryCode.isEmpty)
-    case .push, .select, .unknown:
+    case .push:
+      PushChallengeSection(challenge: challenge, params: challenge.pushParams)
+    case .pushEnrollment:
+      let params = challenge.pushEnrollmentParams
+      Text("ba-itsys' push-mfa-register served in-band by \(challenge.id) (spec/03 §4.15) for \(params?.enrollmentClaims?["username"]?.stringValue ?? "?"): the device JWT is signed with this app's DPoP key.")
+        .font(.footnote).foregroundStyle(.secondary)
+      TextField("Device name", text: $model.pushDeviceLabel).accessibilityIdentifier("pushDeviceLabel")
+      Button("Enrol this device") { Task { await model.enrolPushInFlow(challenge) } }
+        .disabled(model.isBusy)
+        .accessibilityIdentifier("pushEnrolInFlow")
+    case .select, .unknown:
       Text("Unsupported challenge type '\(challenge.type.wire)' in this app version: update the app or use the web.")
         .foregroundStyle(.orange)
     }
+  }
+}
+
+/// S10: the hand-rolled `push` screen (spec/03 §4.7): send on demand, show the number-match number,
+/// poll every `poll_interval` seconds while the challenge is pending.
+struct PushChallengeSection: View {
+  @Environment(DemoModel.self) private var model
+  let challenge: Challenge
+  let params: PushParams?
+  @State private var now = Date()
+  private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+  var body: some View {
+    let sent = params?.sent ?? false
+    let wait = Int(params?.resendWait(at: now).rounded(.up) ?? 0)
+    let devices = params?.devices.joined(separator: ", ") ?? "?"
+    Text(sent ? "Request sent to \(devices) (cid \(params?.cid?.prefix(8) ?? "")…, status \(params?.status?.rawValue ?? "?"), poll every \(params?.pollInterval ?? 0) s)" : "Devices: \(devices). Nothing sent yet: ask for a request.")
+      .font(.footnote).foregroundStyle(.secondary)
+    if sent {
+      if let number = params?.userVerificationNumber {
+        HStack {
+          Text("Pick this number on the phone")
+          Spacer()
+          Text(number).font(.title2.bold()).accessibilityIdentifier("pushNumber")
+        }
+      }
+      Button("Check now (action=poll)") { Task { await model.pollPush(challenge) } }
+        .disabled(model.isBusy)
+        .accessibilityIdentifier("pushPoll")
+    }
+    Button(sent ? "Send again" : (wait > 0 ? "Send request (\(wait) s)" : "Send request")) { Task { await model.answer(.pushResend, to: challenge) } }
+      .disabled(model.isBusy || wait > 0 || (params?.isPending ?? false))
+      .accessibilityIdentifier("pushSend")
+      .onReceive(ticker) { now = $0 }
+      .task(id: params?.cid) {
+        guard let params, params.isPending else { return }
+        while !Task.isCancelled {
+          try? await Task.sleep(for: .seconds(params.pollInterval))
+          guard !Task.isCancelled else { return }
+          await model.pollPush(challenge)
+        }
+      }
   }
 }
 

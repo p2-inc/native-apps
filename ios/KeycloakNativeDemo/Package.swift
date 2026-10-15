@@ -14,6 +14,7 @@ let package = Package(
       dependencies: [
         .product(name: "KeycloakNativeCore", package: "KeycloakNative"),
         .product(name: "KeycloakNativeUI", package: "KeycloakNative"),
+        .product(name: "KeycloakNativePush", package: "KeycloakNative"),
       ])
   ],
   swiftLanguageModes: [.v6]

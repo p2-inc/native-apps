@@ -11,7 +11,10 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
   case s6StepUp
   case s7RedirectToWeb
   case s8RefreshReauth
+  case s9PushEnrolAndApprove
+  case s10PushNativeLogin
   case s11RegisterSecondPasskey
+  case s12PushMaintenance
   case s13CustomPresenter
   case s14BruteForce
   case daveEnrolment
@@ -19,6 +22,7 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
   case graceVerifyEmail
   case hankTerms
   case ivyRecoveryCode
+  case judyPushEnrol
 
   public var id: String { rawValue }
 
@@ -32,7 +36,10 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .s6StepUp: "S6 · Step-up for a protected action"
     case .s7RedirectToWeb: "S7 · Redirect to web (frank)"
     case .s8RefreshReauth: "S8 · Refresh forces re-authentication"
+    case .s9PushEnrolAndApprove: "S9 · Enrol for push, approve a browser login"
+    case .s10PushNativeLogin: "S10 · Push as the native second factor"
     case .s11RegisterSecondPasskey: "S11 · Register a passkey after login"
+    case .s12PushMaintenance: "S12 · Push device: APNs token, key rotation, lockout"
     case .s13CustomPresenter: "S13 · Default UI with a custom TOTP screen"
     case .s14BruteForce: "S14 · Brute force → access_denied"
     case .daveEnrolment: "Enrol a passkey on first login (dave)"
@@ -40,6 +47,7 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .graceVerifyEmail: "Verify email with a code (grace)"
     case .hankTerms: "Accept terms and conditions (hank)"
     case .ivyRecoveryCode: "Recovery code instead of TOTP (ivy)"
+    case .judyPushEnrol: "Enrol for push mid-flow (judy)"
     }
   }
 
@@ -61,6 +69,12 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
       "Client demo-ios. frank / frank-password has a pending Update Profile action with no native variant: the server answers redirect_to_web with a PAR request_uri; Safari completes the login and the code comes back to the app (demoapp://auth/callback)."
     case .s8RefreshReauth:
       "After any login: Home → “End session on the server” (revokes the refresh token), then “Refresh tokens”: the SDK reports reauthentication_required and the app starts a new login."
+    case .s9PushEnrolAndApprove:
+      "Log in as alice (password + TOTP), then Home → “Enrol this device for push”: POST /native-auth/push/enroll/start with the DPoP-bound token, then /push-mfa/enroll/complete with a device JWT signed by the DPoP key (spec/03 §7.1). Then sign in as alice in a browser (http://localhost:8089/realms/demo/account): the realm's browser flow asks the phone — Home → “Sign-in requests” lists it (pull to refresh; the simulator gets no APNs), Approve finishes the browser login."
+    case .s10PushNativeLogin:
+      "With this device enrolled (S9): a native login of alice offers [totp, push]. “Send request” creates the push challenge and shows a number; Home → “Sign-in requests” shows three numbers — pick the matching one; back on Login the app polls (action=poll) and finishes."
+    case .s12PushMaintenance:
+      "Home → push section: “Simulate APNs token” (PUT /device/push-provider; a real device registers its token through the app delegate), “Rotate device key” (PUT /device/rotate-key with the new DPoP key; the stored tokens were bound to the old key, so sign in again), “Lock out” (POST /login/lockout disables the account until an admin re-enables it: docker compose down -v, or the admin console)."
     case .s11RegisterSecondPasskey:
       "After any login, Home → Register passkey: POST /passkey/register/options → platform sheet → /finish. After 300 s the server answers 403 insufficient_authorization with an auth_session: the app steps up with max_age and retries."
     case .s13CustomPresenter:
@@ -75,6 +89,8 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
       "grace / grace-password has VERIFY_EMAIL pending; native-verify-email sends a 6-digit code to g***@example.com (mailpit, http://localhost:8025) as soon as the challenge appears (spec/03 §4.13); resend has a 30 s cooldown."
     case .hankTerms:
       "hank / hank-password has TERMS_AND_CONDITIONS pending; native-terms shows the realm's terms text and link (spec/03 §4.14). Accept continues to the tokens; Decline ends the login with access_denied."
+    case .judyPushEnrol:
+      "judy / judy-password carries ba-itsys' push-mfa-register required action; native-push-enroll serves it in-band (spec/03 §4.15): after the password the app enrols this device with its DPoP key (token=<device JWT>) and the login completes. The next login of judy asks for push (sent at once, single option). Reset with docker compose down -v."
     case .ivyRecoveryCode:
       "ivy / ivy-password has TOTP and three recovery codes: the second factor offers [totp, recovery_code] (spec/03 §4.8). Codes IVY1-IVY1-IVY1, IVY2-IVY2-IVY2, IVY3-IVY3-IVY3 are single use and consumed in order; after the last one Keycloak requires new codes (redirect to web). Reset with docker compose down -v."
     }
@@ -100,7 +116,7 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
 
   public var prefilledUsername: String? {
     switch self {
-    case .s1UsernamePasskey, .s3PasswordTotp, .s11RegisterSecondPasskey, .s6StepUp, .s8RefreshReauth, .s5DefaultUI, .s13CustomPresenter: "alice"
+    case .s1UsernamePasskey, .s3PasswordTotp, .s11RegisterSecondPasskey, .s6StepUp, .s8RefreshReauth, .s5DefaultUI, .s13CustomPresenter, .s9PushEnrolAndApprove, .s10PushNativeLogin, .s12PushMaintenance: "alice"
     case .s4EmailOtp: "bob"
     case .s7RedirectToWeb: "frank"
     case .s14BruteForce: "erin"
@@ -109,6 +125,7 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .graceVerifyEmail: "grace"
     case .hankTerms: "hank"
     case .ivyRecoveryCode: "ivy"
+    case .judyPushEnrol: "judy"
     case .s2DiscoverablePasskey: nil
     }
   }

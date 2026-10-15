@@ -17,7 +17,9 @@ struct DefaultChallengeScreen: View {
     case .verifyEmail: VerifyEmailScreen(presentation: presentation)
     case .terms: TermsScreen(presentation: presentation)
     case .recoveryCode: RecoveryCodeScreen(presentation: presentation)
-    case .push, .select, .unknown: UnsupportedScreen(presentation: presentation)
+    case .push: PushScreen(presentation: presentation)
+    case .pushEnrollment: PushEnrollmentScreen(presentation: presentation)
+    case .select, .unknown: UnsupportedScreen(presentation: presentation)
     }
   }
 }
@@ -388,7 +390,85 @@ struct DefaultChallengeChooser: View {
     case .totp: l("Use an authenticator app")
     case .otp: challenge.otpParams?.channel == "sms" ? l("Text me a code") : l("Email me a code")
     case .recoveryCode: l("Use a recovery code")
+    case .push: l("Approve on your phone")
     default: challenge.label ?? challenge.type.wire
+    }
+  }
+}
+
+/// `push` (spec/03 §4.7): sends the push when the user asks (or shows the one already sent), shows
+/// the number for number match, and polls every `poll_interval` seconds until the device answers.
+struct PushScreen: View {
+  let presentation: ChallengePresentationContext
+  @State private var now = Date()
+  @Environment(\.nativeLoginStrings) private var l
+  private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+  var body: some View {
+    let params = presentation.challenge.pushParams
+    let sent = params?.sent ?? false
+    let wait = Int(params?.resendWait(at: now).rounded(.up) ?? 0)
+    let device = params?.devices.first ?? l("your phone")
+    ChallengeFrame(
+      presentation: presentation,
+      title: l("Approve on your phone"),
+      subtitle: sent ? l("We sent a sign-in request to %@. Approve it there to continue.", device) : l("We can send a sign-in request to %@.", device)
+    ) {
+      if sent {
+        if let number = params?.userVerificationNumber {
+          VStack(spacing: 4) {
+            Text(l("Choose this number on your phone")).font(.footnote).foregroundStyle(.secondary)
+            Text(number).font(.system(size: 44, weight: .bold, design: .rounded)).accessibilityIdentifier("pushNumber")
+          }
+          .frame(maxWidth: .infinity)
+        }
+        HStack(spacing: 8) {
+          ProgressView().controlSize(.small)
+          Text(l("Waiting for your approval…")).font(.footnote).foregroundStyle(.secondary).accessibilityIdentifier("pushWaiting")
+        }
+        Button(l("Check now")) { presentation.submit(.pushPoll) }
+          .disabled(presentation.isSubmitting)
+          .accessibilityIdentifier("pushPoll")
+      } else {
+        Button(wait > 0 ? l("Send request (%lld s)", wait) : l("Send request")) { presentation.submit(.pushResend) }
+          .buttonStyle(.borderedProminent)
+          .disabled(wait > 0 || presentation.isSubmitting)
+          .accessibilityIdentifier("pushSend")
+      }
+    }
+    .onReceive(ticker) { now = $0 }
+    .task(id: params?.cid) {
+      // Poll while the challenge is pending; the server advances on `approved` (spec/03 §4.7).
+      guard let params, params.isPending else { return }
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(params.pollInterval))
+        guard !Task.isCancelled, !presentation.isSubmitting else { continue }
+        presentation.submit(.pushPoll)
+      }
+    }
+  }
+}
+
+/// `push_enrollment` (spec/03 §4.15): enrols this device with the SDK's DPoP key. The default
+/// screen enrols without a push provider (`none`: the app pulls its approvals); an app that has
+/// an APNs token replaces the screen or calls `enrolPush(deviceLabel:pushProviderType:pushProviderId:)`.
+struct PushEnrollmentScreen: View {
+  let presentation: ChallengePresentationContext
+  @State private var label = ""
+  @Environment(\.nativeLoginStrings) private var l
+
+  var body: some View {
+    let client = presentation.flowContext.clientName ?? l("This service")
+    ChallengeFrame(presentation: presentation, title: l("Set up sign-in approvals"), subtitle: l("%@ asks you to enrol this device so you can approve sign-ins from here.", client)) {
+      TextField(l("Device name (optional)"), text: $label)
+        .textFieldStyle(.roundedBorder)
+        .accessibilityIdentifier("pushDeviceLabel")
+      Button(l("Enrol this device")) {
+        presentation.enrolPush(deviceLabel: label.isEmpty ? l("This device") : label)
+      }
+      .buttonStyle(.borderedProminent)
+      .disabled(presentation.isSubmitting)
+      .accessibilityIdentifier("pushEnrol")
     }
   }
 }

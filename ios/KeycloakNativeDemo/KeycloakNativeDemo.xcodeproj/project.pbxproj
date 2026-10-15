@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		0690B787895F9314EB6EEAD1 /* DemoAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14789A1DB7DC478B4C536684 /* DemoAppUITests.swift */; };
+		3BA4F22389948CBD69A8A44B /* PushUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19E37E9BD8EAA3843532CA0 /* PushUITests.swift */; };
+		702BD063140EC3F720111648 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A893B477784F196B9478EC6B /* AppDelegate.swift */; };
 		9E3EB1C2C61F9C3EF56E58E2 /* KeycloakNativeDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F2D3C7AF3135AAE0BEC0A2 /* KeycloakNativeDemoApp.swift */; };
 		C36C4A720B2B2992EB99E482 /* KeycloakNativeDemoApp in Frameworks */ = {isa = PBXBuildFile; productRef = 666E25ADDD9CAF2BE24015A8 /* KeycloakNativeDemoApp */; };
 /* End PBXBuildFile section */
@@ -25,9 +27,11 @@
 /* Begin PBXFileReference section */
 		09F2D3C7AF3135AAE0BEC0A2 /* KeycloakNativeDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeycloakNativeDemoApp.swift; sourceTree = "<group>"; };
 		14789A1DB7DC478B4C536684 /* DemoAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoAppUITests.swift; sourceTree = "<group>"; };
+		A893B477784F196B9478EC6B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		AF87B3C2DA9F472E93E4EC39 /* KeycloakNativeDemo */ = {isa = PBXFileReference; lastKnownFileType = folder; name = KeycloakNativeDemo; path = .; sourceTree = SOURCE_ROOT; };
 		B2801490484F9BDE144E064F /* KeycloakNativeDemoUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = KeycloakNativeDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C9ACBA12FAEC088C84D1866B /* KeycloakNativeDemo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = KeycloakNativeDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D19E37E9BD8EAA3843532CA0 /* PushUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +76,7 @@
 		493BAE00BA9AF2813BA4B328 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				A893B477784F196B9478EC6B /* AppDelegate.swift */,
 				09F2D3C7AF3135AAE0BEC0A2 /* KeycloakNativeDemoApp.swift */,
 			);
 			path = App;
@@ -81,6 +86,7 @@
 			isa = PBXGroup;
 			children = (
 				14789A1DB7DC478B4C536684 /* DemoAppUITests.swift */,
+				D19E37E9BD8EAA3843532CA0 /* PushUITests.swift */,
 			);
 			path = UITests;
 			sourceTree = "<group>";
@@ -172,6 +178,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				702BD063140EC3F720111648 /* AppDelegate.swift in Sources */,
 				9E3EB1C2C61F9C3EF56E58E2 /* KeycloakNativeDemoApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -181,6 +188,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0690B787895F9314EB6EEAD1 /* DemoAppUITests.swift in Sources */,
+				3BA4F22389948CBD69A8A44B /* PushUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

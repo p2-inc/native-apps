@@ -12,10 +12,11 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
   case push
   case recoveryCode
   case select
-  /// Native required actions (spec/03 §4.12–§4.14).
+  /// Native required actions (spec/03 §4.12–§4.15).
   case updatePassword
   case verifyEmail
   case terms
+  case pushEnrollment
   case unknown(String)
 
   public init(wire: String) {
@@ -32,6 +33,7 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     case "update_password": self = .updatePassword
     case "verify_email": self = .verifyEmail
     case "terms": self = .terms
+    case "push_enrollment": self = .pushEnrollment
     default: self = .unknown(wire)
     }
   }
@@ -50,15 +52,16 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     case .updatePassword: "update_password"
     case .verifyEmail: "verify_email"
     case .terms: "terms"
+    case .pushEnrollment: "push_enrollment"
     case .unknown(let value): value
     }
   }
 
-  /// Whether this SDK version has a `ChallengeAnswer` for the type. `push` and `select` are
-  /// specified but arrive with the Phase 3 server work.
+  /// Whether this SDK version has a `ChallengeAnswer` for the type. `select` is specified (spec/03
+  /// §4.9) but no server-side authenticator emits it yet.
   public var isSupported: Bool {
     switch self {
-    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp, .recoveryCode, .updatePassword, .verifyEmail, .terms: true
+    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp, .push, .recoveryCode, .updatePassword, .verifyEmail, .terms, .pushEnrollment: true
     default: false
     }
   }
@@ -67,7 +70,7 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
   /// `id` is the native required action's provider id.
   public var isRequiredAction: Bool {
     switch self {
-    case .passkeyRegistration, .updatePassword, .verifyEmail, .terms: true
+    case .passkeyRegistration, .updatePassword, .verifyEmail, .terms, .pushEnrollment: true
     default: false
     }
   }
@@ -90,6 +93,10 @@ public struct ChallengeError: Sendable, Equatable {
     public static let passwordMismatch = "password_mismatch"
     /// `update_password`: the realm's password policy rejected the value; `message` says why.
     public static let invalidPassword = "invalid_password"
+    /// `push`: the device user refused the sign-in (spec/03 §4.7); `pushResend` may ask again.
+    public static let denied = "denied"
+    /// `push`: the pending approval expired unanswered; `pushResend` may ask again.
+    public static let expired = "expired"
   }
 
   public let code: String
@@ -160,6 +167,68 @@ public struct Challenge: Sendable, Identifiable, Equatable {
   public var updatePasswordParams: UpdatePasswordParams? { type == .updatePassword ? UpdatePasswordParams(json: params) : nil }
   public var verifyEmailParams: VerifyEmailParams? { type == .verifyEmail ? VerifyEmailParams(json: params) : nil }
   public var termsParams: TermsParams? { type == .terms ? TermsParams(json: params) : nil }
+  public var pushParams: PushParams? { type == .push ? PushParams(json: params) : nil }
+  public var pushEnrollmentParams: PushEnrollmentParams? { type == .pushEnrollment ? PushEnrollmentParams(json: params) : nil }
+}
+
+/// spec/03 §4.7 — approve the sign-in on an enrolled device.
+public struct PushParams: Sendable, Equatable {
+  public enum Status: String, Sendable { case pending, approved, denied, expired }
+
+  /// `true` once a push challenge exists (sent on describe when `push` is the single option, else
+  /// after `pushResend`); `false` after `denied` / `expired`.
+  public let sent: Bool
+  /// The ba-itsys challenge id the device sees in `/login/pending`.
+  public let cid: String?
+  public let expiresAt: Date?
+  /// Seconds between `pushPoll` answers.
+  public let pollInterval: Int
+  public let status: Status?
+  /// Number match: the number THIS client shows; the device offers three and the user picks it.
+  public let userVerificationNumber: String?
+  /// Labels of the user's enrolled devices.
+  public let devices: [String]
+  public let resendAllowedAt: Date?
+
+  public init(json: JSONValue) {
+    sent = json["sent"]?.boolValue ?? false
+    cid = json["cid"]?.stringValue
+    expiresAt = json["expires_at"]?.doubleValue.map { Date(timeIntervalSince1970: $0) }
+    pollInterval = max(1, json["poll_interval"]?.intValue ?? 3)
+    status = json["status"]?.stringValue.flatMap(Status.init(rawValue:))
+    let uv = json["user_verification"]
+    userVerificationNumber = uv?["type"]?.stringValue == "number_match" ? uv?["number"]?.stringValue : nil
+    devices = (json["devices"]?.arrayValue ?? []).compactMap { $0["label"]?.stringValue }
+    resendAllowedAt = json["resend_allowed_at"]?.doubleValue.map { Date(timeIntervalSince1970: $0) }
+  }
+
+  public func resendWait(at date: Date = Date()) -> TimeInterval {
+    guard let resendAllowedAt else { return 0 }
+    return max(0, resendAllowedAt.timeIntervalSince(date))
+  }
+
+  /// `true` while a poll is worthwhile.
+  public var isPending: Bool { sent && (status == nil || status == .pending) }
+}
+
+/// spec/03 §4.15 — enrol this device for push MFA mid-flow (served by `native-push-enroll`).
+public struct PushEnrollmentParams: Sendable, Equatable {
+  /// Realm-signed JWT (`typ: push-enroll-challenge`) with `sub`, `username`, `enrollmentId`, `nonce`, `exp`.
+  public let enrollmentToken: String?
+  public let expiresIn: Int?
+  /// ba-itsys device API root (`…/realms/{realm}/push-mfa`).
+  public let deviceApiBase: URL?
+  public let userId: String?
+
+  public init(json: JSONValue) {
+    enrollmentToken = json["enrollment_token"]?.stringValue
+    expiresIn = json["expires_in"]?.intValue
+    deviceApiBase = json["device_api_base"]?.stringValue.flatMap(URL.init(string:))
+    userId = json["user_id"]?.stringValue
+  }
+
+  /// Unverified claims of the enrolment token, for display and for building the device JWT.
+  public var enrollmentClaims: JSONValue? { enrollmentToken.flatMap(JWT.decodePayload) }
 }
 
 /// spec/03 §4.8 — how many single-use recovery codes are left before this attempt.
@@ -520,8 +589,17 @@ public enum ChallengeAnswer: Sendable, Equatable {
   case terms(accepted: Bool)
   /// `recovery_code` (spec/03 §4.8): one single-use code; separators and case do not matter.
   case recoveryCode(String)
-  // EXTENSION POINT (Phase 3): push(poll|cancel), select(challengeId:) follow the server-side
-  // authenticators.
+  /// `push` (spec/03 §4.7): `action=resend` — create (and send) the push challenge; also the first
+  /// send when `PushParams.sent` is `false`.
+  case pushResend
+  /// `push`: `action=poll` — ask whether the device answered; the server advances on `approved`.
+  case pushPoll
+  /// `push_enrollment` (spec/03 §4.15): the device-signed enrolment JWT (`KeycloakNativePush`
+  /// builds it from `PushEnrollmentParams`).
+  case pushEnrollment(token: String)
+  /// `push_enrollment`: `action=check` — the device enrolled through `/push-mfa/enroll/complete`.
+  case pushEnrollmentCheck
+  // EXTENSION POINT: select(challengeId:) (spec/03 §4.9) follows a server-side authenticator.
 
   public var challengeType: ChallengeType {
     switch self {
@@ -535,6 +613,8 @@ public enum ChallengeAnswer: Sendable, Equatable {
     case .verifyEmail, .verifyEmailResend: .verifyEmail
     case .terms: .terms
     case .recoveryCode: .recoveryCode
+    case .pushResend, .pushPoll: .push
+    case .pushEnrollment, .pushEnrollmentCheck: .pushEnrollment
     }
   }
 
@@ -569,6 +649,14 @@ public enum ChallengeAnswer: Sendable, Equatable {
       return [("accepted", accepted ? "true" : "false")]
     case .recoveryCode(let code):
       return [("recovery_code", code)]
+    case .pushResend:
+      return [("action", "resend")]
+    case .pushPoll:
+      return [("action", "poll")]
+    case .pushEnrollment(let token):
+      return [("token", token)]
+    case .pushEnrollmentCheck:
+      return [("action", "check")]
     }
   }
 }

@@ -1,4 +1,5 @@
 import KeycloakNativeCore
+import KeycloakNativePush
 import Observation
 import SwiftUI
 
@@ -58,6 +59,23 @@ final class NativeLoginModel {
       await perform {
         let attestation = try await self.kc.passkeys().register(params)
         return try await self.flow.respond(.passkeyRegistration(attestation, label: label), to: challenge)
+      }
+    }
+  }
+
+  /// `push_enrollment` (spec/03 §4.15): the device JWT is built by `KeycloakNativePush` with the
+  /// DPoP key and stored once the server moved on from the challenge.
+  func enrolPush(_ challenge: Challenge, deviceLabel: String, pushProviderType: String, pushProviderId: String?) {
+    guard let params = challenge.pushEnrollmentParams else { return }
+    Task {
+      await perform {
+        let push = self.kc.push()
+        let prepared = try await push.prepareEnrollment(for: params, deviceLabel: deviceLabel, pushProviderType: pushProviderType, pushProviderId: pushProviderId)
+        let step = try await self.flow.respond(prepared.answer, to: challenge)
+        if step.challenges?.first(where: { $0.type == .pushEnrollment && $0.error != nil }) == nil {
+          try push.commit(prepared)
+        }
+        return step
       }
     }
   }

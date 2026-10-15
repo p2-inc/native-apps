@@ -1,5 +1,6 @@
 import Foundation
 import KeycloakNativeCore
+import KeycloakNativePush
 import Testing
 @testable import KeycloakNativeUI
 
@@ -37,17 +38,61 @@ import Testing
   }
 
   @MainActor
-  func makeModel(_ handlers: [(HTTPRequest) throws -> HTTPResponse], autoSelectPasskey: Bool = false) -> (NativeLoginModel, ScriptedTransport, Collector) {
+  func makeModel(_ handlers: [(HTTPRequest) throws -> HTTPResponse], autoSelectPasskey: Bool = false, dpop: DPoPMode = .disabled) -> (NativeLoginModel, ScriptedTransport, Collector, KeycloakNative) {
     let transport = ScriptedTransport(handlers)
     var options = KeycloakNative.Options()
     options.transport = transport
     options.secureStore = InMemorySecureStore()
-    options.dpop = .disabled
+    options.dpop = dpop
     options.logger = NoopLogger()
     let kc = KeycloakNative.configure(issuer: Self.issuer, clientId: "c", options: options)
     let collector = Collector()
     let model = NativeLoginModel(kc: kc, flow: kc.authentication().startLogin(), autoSelectPasskey: autoSelectPasskey) { collector.results.append($0) }
+    return (model, transport, collector, kc)
+  }
+
+  @MainActor
+  func makeModel(_ handlers: [(HTTPRequest) throws -> HTTPResponse], autoSelectPasskey: Bool = false) -> (NativeLoginModel, ScriptedTransport, Collector) {
+    let (model, transport, collector, _) = makeModel(handlers, autoSelectPasskey: autoSelectPasskey, dpop: .disabled)
     return (model, transport, collector)
+  }
+
+  /// A `push_enrollment` set (spec/03 §4.15) with an unsigned enrolment token.
+  static func pushEnrollmentSet(error: String? = nil) -> JSONValue {
+    let claims = Base64URL.encode(Data("{\"sub\":\"u1\",\"username\":\"judy\",\"enrollmentId\":\"e1\",\"nonce\":\"n1\",\"exp\":1900000000}".utf8))
+    var descriptor: [String: JSONValue] = [
+      "type": "push_enrollment", "id": "native-push-enroll", "required": true,
+      "params": ["enrollment_token": .string("eyJhbGciOiJub25lIn0.\(claims)."), "expires_in": 240, "device_api_base": "https://idp.example.com/realms/demo/push-mfa", "user_id": "u1"],
+    ]
+    if let error { descriptor["error"] = ["code": .string(error)] }
+    return set([.object(descriptor)])
+  }
+
+  @Test @MainActor func pushEnrolmentIsCommittedOnlyWhenTheServerMovesOn() async throws {
+    // First attempt: the server re-challenges with an error → nothing stored; second: tokens → stored.
+    let (model, transport, collector, kc) = makeModel([
+      { _ in ScriptedTransport.json(200, Self.metadata) },
+      { _ in ScriptedTransport.json(403, Self.pushEnrollmentSet()) },
+      { _ in ScriptedTransport.json(403, Self.pushEnrollmentSet(error: "invalid_credential")) },
+      { _ in ScriptedTransport.json(200, ["authorization_code": "code", "auth_session": "post"]) },
+      { _ in ScriptedTransport.json(200, Self.tokens()) },
+    ], dpop: .software)
+    await model.startIfNeeded()
+    let challenge = try #require(selected(model))
+    #expect(challenge.type == .pushEnrollment)
+    let presentation = ChallengePresentationContext(challenge: challenge, challenges: [challenge], flowContext: .empty, isSubmitting: false, model: model)
+    presentation.enrolPush(deviceLabel: "Judy's phone")
+    await settle(model) { self.selected(model)?.error != nil }
+    #expect(selected(model)?.error?.code == "invalid_credential" && !kc.push().isEnrolled)
+    let again = try #require(selected(model))
+    ChallengePresentationContext(challenge: again, challenges: [again], flowContext: .empty, isSubmitting: false, model: model).enrolPush(deviceLabel: "Judy's phone")
+    await settle(model) { !collector.results.isEmpty }
+    guard case .authorized? = collector.results.first else { Issue.record("expected authorized"); return }
+    let enrollment = try #require(kc.push().enrollment)
+    #expect(enrollment.userId == "u1" && enrollment.username == "judy" && enrollment.deviceLabel == "Judy's phone" && enrollment.pushProviderType == "none")
+    #expect(enrollment.deviceApiBase.absoluteString == "https://idp.example.com/realms/demo/push-mfa")
+    let form = transport.sent[2].formFields ?? []
+    #expect(form.contains { $0.name == "challenge_type" && $0.value == "push_enrollment" } && form.contains { $0.name == "token" })
   }
 
   /// Waits for the model's background task to settle.

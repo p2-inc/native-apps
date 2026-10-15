@@ -21,6 +21,15 @@ SPI (`RequiredActionProvider`, `RequiredActionConfigModel`, `SubjectCredentialMa
 `ThemeManager`, `TermsAndConditions.USER_ATTRIBUTE` from `keycloak-services`, which is a public
 constant of a public class, not an internal API).
 
+Phase 3 adds **`PushEnrolment`** (module `native-auth-push`) to the list: it uses
+`KeycloakModelUtils.generateId` and `KeyWrapper` (`server-spi-private`) to mirror ba-itsys'
+enrolment verification, plus ba-itsys' own non-SPI classes (`PushChallengeStore`,
+`PushEnrollmentTokenBuilder`, `PushSignatureVerifier`, …), which are internal to that extension and
+the reason for upstream item 1 in D10. `NativePushAuthenticator` and `NativePushEnrollRequiredAction`
+use ba-itsys' `ChallengeIssuer` / `ChallengeNoteHelper` / `PushCredentialService` the same way.
+`NativeAuthResource` reads `OIDCLoginProtocolService` only for the realm's token endpoint URL
+(unchanged).
+
 ---
 
 ## D1 — Native required actions substitute for Keycloak's own actions instead of replacing them
@@ -373,8 +382,27 @@ records headers and bodies. Apple's real endpoint was not exercised (no Apple te
 | End of Phase 2b: 10 live SDK tests (S3 lifecycle, S11→S1→S2, dave, S6, S4, S7 on frank, carol, grace, hank, S14) | `KEYCLOAK_NATIVE_LIVE_BASE=http://localhost:8089 swift test --filter LiveServerTests` |
 | End of Phase 2b: 10 XCUITests on the iPhone 18 Pro simulator (iOS 27.0): S3 + relaunch/refresh/logout, S14, S4, S5, S13, S6, S8, carol, grace, hank | `xcodebuild test … CODE_SIGN_IDENTITY="-"` against a fresh compose stack (5 min) |
 | Demo app package | `swift build` (macOS) |
+| Phase 3 server: `PushMfaIT` (6: in-app enrolment, scenario A browser login approved on the device, scenario B with number match, denied push + rate-limited resend, device maintenance incl. key rotation and lockout, judy's in-flow enrolment) against a fake APNs; `ApnsPayloadAndTokenTest` (2) | `mvn verify -Dit.test=PushMfaIT`, then the full `mvn verify` (58 ITs, 17 unit tests) |
+| Phase 3 SDK: `Phase3ReplayTests` (8) replaying the 6 push transcripts, the push cases of `RedactionTests`, `NativeLoginModelTests` push enrolment commit | `swift test` (Xcode 27 toolchain) and `KEYCLOAK_NATIVE_TESTING_FROM_SOURCE=1 swift test --build-system native`: 115 tests (107 Core + 8 UI) green in both modes |
+| Phase 3 live: `LivePushTests` (4: S9 with a cookie-keeping `URLSession` as the browser, S10, S12, judy) + the 10 earlier live tests | `KEYCLOAK_NATIVE_LIVE_BASE=http://localhost:8089 swift test --filter "LiveServerTests|LivePushTests"` against a fresh compose stack |
+| Phase 3 app: `PushUITests` (4: S9, S10, S12, judy) on the iPhone 18 Pro simulator (iOS 27.0) | `xcodebuild test … -only-testing:KeycloakNativeDemoUITests/PushUITests CODE_SIGN_IDENTITY="-"`: 4/4, then the 10 earlier `DemoAppUITests` again: 10/10 (14 XCUITests in all) |
+| End of Phase 3: compose stack from a clean clone + `walkthrough.sh` | `docker compose down -v && KC_PORT=8089 docker compose up --wait && KC_BASE=http://localhost:8089 ./scripts/walkthrough.sh` → exit 0 (the stack now carries ba-itsys, the `apns` sender and the push bridge) |
 
 ## Left out (honest list) — running
+
+- **Push MFA on a device.** No Apple team, no device and no Simulator.app in this environment: the
+  `apns` sender was exercised against a fake APNs only, `PushNotificationService.rewrite` (the
+  notification service extension helper) and the app delegate's token registration compiled but
+  never ran, and every approval on the simulator was pulled from `/push-mfa/login/pending`. A device
+  run needs: the Push Notifications entitlement, an `.p8` key in the compose environment
+  (`APNS_*`), and a notification service extension target wired to the shared Keychain group.
+- `PushEnrolment.complete` duplicates ba-itsys' enrolment verification (D9); it tracks
+  `push-mfa.version` 2.3.7 and must be re-checked on every ba-itsys upgrade until upstream item 1 lands.
+- The enrolment token's realm signature is not verified on the device (the token arrives over TLS
+  from the issuer and the server verifies the device JWT it answers with); an app that wants it can
+  verify against the realm JWKS before `prepareEnrollment` (extension point, no API yet).
+- `select` (03 §4.9) still has no authenticator; the curl walkthrough has no push section (signing
+  ES256 device JWTs in bash was not worth it; the ITs and the SDK cover it).
 
 - `update_password` has no "sign out other sessions" option.
 - Required-action config for `native-terms` must be set through the admin console or REST; the

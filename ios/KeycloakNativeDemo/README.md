@@ -4,9 +4,11 @@ Proves the protocol paths end to end against the demo realm and shows both ways 
 the hand-rolled login screen (the "full control" sample: it renders the server's challenge set
 itself) and, for S5/S13, `NativeLoginView` from `KeycloakNativeUI`. Also a Home screen with token
 claims, post-login passkey registration, the step-up "Transfer" call and the S8 session controls, a
-Scenarios list (S1–S8, S11, S13, S14 and the `dave` enrolment path of `spec/06 §2`) and a Diagnostics
+Scenarios list (S1–S14 and the `dave` / `judy` enrolment paths of `spec/06 §2`) and a Diagnostics
 tab with the redacted flow log, plus the Phase 2b required actions (carol: update password in-band,
-grace: verify email with a code, hank: terms and conditions). Design: `../../spec/06-example-ios-app.md`.
+grace: verify email with a code, hank: terms and conditions) and the Phase 3 push MFA section on Home
+(enrol, sign-in requests with number match, APNs token, key rotation, lockout). Design:
+`../../spec/06-example-ios-app.md`.
 
 Layout: `Sources/KeycloakNativeDemoApp` is a Swift package library (SwiftUI + `DemoModel`) so it
 type-checks with `swift build` on macOS; `App/` holds the `@main` entry, `Config.plist`, entitlements;
@@ -142,8 +144,33 @@ Platform passkeys need (a) an RP ID that is a real domain the app is associated 
 The Diagnostics tab shows every request/response with secrets masked (`auth_session`, codes, tokens,
 passwords, OTPs, assertions) and the DPoP key thumbprint; "Copy" puts the log on the pasteboard.
 
+### Push MFA on the simulator (S9, S10, S12, judy; spec/14 D9)
+
+The compose stack ships ba-itsys' push MFA (rebuilt for Java 21), the `apns` sender (idle without an
+Apple team) and the native bridge. The simulator receives no APNs: every approval is pulled from
+`/push-mfa/login/pending` through Home → "Sign-in requests" (pull to refresh).
+
+1. **S9** — scenario S9, log in as alice, Home → "Enrol this device for push". Then sign in as alice
+   in a browser (`http://localhost:8089/realms/demo/account`, flow `browser-push`): the browser waits,
+   Home → "Sign-in requests" → Approve, the browser continues.
+2. **S10** — scenario S10, log in as alice: the second factor is `[totp, push]`; "Send request" shows
+   a number; Home → "Sign-in requests" offers three, pick the matching one; back on Login the app polls
+   (`action=poll`) and finishes.
+3. **S12** — Home: "Simulate APNs token" (`PUT /device/push-provider`; a device registers its real
+   token through "Enable notifications" and the app delegate), "Rotate device key" (`PUT
+   /device/rotate-key`: the DPoP key rotates, the stored tokens were bound to the old key, sign in
+   again), "Lock out account" (`POST /login/lockout`: ba-itsys disables alice; re-enable her in the
+   admin console or `docker compose down -v`).
+4. **judy** — scenario "Enrol for push mid-flow": after the password the `push_enrollment` challenge
+   enrols this device with the app's DPoP key; judy's next login asks for push at once.
+
+The four `PushUITests` run these on the simulator (`-only-testing:KeycloakNativeDemoUITests/PushUITests`,
+in name order; the browser of S9 is a `URLSession` with a hand-rolled cookie jar inside the test,
+and the admin API resets alice / judy at the end). Real APNs delivery and the notification service
+extension need a device and an Apple team (spec/14 "Left out").
+
 ## Not demonstrated here
 
-S9, S10, S12 (push MFA) depend on Phase 3. The app has no Settings bundle yet; edit `Config.plist`
+Real push delivery (APNs needs a device). The app has no Settings bundle yet; edit `Config.plist`
 (`Issuer`, `ClientId`, `PasskeyClientId`, `StepUpClientId`, `OtpClientId`, `ResourceServer`,
 `AllowRpIdMismatch`, `DeviceName`).

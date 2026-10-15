@@ -2,6 +2,8 @@
 
 Purpose: prove every protocol path end-to-end on a real device, serve as living documentation for SDK users, and act as the push-approval device for the browser demo. It is deliberately *not* a polished product; it exposes toggles and logs.
 
+**Status (Phase 3, 14):** S1–S14 plus dave / carol / grace / hank / ivy / judy exist in `ios/KeycloakNativeDemo/` (layout differs from the sketch below: a `Sources/KeycloakNativeDemoApp` library with `DemoModel` and the views, `App/` with the entry point and `AppDelegate`, `UITests/`). S9, S10, S12 and judy run on the simulator with the approvals pulled from `/push-mfa/login/pending` (`PushUITests`); real APNs delivery, the notification service extension and the passkey scenarios still need a device and an Apple team.
+
 ## 1. Structure
 
 ```

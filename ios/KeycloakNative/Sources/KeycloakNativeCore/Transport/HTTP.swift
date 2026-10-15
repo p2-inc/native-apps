@@ -45,6 +45,13 @@ public struct HTTPResponse: Sendable, Equatable {
   }
 
   public var json: JSONValue? { JSONValue(jsonData: body) }
+
+  /// RFC 9449 §8: the server wants a fresh nonce in the proof (`400`/`401 use_dpop_nonce` with a
+  /// `DPoP-Nonce` header). Modules outside Core retry the request with it.
+  public var dpopNonceChallenge: String? {
+    guard statusCode == 400 || statusCode == 401, json?["error"]?.stringValue == "use_dpop_nonce" else { return nil }
+    return header("DPoP-Nonce")
+  }
 }
 
 /// Transport abstraction: production uses `URLSessionTransport`; tests replay recorded transcripts.

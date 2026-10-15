@@ -2,7 +2,7 @@
 
 Swift Package, Swift 6 (strict concurrency), minimum **iOS 17** (passkeys need 16.6+; 17 simplifies `AuthorizationController` and `SwiftUI` APIs). Core also declares **macOS 14** (it is built and tested there, 12); visionOS can be added later since no UIKit is required in Core.
 
-**Status (Phase 2b, 14):** `KeycloakNativeCore` and `KeycloakNativeUI` exist at `ios/KeycloakNative/` (step-up, `WebFallback`, OTP, recovery codes, the in-band required actions, the default screens with a string catalogue and `.nativeLoginStrings(bundle:)`, and the UI product's own tests included); `KeycloakNativePush` does not yet. Deviations from the API sketched below are listed in 12 D4, 13 D5 and 14 (e.g. `stepUp` is `async`, `WebFallback.complete(_:flow:)` takes the flow, `NativeLoginView(kc:flow:onResult:)`).
+**Status (Phase 3, 14):** `KeycloakNativeCore`, `KeycloakNativeUI` and `KeycloakNativePush` exist at `ios/KeycloakNative/` (step-up, `WebFallback`, OTP, recovery codes, the in-band required actions, push MFA with `kc.push()` as sketched in §5 — enrolment in-app and mid-flow, approvals with number match, APNs token sync, key rotation, lockout, the notification-service helper — the default screens with a string catalogue and `.nativeLoginStrings(bundle:)`, `PushApprovalsView`, and the UI product's own tests included). Push deviations from §5 (14 D9): `enroll(deviceLabel:pushProviderType:pushProviderId:)` takes no token provider (it is the instance's default `NativeDeviceTokenProvider`), there is no QR / deep-link enrolment (`prepareEnrollment` serves the in-flow `push_enrollment` challenge instead), the device key is the SDK's DPoP key (no second Secure Enclave key), and `rotateKey` therefore drops the stored tokens. Deviations from the API sketched below are listed in 12 D4, 13 D5 and 14 (e.g. `stepUp` is `async`, `WebFallback.complete(_:flow:)` takes the flow, `NativeLoginView(kc:flow:onResult:)`).
 
 ## 1. Package products
 
@@ -168,6 +168,8 @@ NativeLoginView(flow: …) { result in … }
 - Accessibility: all defaults pass VoiceOver + Dynamic Type; `oneTimeCode` text content type for SMS autofill.
 
 ## 5. Push module (`KeycloakNativePush`)
+
+*(Sketch written before Phase 3; the shipped API is in `ios/KeycloakNative/README.md` and 14 D9.)*
 
 ```swift
 let push = kc.push()

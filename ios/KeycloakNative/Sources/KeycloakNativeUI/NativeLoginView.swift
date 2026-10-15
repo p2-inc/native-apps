@@ -34,6 +34,12 @@ public struct ChallengePresentationContext {
     model.registerPasskey(challenge, label: label)
   }
 
+  /// Enrols this device for push MFA on a `push_enrollment` challenge (spec/03 §4.15) with the
+  /// SDK's DPoP key; `pushProviderType` `apns` needs the APNs device token as `pushProviderId`.
+  public func enrolPush(deviceLabel: String, pushProviderType: String = "none", pushProviderId: String? = nil) {
+    model.enrolPush(challenge, deviceLabel: deviceLabel, pushProviderType: pushProviderType, pushProviderId: pushProviderId)
+  }
+
   /// Show another entry of the current set instead.
   public func switchTo(_ other: Challenge) {
     model.select(other)

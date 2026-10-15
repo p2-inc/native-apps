@@ -125,7 +125,7 @@ Every authenticator guards `if (!NativeRequestContext.isNative(ctx)) { ctx.attem
 | `native-passkey` (Phase 1 ✅) | create assertion options via the **Passwordless** `WebAuthnPolicy` + user's credentials (`allow_credentials`) or discoverable (empty); store challenge in an authNote keyed by execution id; `attempted()` for an identified user without passkeys (spec/11 D2) | parse 4 fields; `WebAuthnCredentialProvider.isValid(WebAuthnCredentialModelInput)`; set user from `user_handle` if discoverable | webauthn4j, `WebAuthnPasswordlessAuthenticator`'s validation portion |
 | `native-totp` | emit `totp` with policy digits/period; `configuredFor` → user has OTP cred | `OTPCredentialProvider.isValid` | |
 | `native-otp` | pick channel (config: email/sms); generate code (`SecretGenerator`), hash+store in authNote with ttl; send via `NativeOtpSender`; emit `otp` | compare, enforce attempts & ttl; `action=resend` with cooldown | Keycloak `EmailSenderProvider` |
-| `native-push` | create ba-itsys challenge for user's push credential; send confirmToken via sender; emit `push` with `cid`, number-match number | `action=poll` → read challenge status; approved → success; denied → failure; `action=cancel` → deny | ba-itsys challenge store & sender |
+| `native-push` (Phase 3 ✅, 14 D9) | emit `push` with the user's devices; create the ba-itsys challenge (sender delivers the confirm token) only when `push` is the single option or on `action=resend`; number-match number in `params.user_verification` | `action=poll` → read challenge status; approved → success; denied → `denied` failure; expired → `expired`; `action=cancel` ends the session | ba-itsys `ChallengeIssuer`, `PushChallengeStore`, sender SPI |
 | `native-recovery-code` | emit | `RecoveryAuthnCodesCredentialProvider.isValid` | |
 | `native-redirect-to-web` | always raises redirect (terminal) — placed as last ALTERNATIVE when operators want a guaranteed fallback | n/a | |
 
@@ -150,6 +150,12 @@ public interface NativeOtpSender extends Provider {
 Implementations: `email` (Keycloak templates `native-otp.ftl` + i18n), `log` (dev), `sms-webhook` (POST to a configured URL — lets operators plug Twilio/MessageBird without us depending on their SDKs).
 
 ## 6. APNs sender for ba-itsys
+
+**Built in Phase 3** as module `native-auth-push-apns` (14 D10): JDK `HttpClient` HTTP/2, ES256
+provider token reused for 50 minutes, headers and payload as below; unconfigured it is installed but
+idle; tested against a fake APNs in the ITs (no Apple team available for the real endpoint). The
+ba-itsys extension itself is deployed from `push-mfa-extension-java21`, a Java 21 rebuild of the
+published sources (the published jars target Java 25; `@RunOnVirtualThread` dropped, 14 D9).
 
 `PushNotificationSender` implementation `apns`:
 - Config: team id, key id, `.p8` key (path or env), bundle id/topic, environment (sandbox/prod), optional `apns-push-type: background|alert`.

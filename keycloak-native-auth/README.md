@@ -46,7 +46,7 @@ bodies verbatim); `demo/scripts/update-transcripts.sh` copies them to the commit
 
 The integration tests (`demo/src/test/java/.../NativeAuthIT.java`, `PasskeyIT.java`, `StepUpIT.java`,
 `OtpIT.java`, `SmsOtpIT.java`, `RedirectToWebIT.java`, `DPoPBindingIT.java`, `RequiredActionsIT.java`,
-`RecoveryCodeIT.java`, `EnrolOnFirstLoginIT.java`) start Keycloak (plus a mailpit SMTP sink and an in-JVM SMS webhook sink)
+`RecoveryCodeIT.java`, `EnrolOnFirstLoginIT.java`, `PushMfaIT.java`) start Keycloak (plus a mailpit SMTP sink, an in-JVM SMS webhook sink and an in-JVM fake APNs)
 with the freshly built provider JARs and the demo realm, and exercise the happy path, re-challenge on
 wrong password / wrong TOTP / wrong passkey signature, invalid / cancelled / expired `auth_session`,
 unknown `challenge_id`, the `redirect_uri` modes, the multi-alternative challenge set, passkey
@@ -55,7 +55,10 @@ and discoverable passkey login, step-up with LoA conditions, `max_age` re-authen
 with resend / cooldown / exhaustion, the browser fallback driven through Keycloak's HTML forms,
 DPoP-bound sessions and codes, and the native required actions (update password with a policy
 violation, verify email with a mailed code, terms accepted / declined, the fallback to
-`redirect_to_web` when the native variant is disabled). `PasskeyIT` uses a software WebAuthn authenticator
+`redirect_to_web` when the native variant is disabled), and push MFA (in-app enrolment through
+`/push/enroll/start` + ba-itsys' device API, a browser login approved on the device, the native `push`
+challenge with number match, deny / resend rate limit, APNs token update, key rotation, lockout, the
+`native-push-enroll` required action). `PasskeyIT` uses a software WebAuthn authenticator
 (`SoftwareAuthenticator`, ES256, `none` attestation) and `DPoPBindingIT` a test-side proof signer
 (`DPoPProofs`), so no device is needed.
 

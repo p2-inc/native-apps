@@ -6,8 +6,11 @@ public struct RootView: View {
   // (@State is a macro in recent SDKs and needs Xcode's plugin; a stored reference works everywhere.)
   private let model: DemoModel
 
-  public init(model: DemoModel) {
+  /// - Parameter enableNotifications: asks for notification permission and registers for APNs
+  ///   (the iOS app target's `AppDelegate`); `nil` on platforms without it.
+  public init(model: DemoModel, enableNotifications: (@MainActor () async -> Void)? = nil) {
     self.model = model
+    model.enableNotifications = enableNotifications
   }
 
   public var body: some View {

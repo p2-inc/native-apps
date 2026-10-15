@@ -1,7 +1,7 @@
 # Keycloak Native Mobile Authentication — Investigation & Build Plan
 
 **Date:** 15 October 2026
-**Status:** Phase 0 spike (`09`), Phase 1a server passkeys (`11`), Phase 1b iOS SDK core + example app (`12`), Phase 1c simulator pass and Phase 2 step-up / redirect-to-web / OTP / UI product (`13`) done; Phase 2b close-out and Phase 3 push MFA in progress (`14`); username + password + TOTP + passkeys + email OTP, step-up and the browser fallback work end to end against Keycloak 26.8.1 from curl, the Java integration tests, the Swift SDK and the example app on the iOS 27 simulator (not yet on a physical device)
+**Status:** Phase 0 spike (`09`), Phase 1a server passkeys (`11`), Phase 1b iOS SDK core + example app (`12`), Phase 1c simulator pass and Phase 2 step-up / redirect-to-web / OTP / UI product (`13`) done; Phase 2b close-out and Phase 3 push MFA done on the simulator (`14`); username + password + TOTP + passkeys + email OTP, push MFA (ba-itsys + APNs sender + native bridge), step-up and the browser fallback work end to end against Keycloak 26.8.1 from curl, the Java integration tests, the Swift SDK and the example app on the iOS 27 simulator (not yet on a physical device)
 **Scope:** Browserless native authentication for Keycloak (passkeys, TOTP, OTP codes, push MFA), delivered as (1) a set of Keycloak extensions, (2) an iOS SDK, and (3) an example iOS app.
 
 ## Documents in this folder

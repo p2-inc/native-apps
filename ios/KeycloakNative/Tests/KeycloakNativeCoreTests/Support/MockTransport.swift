@@ -11,6 +11,8 @@ final class MockTransport: Transport, @unchecked Sendable {
 
   /// Fields whose value legitimately differs per run (PKCE, device ids) — presence is still required.
   static let volatileFormFields: Set<String> = ["code_challenge", "device_id", "nonce"]
+  /// JSON fields that carry a per-run key (the rotated push device key, spec/03 §7).
+  static let volatileJSONFields: Set<String> = ["publicKeyJwk"]
 
   private let lock = NSLock()
   private var queue: [Transcript.Exchange]
@@ -82,6 +84,8 @@ final class MockTransport: Transport, @unchecked Sendable {
           }
           continue
         }
+        // Masked by the recorder (device-signed JWTs, spec/03 §7) or per-run: presence is enough.
+        if value.stringValue == "***" || volatileJSONFields.contains(key) { continue }
         guard sent == value else {
           throw Mismatch(description: prefix + "JSON field \(key) differs")
         }
