@@ -24,7 +24,10 @@ Decisions are recorded in `../spec/09-phase0-decisions.md` (Phase 0), `../spec/1
 | `native-auth-authenticators` | yes | `native-username` (with the phantom password challenge for unknown users), `native-password`, `native-totp`, `native-passkey`, `native-recovery-code` |
 | `native-auth-otp-sender` | yes | `native-otp` authenticator (spec/03 §4.6), the `native-otp-sender` SPI with the `email` (realm SMTP, theme template `native-otp.ftl` + `nativeOtp*` messages shipped as theme resources) and `sms-webhook` senders, `OtpCodes` (shared with `native-verify-email`) |
 | `native-auth-required-actions` | yes | `native-passkey-register`, `native-update-password`, `native-verify-email`, `native-terms` (spec/03 §4.11–§4.14) plus the passkey registration helpers (`PasskeyRegistrationOptions`, `PasskeyRegistrationVerifier`) |
-| `native-auth-endpoint` | yes | `RealmResourceProvider` id `native-auth`: `GET /metadata`, `POST /challenge`, `POST /passkey/register/options|finish`; `ChallengeFlowDriver`, `CodeIssuer`, `RequiredActionDriver`, `PasskeyRegistrationDriver`, `DPoPProofChecker`, `RedirectToWebBuilder` |
+| `native-auth-endpoint` | yes | `RealmResourceProvider` id `native-auth`: `GET /metadata`, `POST /challenge`, `POST /passkey/register/options|finish`, `POST /push/enroll/start`; `ChallengeFlowDriver`, `CodeIssuer`, `RequiredActionDriver`, `PasskeyRegistrationDriver`, `DPoPProofChecker`, `RedirectToWebBuilder` |
+| `push-mfa-extension-java21` | yes | ba-itsys [`keycloak-push-mfa-extension`](https://github.com/ba-itsys/keycloak-push-mfa-extension) (`push-mfa.version` in `pom.xml`) recompiled for Java 21 from its published sources jar: the published jars target Java 25 and the Keycloak 26.8.1 image runs Java 21 (spec/14 D9). Credential type `push-mfa`, `push-mfa-authenticator` (browser), `push-mfa-register`, the device API `/realms/{realm}/push-mfa/*` |
+| `native-auth-push` | yes | `native-push` authenticator (spec/03 §4.7), `native-push-enroll` required action (§4.15, substitutes for `push-mfa-register`), `PushEnrolment` (programmatic enrolment start/complete) and the `native-auth-push-enrolment` SPI behind `/push/enroll/start` and the metadata `push` block (spec/14 D9) |
+| `native-auth-push-apns` | yes | `apns` push notification sender for ba-itsys' `push-notification-sender` SPI: HTTP/2, token-based provider auth, no third-party client (spec/14 D10) |
 | `demo` | no | `docker-compose.yml` (Keycloak, Postgres, mailpit, a Node resource server for the step-up demo), `realm-export/demo-realm.json`, `scripts/walkthrough.sh`, `scripts/passkey-walkthrough.md`, Testcontainers integration tests |
 
 Requires **Keycloak 26.8.x** (pinned to 26.8.1 in `pom.xml`, see spec/09 Q4) and Java 21 to build.
@@ -108,6 +111,15 @@ Demo realm contents:
   does not configure it (set `KC_SPI_NATIVE_OTP_SENDER__SMS_WEBHOOK__URL` on the `keycloak` service
   to try it). bob carries the `phoneNumber` attribute the sender reads (the realm's user profile
   must allow unmanaged attributes, which the IT switches on).
+- Push MFA (spec/14 D9): the `native` flow's second factor also offers `native-push` (ALTERNATIVE,
+  config `native-push - number match`: 240 s, number match, 3 s poll interval) to users with a
+  `push-mfa` credential. The realm's **browser flow** is `browser-push` (cookie → username/password
+  → CONDITIONAL `push-mfa-authenticator`, ba-itsys' web wait page; scenario A), so a browser login
+  of an enrolled user asks the phone. Required actions `push-mfa-register` (ba-itsys) and
+  `native-push-enroll` (its native substitute) are enabled. The `apns` sender is installed but idle
+  until `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_KEY` (PEM), `APNS_TOPIC` and `APNS_ENVIRONMENT` are set
+  in the compose environment; devices enrolled with `pushProviderType` `none` work without Apple (the
+  app pulls pending approvals from `/push-mfa/login/pending`).
 - WebAuthn **Passwordless** policy: RP ID `localhost`, ES256/RS256, user verification `required`,
   resident key `required`, attestation `none`, no extra origins. Required actions
   `native-passkey-register`, `native-update-password`, `native-verify-email` and `native-terms` are
@@ -131,7 +143,9 @@ Demo realm contents:
   the flow ends with `403 access_denied`; `ivy` / `ivy-password` with TOTP (secret
   `ivy-totp-secret-20261015`) and three recovery codes `IVY1-IVY1-IVY1`, `IVY2-IVY2-IVY2`,
   `IVY3-IVY3-IVY3` (seeded hashed; single use, consumed in order; after the last one Keycloak
-  requires new codes, which the native flow hands to the browser). No passkey is pre-registered in
+  requires new codes, which the native flow hands to the browser); `judy` / `judy-password` with
+  ba-itsys' `push-mfa-register` pending (served in-band by `native-push-enroll`, spec/03 §4.15: the
+  first native login enrols the phone as a push device). No passkey is pre-registered in
   the export; the integration tests register them. frank's native login ends with `403
   redirect_to_web` (a PAR `request_uri` for the browser, spec/03 §3.4). An unknown username gets a
   phantom `password` challenge that fails like a real user's wrong password and locks after
@@ -160,10 +174,16 @@ Demo realm contents:
 | realm | `native-auth.passkey-registration-native-clients-only` | `true` → `/passkey/register/*` answer `403 access_denied` for tokens issued to clients without `native-auth.enabled` | `false` |
 | required action `native-verify-email` (config) | `digits`, `ttl`, `resend-cooldown`, `max-attempts` | code length, lifetime (s), seconds between sends, wrong codes before the code is invalidated; delivery uses the `email` native-otp-sender | 6, 300, 30, 5 |
 | required action `native-terms` (config) / realm | `terms-text`, `terms-url`, `terms-version` / `native-auth.terms-text`, `native-auth.terms-url`, `native-auth.terms-version` | what the `terms` challenge shows; the realm attributes are the fallback (importable) | a generic sentence |
+| authenticator `native-push` | `loginChallengeTtlSeconds`, `userVerification`, `userVerificationPinLength`, `pollIntervalSeconds` | same keys as ba-itsys' `push-mfa-authenticator` (`none`, `number-match`, `pin`), plus the `poll_interval` the client is told (spec/03 §4.7) | 120, `none`, 2, 3 |
+| required action `push-mfa-register` (config, ba-itsys) | `enrollmentChallengeTtlSeconds` | also the lifetime of `/push/enroll/start` tokens and of `native-push-enroll` challenges (spec/03 §4.15) | 300 |
+| SPI `push-notification-sender` / `apns` | `--spi-push-notification-sender--apns--team-id`, `--key-id`, `--key` or `--key-file`, `--topic`, `--environment`, `--url`, `--expiration-seconds` | Apple team, the `.p8` key id and PEM (or its path), the app's bundle id, `sandbox`/`production`, an override URL (tests), the notification's lifetime. Unset team/key = installed but inactive (spec/14 D10) | –, –, –, –, `sandbox`, by environment, 240 |
+| SPI `push-mfa` (ba-itsys) | `--spi-push-mfa--*`, e.g. `--dpop-require-for-enrollment` | see the ba-itsys README; the device API accepts `Authorization: DPoP <native access token>` whose `cnf.jkt` is the enrolled key (spec/03 §7.1, spec/14 D9) | ba-itsys defaults |
 
 `GET /realms/{realm}/native-auth/metadata` advertises the effective `redirect_uri` requirement under
 `code_exchange`, the passkey RP ID and registration endpoints under `passkey`, the installed
-`challenge_types_supported` (native authenticators and native required actions), the realm's
+`challenge_types_supported` (native authenticators and native required actions), the `push` block
+(`enroll_start_endpoint`, `device_api_base`, `device_token: "native"`, `push_provider_types`) when
+`native-auth-push` is installed, the realm's
 `authorization_endpoint` (for `redirect_to_web`) and `dpop_signing_alg_values_supported` (the proof
 algorithms the challenge endpoint verifies).
 

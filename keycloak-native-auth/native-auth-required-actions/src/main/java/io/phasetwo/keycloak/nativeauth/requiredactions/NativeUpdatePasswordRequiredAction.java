@@ -49,7 +49,7 @@ public class NativeUpdatePasswordRequiredAction extends NativeRequiredActionBase
   }
 
   @Override
-  String providerId() {
+  protected String providerId() {
     return NativeUpdatePasswordRequiredActionFactory.PROVIDER_ID;
   }
 
@@ -59,7 +59,7 @@ public class NativeUpdatePasswordRequiredAction extends NativeRequiredActionBase
   }
 
   @Override
-  void challenge(RequiredActionContext context, ChallengeDescriptor.ChallengeError error) {
+  protected void challenge(RequiredActionContext context, ChallengeDescriptor.ChallengeError error) {
     ChallengeDescriptor d =
         new ChallengeDescriptor(ChallengeType.UPDATE_PASSWORD)
             .setLabel("Choose a new password")

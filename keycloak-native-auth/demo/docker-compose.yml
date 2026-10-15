@@ -63,7 +63,15 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
-      KC_LOG_LEVEL: "info,io.phasetwo.keycloak.nativeauth:debug"
+      KC_LOG_LEVEL: "info,io.phasetwo.keycloak.nativeauth:debug,de.arbeitsagentur.keycloak.push:debug"
+      # Push MFA (spec/14 D9/D10): the APNs sender stays unconfigured unless these are set in the host
+      # environment (an Apple team, a .p8 key and the app's bundle id); devices enrolled with
+      # pushProviderType "none" or "log" work without them (the app pulls pending approvals).
+      KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__TEAM_ID: "${APNS_TEAM_ID:-}"
+      KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__KEY_ID: "${APNS_KEY_ID:-}"
+      KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__KEY: "${APNS_KEY:-}"
+      KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__TOPIC: "${APNS_TOPIC:-io.phasetwo.keycloak.nativedemo}"
+      KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__ENVIRONMENT: "${APNS_ENVIRONMENT:-sandbox}"
     ports:
       - "${KC_PORT:-8080}:8080"
     volumes:

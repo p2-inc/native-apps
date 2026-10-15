@@ -67,6 +67,13 @@ public final class TranscriptRecorder implements Filter, BeforeEachCallback, Aft
    */
   public static final Set<String> MASKED_CHALLENGE_FORM_FIELDS = Set.of("code");
 
+  /**
+   * JSON request fields replaced by {@code ***}: the device-signed JWTs of the push device API
+   * (spec/03 §7) carry the APNs device token and are signed by a per-run key the SDK cannot
+   * reproduce; the replay only checks that the field is present.
+   */
+  public static final Set<String> MASKED_JSON_FIELDS = Set.of("token");
+
   private static final Set<String> MASKED_HEADERS = Set.of("authorization", "dpop");
   private static final Set<String> REQUEST_HEADERS = Set.of("accept", "content-type", "authorization", "dpop");
   private static final Set<String> RESPONSE_HEADERS = Set.of("content-type", "cache-control", "pragma", "www-authenticate");
@@ -150,7 +157,7 @@ public final class TranscriptRecorder implements Filter, BeforeEachCallback, Aft
 
   private static boolean isRecordable(String path) {
     String prefix = "/realms/" + KeycloakContainerSupport.REALM + "/";
-    return path.startsWith(prefix + "native-auth/") || path.startsWith(prefix + "protocol/openid-connect/");
+    return path.startsWith(prefix + "native-auth/") || path.startsWith(prefix + "protocol/openid-connect/") || path.startsWith(prefix + "push-mfa/");
   }
 
   private static Map<String, Object> request(FilterableRequestSpecification spec, String path) {
@@ -177,6 +184,11 @@ public final class TranscriptRecorder implements Filter, BeforeEachCallback, Aft
     if (body != null) {
       String text = body instanceof byte[] bytes ? new String(bytes, java.nio.charset.StandardCharsets.UTF_8) : String.valueOf(body);
       putBody(req, spec.getContentType(), text);
+      if (req.get("json") instanceof com.fasterxml.jackson.databind.node.ObjectNode object) {
+        for (String field : MASKED_JSON_FIELDS) {
+          if (object.has(field)) object.put(field, MASK);
+        }
+      }
     }
     return req;
   }

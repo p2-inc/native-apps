@@ -18,8 +18,11 @@
     <module>native-auth-otp-sender</module>
     <module>native-auth-required-actions</module>
     <module>native-auth-endpoint</module>
+    <module>push-mfa-extension-java21</module>
+    <module>native-auth-push</module>
+    <module>native-auth-push-apns</module>
     <module>demo</module>
-    <!-- Later phases slot in here: native-auth-push-apns, native-auth-events, conformance (see spec/04 §1). -->
+    <!-- Later: native-auth-events, conformance (see spec/04 §1). -->
   </modules>
 
   <properties>
@@ -27,6 +30,8 @@
          (October 2026); see spec/09-phase0-decisions.md for the rationale. The same value must be used for
          the container image in demo/docker-compose.yml and the integration tests (keycloak.image.version). -->
     <keycloak.version>26.8.1</keycloak.version>
+    <!-- ba-itsys push MFA (spec/01 §3, spec/14 D9): the dependency behind native-auth-push and the APNs sender. -->
+    <push-mfa.version>2.3.7</push-mfa.version>
     <keycloak.image>quay.io/keycloak/keycloak:${keycloak.version}</keycloak.image>
 
     <maven.compiler.release>21</maven.compiler.release>
@@ -116,6 +121,23 @@
         <groupId>io.phasetwo.keycloak</groupId>
         <artifactId>native-auth-otp-sender</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.phasetwo.keycloak</groupId>
+        <artifactId>native-auth-push</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.phasetwo.keycloak</groupId>
+        <artifactId>native-auth-push-apns</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <!-- ba-itsys push MFA: our modules compile against the Java 21 rebuild (push-mfa-extension-java21). -->
+      <dependency>
+        <groupId>io.phasetwo.keycloak</groupId>
+        <artifactId>keycloak-push-mfa-extension-java21</artifactId>
+        <version>${project.version}</version>
+        <scope>provided</scope>
       </dependency>
 
       <dependency>

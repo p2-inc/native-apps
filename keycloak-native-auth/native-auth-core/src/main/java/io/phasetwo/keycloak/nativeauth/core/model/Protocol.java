@@ -37,6 +37,10 @@ public final class Protocol {
   public static final String ACTION_CANCEL = "cancel";
   public static final String ACTION_RESEND = "resend";
   public static final String ACTION_SELECT = "select";
+  /** {@code push}: read the challenge status (spec/03 §4.7). */
+  public static final String ACTION_POLL = "poll";
+  /** {@code push_enrollment}: the device enrolled through the device API, check for the credential (spec/03 §4.15). */
+  public static final String ACTION_CHECK = "check";
 
   // ---- challenge-type specific continuation fields (spec/03 §4) ----
   public static final String USERNAME = "username";
@@ -62,6 +66,8 @@ public final class Protocol {
   public static final String CODE = "code";
   // terms (spec/03 §4.14)
   public static final String ACCEPTED = "accepted";
+  // push_enrollment (spec/03 §4.15): the device-signed enrolment JWT
+  public static final String TOKEN = "token";
   // redirect_to_web (spec/03 §3.4) and step-up (§5, §6)
   public static final String REQUEST_URI = "request_uri";
   public static final String REDIRECT_URI = "redirect_uri";
@@ -97,6 +103,10 @@ public final class Protocol {
   public static final String DESC_ERR_PASSWORD_MISMATCH = "password_mismatch";
   /** {@code update_password}: the realm's password policy rejected the value (spec/03 §4.12). */
   public static final String DESC_ERR_INVALID_PASSWORD = "invalid_password";
+  /** {@code push}: the device user refused the sign-in (spec/03 §4.7). */
+  public static final String DESC_ERR_DENIED = "denied";
+  /** {@code push}: the challenge expired unanswered (spec/03 §4.7). */
+  public static final String DESC_ERR_EXPIRED = "expired";
 
   // ---- Keycloak client / realm attributes ----
   public static final String CLIENT_ATTR_ENABLED = "native-auth.enabled";

@@ -241,6 +241,121 @@ completion-handler / Combine API variants (05 §2) were not built: nothing in th
 
 ---
 
+## D9 — Push MFA: the SDK's DPoP key is the device key and the native token is the device token
+
+**Context.** 08 Q5/Q6 asked for a programmatic push enrolment API in this repository (ba-itsys'
+extension only enrols through its own `push-mfa-register` web form) and for the device to obtain
+a "device token" for the ba-itsys device API by token exchange from the user's native token, so
+that no client secret ships in the app.
+
+**Finding.** Keycloak 26.8's standard token exchange (`StandardTokenExchangeProvider`) refuses a
+public client as the requesting party ("Public client is not allowed to exchange token"), and the
+native clients are public with PKCE + DPoP (03 §2, §8). Token exchange would have required a
+confidential "device" client and therefore a shipped secret or a backend — exactly what Q6 forbade.
+
+**Decision (03 §7.1).** The ba-itsys device API already binds every call to a key: it accepts
+`Authorization: DPoP <any realm access token>` whose `cnf.jkt` equals the thumbprint of the
+enrolled device key, plus a DPoP proof carrying `ath`, `sub` and `deviceId`. The SDK's DPoP key
+(05 §5.1, Secure Enclave or software P-256) is therefore used **as the device key**, and the user's
+DPoP-bound native access token **is** the device token. The metadata `push` block says
+`device_token: "native"`; the `client_credentials` variant is a documented extension point for
+deployments with a backend (`device_client_id`), not built. `DeviceTokenProvider` stays abstract
+in the SDK with the native-token implementation as its default.
+
+Consequences:
+- One key per installation covers both DPoP sender constraining and push approvals. Rotating the
+  push key (`/push-mfa/device/rotate-key`) is therefore the SDK's DPoP key rotation: it re-binds the
+  push credential to the new key, and the next login binds the tokens to it.
+- A login that is not DPoP-bound cannot enrol a push device (the device API would be unreachable
+  with that token); `native-push-enroll` refuses an enrolment JWT whose `cnf.jwk` differs from the
+  session's DPoP key when the session is bound (03 §4.15), and `/native-auth/push/enroll/start`
+  requires a DPoP-bound bearer.
+
+**ba-itsys on Java 21.** Every published `keycloak-push-mfa-extension` jar (2.2.0 … 2.3.7) is
+compiled with `--release 25` (class file 69); the `quay.io/keycloak/keycloak:26.8.1` image runs
+OpenJDK 21 and refuses to load it ("compiled by a more recent version of the Java Runtime"). The
+source uses no Java 22+ API, so the module `push-mfa-extension-java21` unpacks the published
+**sources** jar of the pinned version (`push-mfa.version`, 2.3.7) at build time and recompiles it
+with `--release 21` into `keycloak-push-mfa-extension-java21.jar`. No third-party source is checked
+in; the demo deploys that rebuild and our modules compile against it.
+
+A second obstacle is independent of the JRE: `PushMfaResource` marks its two SSE streams
+`@RunOnVirtualThread`, and Quarkus refuses such endpoints when "the application" was compiled below
+Java 19 — it measures that on the first class file it finds, which in the Keycloak distribution is
+Keycloak's own `Environment$1.class`, compiled for Java 17 in 26.7.x and 26.8.x alike (verified on
+the `keycloak-quarkus-server` jars). ba-itsys' own compose overlays a Java 25 JRE on the image,
+which does not change that measurement. The rebuild therefore drops the two annotations (an Ant
+`replace` on the unpacked source, the only source-level change); the SSE streams run on worker
+threads and block for the challenge TTL, which the demo tolerates (the wait page also has a refresh
+form, and the native paths never use SSE). Upstream item 0 below asks for both.
+
+**Server pieces** (modules `native-auth-push`, `native-auth-push-apns`, plus a core SPI
+`native-auth-push-enrolment` so the endpoint module stays free of ba-itsys types):
+- `PushEnrolment` — the programmatic half of ba-itsys' enrolment: `start` creates the pending
+  enrolment challenge and the realm-signed enrolment token with ba-itsys'
+  `PushEnrollmentTokenBuilder`; `complete` verifies a device-signed enrolment JWT **exactly as
+  `POST /push-mfa/enroll/complete` does** (subject, enrollmentId, nonce, exp, `cnf.jwk`, signature
+  with `PushSignatureVerifier`, field limits with `PushMfaInputValidator`) and stores the
+  credential with `PushCredentialService`. The verification is duplicated from ba-itsys'
+  `PushEnrollmentResource` because that class is a JAX-RS resource with no reusable service
+  behind it — the first item of the upstream list below.
+- `POST /native-auth/push/enroll/start` (03 §7 b): bearer/DPoP native token → `{enrollment_token,
+  expires_in, device_api_base, user_id}`; the device then calls ba-itsys'
+  `/push-mfa/enroll/complete` itself. Scenario C's in-app enrolment.
+- `native-push-enroll` required action (03 §4.15): substitutes for `push-mfa-register` (D1), so a
+  user carrying ba-itsys' action enrols in-band; answers `token=<device JWT>` or `action=check`.
+- `native-push` authenticator (03 §4.7): wraps ba-itsys' `ChallengeIssuer`/`PushChallengeStore`;
+  `prepare` issues the challenge only when push is the single option (the "sent on describe" rule
+  of 03 §4.7), otherwise `action=resend` creates it (10 s cooldown); `action=poll` reads the store:
+  pending → re-challenge, approved → success, denied → `denied` with the cooldown, expired →
+  `expired`. Number match is `params.user_verification`; the number list the device sees comes from
+  ba-itsys' pending API. `cancel` is Keycloak's session end (03 §3.4), no device-side denial.
+- Credential type and device API are ba-itsys' (`push-mfa`, `/realms/{realm}/push-mfa/*`); the
+  browser flow `browser-push` of the demo realm uses ba-itsys' `push-mfa-authenticator` as a
+  conditional second factor (scenario A) — nothing of ours is in that path except the APNs sender.
+
+**Secrets.** The enrolment token, the device JWTs, the confirm token and the APNs device token are
+never logged (the APNs sender logs challenge and credential ids only); `TranscriptRecorder` records
+the device API exchanges and the SDK `Redactor` masks `token`, `enrollment_token`, `confirmToken`,
+`pushProviderId` and `Authorization`.
+
+---
+
+## D10 — `apns` sender: HTTP/2 with token-based provider authentication, no third-party client
+
+ba-itsys ships `log`, `none` and `fcm` senders. `native-auth-push-apns` registers `apns` for the
+`push-notification-sender` SPI with the JDK `HttpClient` (HTTP/2) and a provider JWT (ES256,
+`kid`/`iss`/`iat`) minted from the `.p8` key and reused for 50 minutes (Apple accepts up to 60).
+`pushProviderId` of the credential is the APNs device token the app registered. Headers:
+`apns-topic` (bundle id), `apns-push-type: alert`, `apns-priority: 10`, `apns-collapse-id: <cid>`,
+`apns-expiration` (challenge TTL). Payload: a localised, time-sensitive alert
+(`PUSH_MFA_TITLE`/`PUSH_MFA_BODY` with the client id as argument, category `PUSH_MFA_APPROVAL`,
+`mutable-content: 1` so the notification service extension can decode the confirm token) and the
+ba-itsys custom keys `confirmToken`, `cid`, `credId`, `typ`, `ver`. No username in the payload.
+Delivery failures are logged with Apple's `reason` and never fail the login: the device can still
+fetch the pending challenge itself (05 §5). Configuration: `--spi-push-notification-sender--apns--
+{team-id,key-id,key|key-file,topic,environment,url,expiration-seconds}`; unconfigured, the sender
+is installed but skips (so the compose stack starts without Apple credentials).
+
+Tests: a unit test of the provider token and payload; the ITs run against an in-JVM fake APNs
+(`ApnsSink`, `POST /3/device/{token}`) reached through `host.testcontainers.internal`, which
+records headers and bodies. Apple's real endpoint was not exercised (no Apple team, see "Left out").
+
+**Upstream to ba-itsys** (offer as PRs; what this repository carries in the meantime):
+0. Build with `--release 21` (the image's JRE) and make `@RunOnVirtualThread` conditional or drop
+   it, since the official Keycloak 26.x distribution cannot deploy it (module
+   `push-mfa-extension-java21` here).
+1. A `PushEnrollmentService` behind `PushEnrollmentResource` (start + complete without JAX-RS),
+   which would delete `PushEnrolment.complete`'s duplicate verification.
+2. The `apns` sender as a built-in sender next to `fcm`.
+3. A hook in `PushMfaAuthenticator` (or a `ChallengeIssuer` with a configurable user-verification
+   payload) so a non-HTML authenticator can reuse number-match generation without re-implementing
+   the challenge lifecycle — `NativePushAuthenticator` would shrink to the wire mapping.
+4. `DpopAuthenticator`: document that any DPoP-bound realm token is accepted as device token, which
+   D9 relies on.
+
+---
+
 ## Verified (how) — running list
 
 | What | How |

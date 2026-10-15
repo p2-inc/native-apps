@@ -33,7 +33,7 @@ public class NativeVerifyEmailRequiredAction extends NativeRequiredActionBase {
   }
 
   @Override
-  String providerId() {
+  protected String providerId() {
     return NativeVerifyEmailRequiredActionFactory.PROVIDER_ID;
   }
 
@@ -62,7 +62,7 @@ public class NativeVerifyEmailRequiredAction extends NativeRequiredActionBase {
   }
 
   @Override
-  void challenge(RequiredActionContext context, ChallengeDescriptor.ChallengeError error) {
+  protected void challenge(RequiredActionContext context, ChallengeDescriptor.ChallengeError error) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     Settings s = Settings.of(context.getConfig());
     UserModel user = context.getUser();

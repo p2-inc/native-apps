@@ -38,14 +38,14 @@ The server SHOULD also advertise `authorization_challenge_endpoint` in `/.well-k
   "authorization_endpoint": "https://idp.example.com/realms/demo/protocol/openid-connect/auth",
   "code_exchange": { "redirect_uri_required": false },
   "passkey": { "rp_id": "idp.example.com", "register_options_endpoint": "…", "register_finish_endpoint": "…" },
-  "push": { "enabled": true, "enroll_start_endpoint": "…", "device_api_base": "https://idp.example.com/realms/demo/push-mfa", "device_client_id": "push-device-client" },
+  "push": { "enabled": true, "enroll_start_endpoint": "…/native-auth/push/enroll/start", "device_api_base": "https://idp.example.com/realms/demo/push-mfa", "device_token": "native", "push_provider_types": ["apns", "none"] },
   "challenge_types_supported": ["username", "password", "passkey", "passkey_registration", "totp", "otp", "push", "recovery_code", "select", "update_password", "verify_email", "terms", "redirect_to_web"],
   "dpop_signing_alg_values_supported": ["ES256", "ES384", "ES512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"],
   "client_attestation": { "required": false, "methods": [] }
 }
 ```
 
-`authorization_endpoint` is the realm's standard OIDC authorization endpoint; clients need it only for §3.4. `dpop_signing_alg_values_supported` lists the proof algorithms the challenge endpoint verifies (§8); it is empty when the server does not verify proofs at all.
+`authorization_endpoint` is the realm's standard OIDC authorization endpoint; clients need it only for §3.4. `dpop_signing_alg_values_supported` lists the proof algorithms the challenge endpoint verifies (§8); it is empty when the server does not verify proofs at all. The `push` block is present only when the push-MFA extension is installed (§7): `device_token` says how the device API is authenticated — `native` (the user's DPoP-bound native access token with the DPoP key as device key, §7.1) or `client_credentials` (ba-itsys' stock `push-device-client`, then `device_client_id` is present); `push_provider_types` lists the installed senders (`apns`, `fcm`, `log`, `none`).
 
 ---
 
@@ -242,11 +242,11 @@ Delivery goes through the `native-otp-sender` SPI (13 D4): `email` uses the real
 
 params:
 ```json
-{ "cid": "1a6d…", "expires_at": 1760000300, "poll_interval": 3,
+{ "sent": true, "cid": "1a6d…", "expires_at": 1760000300, "poll_interval": 3, "status": "pending",
   "user_verification": { "type": "number_match", "number": "42" },   // optional; the number to show on THIS client
   "devices": [ { "label": "Alice's iPhone" } ] }
 ```
-The client shows "Approve the sign-in on *Alice's iPhone*" (plus the number if `number_match`) and polls by re-POSTing with `challenge_type=push&challenge_id=…&action=poll` at `poll_interval`. Responses: the same challenge with `params.status` ∈ `pending|approved|denied|expired`; on `approved` the processor advances automatically (the poll response will then be the next challenge or the code). `action=cancel` denies.
+A push challenge is created (and the notification sent through the server's push provider) only when `push` is the **single** entry of the set, or when the client asks for it with `action=resend` (the §4.6 rule: no cost before the user picks the factor); until then the descriptor arrives with `sent: false` and only `devices`. Once sent, the client shows "Approve the sign-in on *Alice's iPhone*" (plus `user_verification.number` for number match — the device shows three numbers and the user picks this one) and polls by re-POSTing `challenge_type=push&challenge_id=…&action=poll` every `poll_interval` seconds. Each poll answers the same challenge with `params.status` ∈ `pending|approved|denied|expired`: on `approved` the processor advances automatically (the poll response is then the next challenge or the code); `denied` comes with `error.code = "denied"` (a failed attempt, the device user refused) and `expired` with `error.code = "expired"`, both with `sent: false` so the client may `action=resend`. `action=cancel` ends the native session (§2.2); the pending push challenge then expires on its own. The Keycloak implementation issues the challenge through the ba-itsys challenge store, so the approving device uses the §7 API unchanged.
 
 ### 4.8 `recovery_code`
 
@@ -293,7 +293,16 @@ params:
 ```
 At least one of `text` / `url` is present (they come from the native required action's configuration in the realm: `terms-text`, `terms-url`, `terms-version`; the client renders `text` and/or offers `url`). response: `accepted=true` to accept; `accepted=false` to decline, which ends the login with `403 access_denied` (`error_description` = `required_action:… declined`) exactly like declining Keycloak's own page. Any other value re-issues the challenge with `error.code = "missing_credential"`. On acceptance the user attribute `terms_and_conditions` is set to the acceptance time (the attribute Keycloak's `TERMS_AND_CONDITIONS` action uses) and the flow continues.
 
-### 4.15 Extension types
+### 4.15 `push_enrollment` — enrol this device for push MFA mid-flow (required action)
+
+Served by `native-push-enroll`, which substitutes for ba-itsys' `push-mfa-register` (§4.11 rules: `id` = `native-push-enroll`, `required: true`). params:
+```json
+{ "enrollment_token": "<realm-signed JWT, typ push-enroll-challenge>", "expires_in": 240,
+  "device_api_base": "https://idp.example.com/realms/demo/push-mfa", "user_id": "<sub>" }
+```
+The client builds the same device-signed enrolment JWT it would POST to `/push-mfa/enroll/complete` (§7: `sub`, `enrollmentId`, `nonce`, `cnf.jwk`, `credentialId`, `deviceId`, `deviceType`, `deviceLabel`, `pushProviderType`, `pushProviderId`) and answers with `token=<that JWT>`; the server verifies it exactly as `/push-mfa/enroll/complete` would and creates the credential — no device access token is needed mid-flow. When the native session is DPoP-bound (§8) the JWT's `cnf.jwk` MUST be the session's DPoP key (`invalid_credential` otherwise), which is also what §7.1 requires later. A client that enrolled through `/push-mfa/enroll/complete` instead answers `action=check`. Error codes: `missing_credential` (no `token`), `invalid_credential` (signature, nonce, `enrollmentId`, expiry or key mismatch; a fresh enrolment token is issued with the re-challenge), `expired_code` (the enrolment challenge expired; re-challenge carries a new one).
+
+### 4.16 Extension types
 
 Types not understood by a client MUST be ignored unless they are the only `required` challenge, in which case the client MUST surface an "unsupported authentication method, update the app or use the web" error and MAY retry with `action=cancel`. New types MUST be namespaced (`x-vendor-foo`) until added to this profile.
 
@@ -330,9 +339,9 @@ The device-facing API is **exactly** ba-itsys' documented API (`docs/api-referen
 
 | Step | Endpoint | Notes |
 |------|----------|-------|
-| Obtain enrolment token | (a) scan QR / open deep link from the browser required action, or (b) **`POST /native-auth/push/enroll/start`** (this profile's addition; requires an access token from a native login) → `{ "enrollment_token": "<realm-signed JWT>", "device_client_id": "…" }` | The token has `typ: push-enroll-challenge`, `sub`, `username`, `enrollmentId`, `nonce`, `exp`. Verify against realm JWKS. |
-| Generate device key | ES256 in Secure Enclave; pick `credentialId` (random, app-local handle) and `deviceId` (stable UUID). | |
-| Get DPoP-bound access token | `POST /protocol/openid-connect/token` `grant_type=client_credentials&client_id={device_client_id}&client_secret=…` with `DPoP` header | See 08 Q6 regarding the client secret in a public app. |
+| Obtain enrolment token | (a) scan QR / open deep link from the browser required action, (b) **`POST /native-auth/push/enroll/start`** (this profile's addition; `Authorization: Bearer|DPoP <access token>` from a native login, subject to the §6 freshness rule) → `{ "enrollment_token": "<realm-signed JWT>", "expires_in": 240, "device_api_base": "…", "user_id": "<sub>" }`, or (c) the mid-flow §4.15 challenge | The token has `typ: push-enroll-challenge`, `iss`, `aud` (realm), `sub`, `username`, `enrollmentId`, `nonce`, `exp`. Verify against realm JWKS. |
+| Generate device key | ES256 in Secure Enclave; pick `credentialId` (random, app-local handle) and `deviceId` (stable UUID). With `device_token: native` (§7.1) the device key **is** the client's DPoP key (§8). | |
+| Get DPoP-bound access token | `device_token: native`: none to get — the user's native access token is DPoP-bound to the same key. `client_credentials`: `POST /protocol/openid-connect/token` `grant_type=client_credentials&client_id={device_client_id}&client_secret=…` with a `DPoP` header | §7.1 |
 | Complete enrolment | `POST /push-mfa/enroll/complete` (DPoP) body `{ "token": "<device-signed JWT with cnf.jwk, credentialId, deviceId, deviceType:"ios", pushProviderType:"apns", pushProviderId:<APNs token>, deviceLabel>" }` → `{ "status": "enrolled" }` | |
 | Receive push | APNs payload contains `confirmToken` (realm-signed; `credId`, `cid`, `typ`, `ver`, `exp`). Verify, resolve `credId` locally. | Silent/background push + visible notification; see 05. |
 | Fetch context | `GET /push-mfa/login/pending?userId=<sub>` (DPoP) → challenges with `username`, `clientId`, `clientName`, `expiresAt`, optional `userVerification` (`number-match` with 3 numbers, or `pin`). | Show client name, time, and (if available via ba-itsys events/extensions) IP/location. |
@@ -340,6 +349,10 @@ The device-facing API is **exactly** ba-itsys' documented API (`docs/api-referen
 | Maintenance | `PUT /push-mfa/device/push-provider` on APNs token change; `PUT /push-mfa/device/rotate-key`; `POST /push-mfa/login/lockout` panic button. | |
 
 Keycloak-side, scenario B (§02 Architecture §3) exposes the same challenge through the native flow as a §4.7 `push` challenge; the approving device uses this API unchanged.
+
+### 7.1 Device token (08 Q6, 14 D9)
+
+ba-itsys' device API accepts any access token of the realm that is active and DPoP-bound to the key presented in the `DPoP` proof (`cnf.jkt` = thumbprint of the enrolled `cnf.jwk`), with the proof additionally carrying `sub` (the Keycloak user id) and `deviceId`. Keycloak 26.8's standard token exchange refuses public clients, so the 08 Q6 (b) exchange from the app's native token is not possible; instead the Keycloak Native profile makes the **DPoP key the device key**: the app enrols `cnf.jwk` = its DPoP public key and then calls the device API with `Authorization: DPoP <its own native access token>` (token endpoint binding, §8) plus a proof signed by that key with `htm`, `htu`, `ath`, `iat`, `jti`, `sub`, `deviceId`. No client secret ships and no second client is needed (`push.device_token = "native"`). The SDK keeps `DeviceTokenProvider` abstract so a deployment with a stock ba-itsys install can plug in `client_credentials` on a device client.
 
 ---
 

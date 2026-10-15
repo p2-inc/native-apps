@@ -377,6 +377,24 @@
           "secretData": "{\"codes\": [{\"number\": 1, \"encodedHashedValue\": \"73zqsymTt97PAfoVg3+TDfRHxvF61paFbzKhW0AZyhVgZKZRdVDA9p4brjaZLvPy6NpjLK/fcHhnvj4hjtBbkQ==\"}, {\"number\": 2, \"encodedHashedValue\": \"Fyy1cUA7U58ozknRBnEUbnYfoc6RJRlIk+1t2FgwUHObyR82Br6YW7KoAfesjToE9by4Or8XyNyF/PE3+kqesg==\"}, {\"number\": 3, \"encodedHashedValue\": \"xrK9wmoj/rc9qXZMGO8mPQPScv+nOM+d9rexJGuM0ghIBTNuoxtCudN/sg0kxqXPeRmZ2e21eSguXCHDHMV6zA==\"}]}"
         }
       ]
+    },
+    {
+      "username": "judy",
+      "enabled": true,
+      "email": "judy@example.com",
+      "emailVerified": true,
+      "firstName": "Judy",
+      "lastName": "Example",
+      "requiredActions": [
+        "push-mfa-register"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "judy-password",
+          "temporary": false
+        }
+      ]
     }
   ],
   "requiredActions": [
@@ -534,6 +552,24 @@
       "config": {}
     },
     {
+      "alias": "push-mfa-register",
+      "name": "Register Push MFA device",
+      "providerId": "push-mfa-register",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 150,
+      "config": {}
+    },
+    {
+      "alias": "native-push-enroll",
+      "name": "Native: enrol push MFA device",
+      "providerId": "native-push-enroll",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 151,
+      "config": {}
+    },
+    {
       "alias": "update_user_locale",
       "name": "Update User Locale",
       "providerId": "update_user_locale",
@@ -617,6 +653,14 @@
           "priority": 20,
           "userSetupAllowed": false,
           "authenticator": "native-totp"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 25,
+          "userSetupAllowed": false,
+          "authenticator": "native-push",
+          "authenticatorConfig": "native-push - number match"
         },
         {
           "authenticatorFlow": false,
@@ -961,6 +1005,82 @@
           "authenticatorConfig": "native-otp - sms"
         }
       ]
+    },
+    {
+      "alias": "browser-push",
+      "description": "Browser flow with ba-itsys push MFA as a conditional second factor (spec/02 \u00a73 scenario A).",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "auth-cookie"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "identity-provider-redirector"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "flowAlias": "browser-push - forms"
+        }
+      ]
+    },
+    {
+      "alias": "browser-push - forms",
+      "description": "Username/password then push",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "auth-username-password-form"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "flowAlias": "browser-push - push"
+        }
+      ]
+    },
+    {
+      "alias": "browser-push - push",
+      "description": "Push MFA when the user has an enrolled device",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-configured"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "push-mfa-authenticator"
+        }
+      ]
     }
   ],
   "authenticatorConfig": [
@@ -997,6 +1117,15 @@
         "resend-cooldown": "10",
         "max-attempts": "3"
       }
+    },
+    {
+      "alias": "native-push - number match",
+      "config": {
+        "userVerification": "number-match",
+        "loginChallengeTtlSeconds": "240",
+        "pollIntervalSeconds": "3"
+      }
     }
-  ]
+  ],
+  "browserFlow": "browser-push"
 }

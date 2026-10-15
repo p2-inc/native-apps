@@ -3,6 +3,7 @@ package io.phasetwo.keycloak.nativeauth.endpoint;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeType;
 import io.phasetwo.keycloak.nativeauth.core.model.Metadata;
 import io.phasetwo.keycloak.nativeauth.core.model.Protocol;
+import io.phasetwo.keycloak.nativeauth.core.push.NativePushEnrolmentProvider;
 import io.phasetwo.keycloak.nativeauth.core.spi.NativeAuthenticatorFactory;
 import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequiredActionFactory;
 import io.phasetwo.keycloak.nativeauth.requiredactions.PasskeyRegistrationOptions;
@@ -29,7 +30,7 @@ import org.keycloak.protocol.oidc.OIDCLoginProtocolService;
 /**
  * JAX-RS resource behind {@code /realms/{realm}/native-auth}: {@code GET /metadata}, {@code POST
  * /challenge} and the bearer-authenticated {@code POST /passkey/register/options|finish} (spec/03 §1,
- * §6). Push enrolment is added in Phase 3.
+ * §6) and {@code POST /push/enroll/start} (§7 b, when the push bridge is installed).
  */
 public class NativeAuthResource {
 
@@ -62,6 +63,11 @@ public class NativeAuthResource {
             PasskeyRegistrationOptions.rpId(PasskeyRegistrationOptions.policy(realm), baseUri),
             realmPath(baseUri, realm, "passkey/register/options"),
             realmPath(baseUri, realm, "passkey/register/finish")));
+    NativePushEnrolmentProvider push = session.getProvider(NativePushEnrolmentProvider.class);
+    if (push != null) {
+      // The push block exists only with the push-MFA bridge installed (spec/03 §1.1, §7.1).
+      m.setPush(push.metadata(realm, baseUri));
+    }
     m.setChallengeTypesSupported(installedChallengeTypes());
     // The challenge endpoint verifies proofs and binds auth_session/code to the key (spec/03 §8, 13 D3).
     m.setDpopSigningAlgValuesSupported(DPoPProofChecker.supportedAlgorithms(session));
@@ -94,6 +100,14 @@ public class NativeAuthResource {
   @Produces(MediaType.APPLICATION_JSON)
   public Response passkeyRegisterFinish(String body) {
     return guarded(() -> new PasskeyRegistrationDriver(session).finish(body));
+  }
+
+  /** In-app push-MFA enrolment (spec/03 §7 step (b)): bearer/DPoP token of a native login. */
+  @POST
+  @Path("push/enroll/start")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response pushEnrollStart() {
+    return guarded(() -> new PasskeyRegistrationDriver(session).pushEnrollStart());
   }
 
   private static Response guarded(java.util.function.Supplier<Response> action) {

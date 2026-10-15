@@ -25,6 +25,7 @@ final class KeycloakContainerSupport {
   private static GenericContainer<?> container;
   private static GenericContainer<?> mailpit;
   private static SmsSink smsSink;
+  private static ApnsSink apnsSink;
   private static String baseUrl;
   private static String mailpitUrl;
 
@@ -59,7 +60,9 @@ final class KeycloakContainerSupport {
       // Testcontainers' host.testcontainers.internal alias.
       SmsSink sink = SmsSink.start();
       smsSink = sink;
-      org.testcontainers.Testcontainers.exposeHostPorts(sink.port());
+      ApnsSink apns = ApnsSink.start();
+      apnsSink = apns;
+      org.testcontainers.Testcontainers.exposeHostPorts(sink.port(), apns.port());
 
       GenericContainer<?> kc =
           new GenericContainer<>(image)
@@ -67,11 +70,17 @@ final class KeycloakContainerSupport {
               .withCommand("start-dev", "--import-realm")
               .withEnv("KC_SPI_NATIVE_OTP_SENDER__SMS_WEBHOOK__URL", "http://host.testcontainers.internal:" + sink.port() + "/sms")
               .withEnv("KC_SPI_NATIVE_OTP_SENDER__SMS_WEBHOOK__TOKEN", SmsSink.TOKEN)
+              // The APNs sender (spec/14 D10) talks to the in-JVM sink; the key is a test key pair.
+              .withEnv("KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__URL", "http://host.testcontainers.internal:" + apns.port())
+              .withEnv("KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__TEAM_ID", ApnsSink.TEAM_ID)
+              .withEnv("KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__KEY_ID", ApnsSink.KEY_ID)
+              .withEnv("KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__KEY", apns.providerKeyPem())
+              .withEnv("KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__TOPIC", ApnsSink.TOPIC)
+              .withEnv("KC_LOG_LEVEL", "info,io.phasetwo.keycloak.nativeauth:debug,de.arbeitsagentur.keycloak.push:debug")
               .withEnv("KC_BOOTSTRAP_ADMIN_USERNAME", ADMIN)
               .withEnv("KC_BOOTSTRAP_ADMIN_PASSWORD", ADMIN_PASSWORD)
               .withEnv("KC_HTTP_ENABLED", "true")
               .withEnv("KC_HOSTNAME_STRICT", "false")
-              .withEnv("KC_LOG_LEVEL", "info,io.phasetwo.keycloak.nativeauth:debug")
               // Explicit 0644: docker cp keeps host modes, and a restrictive umask would make the files
               // unreadable for the container's keycloak user (uid 1000).
               .withCopyFileToContainer(
@@ -104,6 +113,12 @@ final class KeycloakContainerSupport {
       TranscriptRecorder.install();
     }
     return baseUrl;
+  }
+
+  /** The fake APNs the {@code apns} sender posts to (started with the container). */
+  static ApnsSink apnsSink() {
+    baseUrl();
+    return apnsSink;
   }
 
   /** The host-side webhook the {@code sms-webhook} sender posts to (started with the container). */

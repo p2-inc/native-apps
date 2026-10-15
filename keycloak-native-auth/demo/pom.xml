@@ -59,6 +59,21 @@
       <groupId>io.phasetwo.keycloak</groupId>
       <artifactId>native-auth-required-actions</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-push</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-push-apns</artifactId>
+    </dependency>
+    <!-- ba-itsys push MFA (the Java 21 rebuild), deployed next to the bridge. -->
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>keycloak-push-mfa-extension-java21</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>

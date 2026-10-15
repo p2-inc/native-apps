@@ -15,16 +15,16 @@ import org.keycloak.models.KeycloakSession;
  * session the action ignores itself (a browser login shows Keycloak's own page, if the action is
  * one of Keycloak's); inside one, {@link #emit} hands a single descriptor to the endpoint.
  */
-abstract class NativeRequiredActionBase implements NativeRequiredAction {
+public abstract class NativeRequiredActionBase implements NativeRequiredAction {
 
   protected final Logger log = Logger.getLogger(getClass());
   protected final KeycloakSession session;
 
-  NativeRequiredActionBase(KeycloakSession session) {
+  protected NativeRequiredActionBase(KeycloakSession session) {
     this.session = session;
   }
 
-  abstract String providerId();
+  protected abstract String providerId();
 
   @Override
   public void evaluateTriggers(RequiredActionContext context) {}
@@ -42,7 +42,7 @@ abstract class NativeRequiredActionBase implements NativeRequiredAction {
   }
 
   /** Builds and emits the descriptor; {@code error} describes the previous attempt. */
-  abstract void challenge(RequiredActionContext context, ChallengeDescriptor.ChallengeError error);
+  protected abstract void challenge(RequiredActionContext context, ChallengeDescriptor.ChallengeError error);
 
   protected void emit(RequiredActionContext context, ChallengeDescriptor descriptor) {
     descriptor.setRequired(true);

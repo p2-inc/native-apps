@@ -29,6 +29,8 @@ public class Metadata {
   private String authorizationEndpoint;
   private CodeExchange codeExchange;
   private Passkey passkey;
+  /** Present when the push-MFA extension is installed (spec/03 §1.1, §7). */
+  private Push push;
   private List<ChallengeType> challengeTypesSupported = new ArrayList<>();
   private List<String> dpopSigningAlgValuesSupported = new ArrayList<>();
   private ClientAttestation clientAttestation = new ClientAttestation();
@@ -87,6 +89,14 @@ public class Metadata {
 
   public void setPasskey(Passkey passkey) {
     this.passkey = passkey;
+  }
+
+  public Push getPush() {
+    return push;
+  }
+
+  public void setPush(Push push) {
+    this.push = push;
   }
 
   public List<ChallengeType> getChallengeTypesSupported() {
@@ -185,6 +195,67 @@ public class Metadata {
 
     public void setRegisterFinishEndpoint(String registerFinishEndpoint) {
       this.registerFinishEndpoint = registerFinishEndpoint;
+    }
+  }
+
+  /** The {@code push} block (spec/03 §1.1, §7.1). */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonPropertyOrder({"enabled", "enroll_start_endpoint", "device_api_base", "device_token", "device_client_id", "push_provider_types"})
+  public static class Push {
+    private boolean enabled = true;
+    private String enrollStartEndpoint;
+    private String deviceApiBase;
+    /** {@code native} (the DPoP key is the device key) or {@code client_credentials}. */
+    private String deviceToken = "native";
+    private String deviceClientId;
+    private List<String> pushProviderTypes = new ArrayList<>();
+
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    public String getEnrollStartEndpoint() {
+      return enrollStartEndpoint;
+    }
+
+    public void setEnrollStartEndpoint(String enrollStartEndpoint) {
+      this.enrollStartEndpoint = enrollStartEndpoint;
+    }
+
+    public String getDeviceApiBase() {
+      return deviceApiBase;
+    }
+
+    public void setDeviceApiBase(String deviceApiBase) {
+      this.deviceApiBase = deviceApiBase;
+    }
+
+    public String getDeviceToken() {
+      return deviceToken;
+    }
+
+    public void setDeviceToken(String deviceToken) {
+      this.deviceToken = deviceToken;
+    }
+
+    public String getDeviceClientId() {
+      return deviceClientId;
+    }
+
+    public void setDeviceClientId(String deviceClientId) {
+      this.deviceClientId = deviceClientId;
+    }
+
+    public List<String> getPushProviderTypes() {
+      return pushProviderTypes;
+    }
+
+    public void setPushProviderTypes(List<String> pushProviderTypes) {
+      this.pushProviderTypes = pushProviderTypes;
     }
   }
 

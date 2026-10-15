@@ -62,6 +62,14 @@ final class DPoPProofs {
   }
 
   String proof(String method, String url, String accessToken) {
+    return proof(method, url, accessToken, java.util.Map.of());
+  }
+
+  /**
+   * A proof with extra claims — the ba-itsys device API wants {@code sub} and {@code deviceId}
+   * (spec/03 §7.1).
+   */
+  String proof(String method, String url, String accessToken, java.util.Map<String, String> extraClaims) {
     String header = "{\"typ\":\"dpop+jwt\",\"alg\":\"ES256\",\"jwk\":" + jwk() + "}";
     StringBuilder payload =
         new StringBuilder("{\"jti\":\"")
@@ -75,11 +83,23 @@ final class DPoPProofs {
     if (accessToken != null) {
       payload.append(",\"ath\":\"").append(B64URL.encodeToString(sha256(accessToken.getBytes(StandardCharsets.US_ASCII)))).append('"');
     }
+    for (java.util.Map.Entry<String, String> e : extraClaims.entrySet()) {
+      payload.append(",\"").append(e.getKey()).append("\":\"").append(e.getValue()).append('"');
+    }
     payload.append('}');
+    return sign(header, payload.toString());
+  }
+
+  /** Signs an arbitrary JSON payload as an ES256 JWS with {@code typ: JWT} (device enrolment / login tokens, spec/03 §7). */
+  String signJwt(String payloadJson) {
+    return sign("{\"typ\":\"JWT\",\"alg\":\"ES256\"}", payloadJson);
+  }
+
+  String sign(String headerJson, String payloadJson) {
     String signingInput =
-        B64URL.encodeToString(header.getBytes(StandardCharsets.UTF_8))
+        B64URL.encodeToString(headerJson.getBytes(StandardCharsets.UTF_8))
             + "."
-            + B64URL.encodeToString(payload.toString().getBytes(StandardCharsets.UTF_8));
+            + B64URL.encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8));
     try {
       Signature signature = Signature.getInstance("SHA256withECDSA");
       signature.initSign(keyPair.getPrivate());

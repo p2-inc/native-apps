@@ -27,7 +27,7 @@ public class NativeTermsRequiredAction extends NativeRequiredActionBase {
   }
 
   @Override
-  String providerId() {
+  protected String providerId() {
     return NativeTermsRequiredActionFactory.PROVIDER_ID;
   }
 
@@ -37,7 +37,7 @@ public class NativeTermsRequiredAction extends NativeRequiredActionBase {
   }
 
   @Override
-  void challenge(RequiredActionContext context, ChallengeDescriptor.ChallengeError error) {
+  protected void challenge(RequiredActionContext context, ChallengeDescriptor.ChallengeError error) {
     RealmModel realm = context.getRealm();
     RequiredActionConfigModel config = context.getConfig();
     String text = configured(config, NativeTermsRequiredActionFactory.CONFIG_TEXT, realm.getAttribute(Protocol.ATTR_TERMS_TEXT));

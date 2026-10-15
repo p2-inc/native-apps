@@ -2,6 +2,7 @@ package io.phasetwo.keycloak.nativeauth.endpoint;
 
 import io.phasetwo.keycloak.nativeauth.core.json.NativeAuthJson;
 import io.phasetwo.keycloak.nativeauth.core.model.Protocol;
+import io.phasetwo.keycloak.nativeauth.core.push.NativePushEnrolmentProvider;
 import io.phasetwo.keycloak.nativeauth.core.session.AuthSessionCodec;
 import io.phasetwo.keycloak.nativeauth.requiredactions.PasskeyRegistrationException;
 import io.phasetwo.keycloak.nativeauth.requiredactions.PasskeyRegistrationOptions;
@@ -34,7 +35,8 @@ import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
 
 /**
- * The authenticated passkey registration endpoints (spec/03 §6, spec/04 §2.4). Fourth class allowed
+ * The authenticated passkey registration endpoints (spec/03 §6, spec/04 §2.4) and the push
+ * enrolment start (§7 b). Fourth class allowed
  * to use Keycloak-internal APIs (spec/08 R2, spec/11): bearer-token authentication through {@code
  * AppAuthManager.BearerTokenAuthenticator} (also validates DPoP-bound tokens) and the user session
  * behind it for the freshness rule of spec/07 §5.
@@ -81,6 +83,21 @@ final class PasskeyRegistrationDriver {
     body.put(Protocol.REGISTRATION_ID, registrationId);
     body.putAll(PasskeyRegistrationOptions.build(realm, auth.user(), baseUri(), challenge));
     log.debugf("Issued passkey registration options for user %s (registration %s)", auth.user().getUsername(), AuthSessionCodec.hashPrefix(registrationId));
+    return Responses.json(Response.Status.OK, body);
+  }
+
+  /**
+   * {@code POST /push/enroll/start} (spec/03 §7 b, spec/14 D9): the same authentication and
+   * freshness rule as passkey registration, then the push bridge creates the enrolment challenge.
+   */
+  Response pushEnrollStart() {
+    NativePushEnrolmentProvider push = session.getProvider(NativePushEnrolmentProvider.class);
+    if (push == null) {
+      throw new NativeAuthException(Response.Status.NOT_FOUND, "not_found", "Push MFA is not installed on this server");
+    }
+    Authenticated auth = authenticate();
+    Map<String, Object> body = push.start(realm, auth.user(), auth.client(), baseUri());
+    log.debugf("Started push enrolment for user %s", auth.user().getUsername());
     return Responses.json(Response.Status.OK, body);
   }
 

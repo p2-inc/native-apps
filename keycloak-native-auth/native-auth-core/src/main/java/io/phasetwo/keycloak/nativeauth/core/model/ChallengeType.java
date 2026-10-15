@@ -18,6 +18,8 @@ public enum ChallengeType {
   UPDATE_PASSWORD("update_password"),
   VERIFY_EMAIL("verify_email"),
   TERMS("terms"),
+  /** Push-MFA enrolment mid-flow (spec/03 §4.15). */
+  PUSH_ENROLLMENT("push_enrollment"),
   REDIRECT_TO_WEB("redirect_to_web");
 
   private final String wire;
