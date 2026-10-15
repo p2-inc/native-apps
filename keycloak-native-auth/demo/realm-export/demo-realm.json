@@ -177,6 +177,27 @@
       "attributes": {
         "pkce.code.challenge.method": "S256"
       }
+    },
+    {
+      "clientId": "demo-ios-sms",
+      "name": "Demo iOS (SMS code)",
+      "description": "Bound to the native-otp flow: email one-time code as second factor (spec/06 S4)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "demoapp://auth/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "native-auth.enabled": "true",
+        "native-auth.flow-alias": "native-sms"
+      }
     }
   ],
   "users": [
@@ -216,7 +237,12 @@
           "value": "bob-password",
           "temporary": false
         }
-      ]
+      ],
+      "attributes": {
+        "phoneNumber": [
+          "+15555550123"
+        ]
+      }
     },
     {
       "username": "carol",
@@ -321,6 +347,34 @@
           "type": "password",
           "value": "hank-password",
           "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ivy",
+      "enabled": true,
+      "email": "ivy@example.com",
+      "emailVerified": true,
+      "firstName": "Ivy",
+      "lastName": "Example",
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ivy-password",
+          "temporary": false
+        },
+        {
+          "type": "otp",
+          "userLabel": "Phone",
+          "secretData": "{\"value\": \"ivy-totp-secret-20261015\"}",
+          "credentialData": "{\"subType\": \"totp\", \"digits\": 6, \"counter\": 0, \"period\": 30, \"algorithm\": \"HmacSHA1\"}"
+        },
+        {
+          "type": "recovery-authn-codes",
+          "userLabel": "Recovery codes",
+          "credentialData": "{\"hashIterations\": null, \"algorithm\": \"SHA-512\", \"remaining\": 3, \"total\": 3}",
+          "secretData": "{\"codes\": [{\"number\": 1, \"encodedHashedValue\": \"73zqsymTt97PAfoVg3+TDfRHxvF61paFbzKhW0AZyhVgZKZRdVDA9p4brjaZLvPy6NpjLK/fcHhnvj4hjtBbkQ==\"}, {\"number\": 2, \"encodedHashedValue\": \"Fyy1cUA7U58ozknRBnEUbnYfoc6RJRlIk+1t2FgwUHObyR82Br6YW7KoAfesjToE9by4Or8XyNyF/PE3+kqesg==\"}, {\"number\": 3, \"encodedHashedValue\": \"xrK9wmoj/rc9qXZMGO8mPQPScv+nOM+d9rexJGuM0ghIBTNuoxtCudN/sg0kxqXPeRmZ2e21eSguXCHDHMV6zA==\"}]}"
         }
       ]
     }
@@ -563,6 +617,13 @@
           "priority": 20,
           "userSetupAllowed": false,
           "authenticator": "native-totp"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "authenticator": "native-recovery-code"
         }
       ]
     },
@@ -869,6 +930,37 @@
           "authenticatorConfig": "native-otp - email"
         }
       ]
+    },
+    {
+      "alias": "native-sms",
+      "description": "Native: username, password, then an SMS one-time code through the sms-webhook sender (spec/03 \u00a74.6).",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "native-username"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "native-password"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "authenticator": "native-otp",
+          "authenticatorConfig": "native-otp - sms"
+        }
+      ]
     }
   ],
   "authenticatorConfig": [
@@ -890,6 +982,16 @@
       "alias": "native-otp - email",
       "config": {
         "channel": "email",
+        "digits": "6",
+        "ttl": "300",
+        "resend-cooldown": "10",
+        "max-attempts": "3"
+      }
+    },
+    {
+      "alias": "native-otp - sms",
+      "config": {
+        "channel": "sms-webhook",
         "digits": "6",
         "ttl": "300",
         "resend-cooldown": "10",

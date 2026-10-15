@@ -72,6 +72,7 @@ public struct NativeLoginView: View {
   private let theme: NativeLoginTheme
   @Environment(\.challengePresenters) private var presenters
   @Environment(\.challengeChooser) private var chooser
+  @Environment(\.nativeLoginStrings) private var strings
 
   /// - Parameters:
   ///   - kc: the configured SDK (for passkeys and the browser fallback).
@@ -94,7 +95,7 @@ public struct NativeLoginView: View {
     case .starting:
       VStack(spacing: 16) {
         if let logo = theme.logo { logo }
-        ProgressView("Contacting the server…")
+        ProgressView(strings("Contacting the server…"))
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .challenge(let challenges, let context, let selected):

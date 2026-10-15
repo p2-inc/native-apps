@@ -1,0 +1,307 @@
+{
+  "test": "EnrolOnFirstLoginIT.registrationEndpointsCanBeRestrictedToNativeClients",
+  "recorded_at": "2026-10-15T11:07:00.848396Z",
+  "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
+  "base_url": "http://localhost:53335",
+  "masked_form_fields": [
+    "client_secret",
+    "code_verifier",
+    "otp",
+    "password",
+    "password_confirm",
+    "recovery_code",
+    "refresh_token",
+    "token",
+    "totp"
+  ],
+  "exchanges": [
+    {
+      "seq": 1,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "client_id": "demo-ios",
+          "response_type": "code",
+          "scope": "openid profile",
+          "code_challenge": "E4oDFol9Zyeb0AHGn-v-IUGrkFaXItjlAhsVTMNOHR4",
+          "code_challenge_method": "S256",
+          "device_name": "NativeAuthIT"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNWNjNGNiNTMtMWYzNi00MGE1LWJlOTYtNTU1MGMwNTI0NzUwIn0..GqCBoFN3qk1c-PUu.FjrP_iCf07IPV-Nfftr4EYHUV7-oaNoZMsJ5aEKB4GJQK9MS4rleyhF6sFDZOla2y8k_E1-QOyOkzbDZZ69WkP-YkaqbrzVLxLH239j6qRu8wdhK0qj_W4mfOF43m2hoCKbD3Sw-hQVu69x7n4kltU65CF5miYxQTqYI1cv4UIc2RFak3yIbYzlyxVs-dYVv-g.jMXfErc-JxG18yrMETj6tw",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "username",
+              "id": "704bfc9e-666c-4e87-923f-2ecca6f931a0",
+              "label": "Username",
+              "required": true,
+              "params": {
+                "allow_email": true
+              }
+            }
+          ],
+          "context": {
+            "client_name": "Demo iOS App"
+          }
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNWNjNGNiNTMtMWYzNi00MGE1LWJlOTYtNTU1MGMwNTI0NzUwIn0..GqCBoFN3qk1c-PUu.FjrP_iCf07IPV-Nfftr4EYHUV7-oaNoZMsJ5aEKB4GJQK9MS4rleyhF6sFDZOla2y8k_E1-QOyOkzbDZZ69WkP-YkaqbrzVLxLH239j6qRu8wdhK0qj_W4mfOF43m2hoCKbD3Sw-hQVu69x7n4kltU65CF5miYxQTqYI1cv4UIc2RFak3yIbYzlyxVs-dYVv-g.jMXfErc-JxG18yrMETj6tw",
+          "challenge_type": "username",
+          "challenge_id": "704bfc9e-666c-4e87-923f-2ecca6f931a0",
+          "username": "bob"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNWNjNGNiNTMtMWYzNi00MGE1LWJlOTYtNTU1MGMwNTI0NzUwIn0..jJdf7Cy4b2tpPWZ4.5yPepR0EVjw7aIEx07IsG98DG7jDjjWewDMlabOKJtr8eM_GciQCSo68oNrNABcIvLYl1lqmEoVWLA-LLBozAmTeE88ANEYBekk-PCG0WfDR2FGrFuEznKP0cZ9zGAYgbzV5QPfx0aj2jcHtxgxZM-0mBo0yU9MLPgkACgnv91HxudDf89VtOHcy2u7yRlUuQA.PvcKa68KIzuAUziyA0jNYw",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "password",
+              "id": "ada31eac-f8f7-4864-934a-e242c744edbf",
+              "label": "Password",
+              "required": true,
+              "params": {
+                "username_known": true
+              }
+            }
+          ],
+          "context": {
+            "username": "bob",
+            "display_name": "Bob Passwordonly",
+            "client_name": "Demo iOS App"
+          }
+        }
+      }
+    },
+    {
+      "seq": 3,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNWNjNGNiNTMtMWYzNi00MGE1LWJlOTYtNTU1MGMwNTI0NzUwIn0..jJdf7Cy4b2tpPWZ4.5yPepR0EVjw7aIEx07IsG98DG7jDjjWewDMlabOKJtr8eM_GciQCSo68oNrNABcIvLYl1lqmEoVWLA-LLBozAmTeE88ANEYBekk-PCG0WfDR2FGrFuEznKP0cZ9zGAYgbzV5QPfx0aj2jcHtxgxZM-0mBo0yU9MLPgkACgnv91HxudDf89VtOHcy2u7yRlUuQA.PvcKa68KIzuAUziyA0jNYw",
+          "challenge_type": "password",
+          "challenge_id": "ada31eac-f8f7-4864-934a-e242c744edbf",
+          "password": "***"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "authorization_code": "14074bc3-e90d-ad5e-db38-b46bb0747c7b.rsWg1es17f5ckb0nr8EX3ZIK.b2be3c51-86a8-45ff-b593-3ea3aab92fb8",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNWNjNGNiNTMtMWYzNi00MGE1LWJlOTYtNTU1MGMwNTI0NzUwIn0..swFFM1xPYWcHgcvC.qJqasJ7sLDUv5y2YZFIXsuUsm_e0PB3AyxqpIGIVSwLEO_H8yI0Hm0lY4LZKaNUc7FxqkKX2oMx-aXpfZECgvKefz5zF5_75NE-DrjUMj4X4x8QAUNLrblhmHhXE3LLcE8yYcO_zk-DWt2oj60WdjxmnMY0P43CrkOEpdaDSzAOotXYp8MF9FedquA.M2_3MgnC93LNvdWrDNgYrw"
+        }
+      }
+    },
+    {
+      "seq": 4,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/protocol/openid-connect/token",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=ISO-8859-1",
+          "Accept": "*/*"
+        },
+        "form": {
+          "grant_type": "authorization_code",
+          "client_id": "demo-ios",
+          "code": "14074bc3-e90d-ad5e-db38-b46bb0747c7b.rsWg1es17f5ckb0nr8EX3ZIK.b2be3c51-86a8-45ff-b593-3ea3aab92fb8",
+          "code_verifier": "***"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Pragma": "no-cache",
+          "Content-Type": "application/json"
+        },
+        "json": {
+          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJsX2xjNVVOQ3Ixal92LWZneGNMMnZrY0Z0a3hJd2xScnFxVHVHTGxYanlVIn0.eyJleHAiOjE3OTIwNjI3MjAsImlhdCI6MTc5MjA2MjQyMCwiYXV0aF90aW1lIjoxNzkyMDYyNDIwLCJqdGkiOiJvbnJ0YWM6NWFmMDhhYjAtMTJmNi1iMzEyLWQzMGUtN2Y3M2Q5Njc1YzE1IiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo1MzMzNS9yZWFsbXMvZGVtbyIsInN1YiI6ImFmNWJlNWVmLTkxYjktNDE0My1hNWY1LTZiOTI5NGE5NDJjMCIsInR5cCI6IkJlYXJlciIsImF6cCI6ImRlbW8taW9zIiwic2lkIjoicnNXZzFlczE3ZjVja2IwbnI4RVgzWklLIiwiYWNyIjoiMSIsInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmFtZSI6IkJvYiBQYXNzd29yZG9ubHkiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJib2IiLCJnaXZlbl9uYW1lIjoiQm9iIiwiZmFtaWx5X25hbWUiOiJQYXNzd29yZG9ubHkiLCJlbWFpbCI6ImJvYkBleGFtcGxlLmNvbSJ9.OWmhqi3ZeX3geWgP65mUAITODZTB-Cpj-bhVjpl33McRFC5k0fXdx8QaiR_XnDVMw2l2YcVNsDws14TGyhoyLw6fzq9xHnJgMBktHvMNlu7_YAZVDiwpifoxtzNdXlxKRWJ_0x7OAq_zQQ_Lj3sqF_-u96VjxB3VGVd_QRcFh2-si71R7mhJL138s6CJECaM1qaMREl3jINsNYxMm4Cc6cN_1QbN39bW3I_VVNByCX4EtwuM0kAD9zAW0bjrFWykiBvmPxthNcc8sNO1m8lLxHz8aYURIm_LM-0RTYtYpD4ZVmyrIf41QwJHtQCKGSE_7OcRo45rPTxVIkHSq81nEw",
+          "expires_in": 300,
+          "refresh_expires_in": 1800,
+          "refresh_token": "eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI1NjRmNzY0MS1kNzUyLTQ0MjEtODlmZC1mMjMxODgwMTBkMTEifQ.eyJleHAiOjE3OTIwNjQyMjAsImlhdCI6MTc5MjA2MjQyMCwianRpIjoiMjNlOGFiNTktZjU0NC03NTk0LWM2MGUtZmY1MGRlNjA5MWVlIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo1MzMzNS9yZWFsbXMvZGVtbyIsImF1ZCI6Imh0dHA6Ly9sb2NhbGhvc3Q6NTMzMzUvcmVhbG1zL2RlbW8iLCJzdWIiOiJhZjViZTVlZi05MWI5LTQxNDMtYTVmNS02YjkyOTRhOTQyYzAiLCJ0eXAiOiJSZWZyZXNoIiwiYXpwIjoiZGVtby1pb3MiLCJzaWQiOiJyc1dnMWVzMTdmNWNrYjBucjhFWDNaSUsiLCJzY29wZSI6Im9wZW5pZCBlbWFpbCBhY3Igcm9sZXMgYmFzaWMgd2ViLW9yaWdpbnMgcHJvZmlsZSIsInByb3YiOiJkZWZhdWx0In0.tqDFq-TfrAwoFR7Ag_BQZJ3sE5E5NdSIgZ8YAJbBAqHbFZNzjoQdMTGopATJrEKi7UDLVxighYDbOx7WADOZoA",
+          "token_type": "Bearer",
+          "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJsX2xjNVVOQ3Ixal92LWZneGNMMnZrY0Z0a3hJd2xScnFxVHVHTGxYanlVIn0.eyJleHAiOjE3OTIwNjI3MjAsImlhdCI6MTc5MjA2MjQyMCwiYXV0aF90aW1lIjoxNzkyMDYyNDIwLCJqdGkiOiJmMWQ5YWIyYy05YjdkLTMyMzctMzEzYy00Yjc2OWVkNWNiM2MiLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjUzMzM1L3JlYWxtcy9kZW1vIiwiYXVkIjoiZGVtby1pb3MiLCJzdWIiOiJhZjViZTVlZi05MWI5LTQxNDMtYTVmNS02YjkyOTRhOTQyYzAiLCJ0eXAiOiJJRCIsImF6cCI6ImRlbW8taW9zIiwic2lkIjoicnNXZzFlczE3ZjVja2IwbnI4RVgzWklLIiwiYXRfaGFzaCI6ImFPYzZTTHhOb2pFTElFY3R2WWZUa1EiLCJhY3IiOiIxIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJCb2IgUGFzc3dvcmRvbmx5IiwicHJlZmVycmVkX3VzZXJuYW1lIjoiYm9iIiwiZ2l2ZW5fbmFtZSI6IkJvYiIsImZhbWlseV9uYW1lIjoiUGFzc3dvcmRvbmx5IiwiZW1haWwiOiJib2JAZXhhbXBsZS5jb20ifQ.DtvulGfm6D1YQP9M4aVS9Uvn7FXTZ6gk4dDNjYgtLYPlND7t1QNuY4p00C1DTaH273UL739sZRlyZMctPi3lwtYX9kIPZBx7Rv88eSw_h6C_OlfFQ8AImFfFNs4TRlotaJCeo1XBxVyQWigwH2Wtjw8YlU2cQEv3Ze89k-3r7Hizx2HuklPbsa-567BTUMXhzT4F7ppLPsWzTrIT0TBguRQK0WcO-NFunYWzZla0wIvLsKH-rzDjRUTpF2yYDQGMup91oBq0wvKFIoB2QIg22tRot8_JTa1OCmKxxnvJ3iY7Uj_fD-YXO7yGUHFboU4wmhDtYmBuNAAKBpZ0bbIQEA",
+          "not-before-policy": 0,
+          "session_state": "rsWg1es17f5ckb0nr8EX3ZIK",
+          "scope": "openid email profile"
+        }
+      }
+    },
+    {
+      "seq": 5,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/passkey/register/options",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=ISO-8859-1",
+          "Authorization": "Bearer ***",
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "registration_id": "iCGcpXdz3Tg9vo3UBbjDAy58fHpiT1eQ",
+          "challenge": "nFsPHdoTSeKMWef0kosBEg",
+          "rp": {
+            "id": "localhost",
+            "name": "Native Auth Demo"
+          },
+          "user": {
+            "id": "YWY1YmU1ZWYtOTFiOS00MTQzLWE1ZjUtNmI5Mjk0YTk0MmMw",
+            "name": "bob",
+            "display_name": "Bob Passwordonly"
+          },
+          "pub_key_cred_params": [
+            {
+              "type": "public-key",
+              "alg": -7
+            },
+            {
+              "type": "public-key",
+              "alg": -257
+            }
+          ],
+          "authenticator_selection": {
+            "resident_key": "required",
+            "require_resident_key": true,
+            "user_verification": "required"
+          },
+          "attestation": "none",
+          "exclude_credentials": [ ],
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "seq": 6,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/passkey/register/options",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=ISO-8859-1",
+          "Authorization": "Bearer ***",
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "registration_id": "p7dt7Ckfn1HDS7MbX6Goe7mLmXix7I55",
+          "challenge": "npOwexeoQ3OwQFRk_BRf-w",
+          "rp": {
+            "id": "localhost",
+            "name": "Native Auth Demo"
+          },
+          "user": {
+            "id": "YWY1YmU1ZWYtOTFiOS00MTQzLWE1ZjUtNmI5Mjk0YTk0MmMw",
+            "name": "bob",
+            "display_name": "Bob Passwordonly"
+          },
+          "pub_key_cred_params": [
+            {
+              "type": "public-key",
+              "alg": -7
+            },
+            {
+              "type": "public-key",
+              "alg": -257
+            }
+          ],
+          "authenticator_selection": {
+            "resident_key": "required",
+            "require_resident_key": true,
+            "user_verification": "required"
+          },
+          "attestation": "none",
+          "exclude_credentials": [ ],
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "seq": 7,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/passkey/register/options",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=ISO-8859-1",
+          "Authorization": "Bearer ***",
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "access_denied",
+          "error_description": "Passkey registration is restricted to native-enabled clients",
+          "protocol_version": "1"
+        }
+      }
+    }
+  ]
+}

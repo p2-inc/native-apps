@@ -180,6 +180,129 @@ final class DemoAppUITests: XCTestCase {
     XCTAssertTrue(status(app).contains("Signed in as hank"), status(app))
   }
 
+  // MARK: - Phase 2 scenarios driven by XCUITest (spec/10 Phase 2b)
+
+  /// S4: bob on demo-ios-otp gets the e-mail code as the only second factor; the code comes from mailpit.
+  func testS4EmailOtpWithResend() throws {
+    let app = XCUIApplication()
+    app.launch()
+    loginThroughPassword(app, scenario: "s4EmailOtp", username: "bob", password: "bob-password")
+    let otp = app.textFields["otp"]
+    XCTAssertTrue(otp.waitForExistence(timeout: timeout), "otp challenge not shown: \(status(app))")
+    XCTAssertTrue(app.buttons["otpResend"].exists)
+    let code = try XCTUnwrap(Mailpit.latestCode(to: "bob@example.com"), "no code in mailpit for bob")
+    otp.tap()
+    otp.typeText(code)
+    app.buttons["Verify code"].tap()
+    XCTAssertTrue(app.staticTexts["signedInTokenType"].waitForExistence(timeout: timeout), "not signed in: \(status(app))")
+    XCTAssertTrue(status(app).contains("Signed in as bob"), status(app))
+  }
+
+  /// S5: the KeycloakNativeUI product with the "Try another way" chooser (alice: TOTP vs e-mail code).
+  func testS5DefaultUIWithChooser() throws {
+    let app = XCUIApplication()
+    app.launch()
+    app.tabBars.buttons["Scenarios"].tap()
+    tap(app, app.buttons["scenario-s5DefaultUI"])
+    app.tabBars.buttons["Login"].tap()
+    app.buttons["startDefaultUI"].tap()
+    let username = app.textFields["username"]
+    XCTAssertTrue(username.waitForExistence(timeout: timeout), status(app))
+    username.tap()
+    username.typeText("alice")
+    app.buttons["Continue"].tap()
+    let password = app.secureTextFields["password"]
+    XCTAssertTrue(password.waitForExistence(timeout: timeout), status(app))
+    password.tap()
+    password.typeText("alice-password")
+    app.buttons["Sign in"].tap()
+    // The first supported entry (TOTP) is shown; switch to the e-mail code through the chooser.
+    XCTAssertTrue(app.textFields["totp"].waitForExistence(timeout: timeout), status(app))
+    let switchToOtp = app.buttons["switchTo-otp"]
+    XCTAssertTrue(switchToOtp.waitForExistence(timeout: timeout))
+    switchToOtp.tap()
+    let send = app.buttons["otpSend"]
+    XCTAssertTrue(send.waitForExistence(timeout: timeout), "otp screen with 'Send me a code' not shown")
+    send.tap()
+    let otp = app.textFields["otp"]
+    XCTAssertTrue(otp.waitForExistence(timeout: timeout), "code field not shown after sending")
+    let code = try XCTUnwrap(Mailpit.latestCode(to: "alice@example.com"), "no code in mailpit for alice")
+    otp.tap()
+    otp.typeText(code)
+    app.buttons["Verify"].tap()
+    XCTAssertTrue(wait(timeout) { self.status(app).contains("Signed in as alice") }, status(app))
+  }
+
+  /// S13: same flow, but the TOTP screen is replaced through challengePresenter(for: .totp).
+  func testS13CustomTotpPresenter() throws {
+    let app = XCUIApplication()
+    app.launch()
+    app.tabBars.buttons["Scenarios"].tap()
+    tap(app, app.buttons["scenario-s13CustomPresenter"])
+    app.tabBars.buttons["Login"].tap()
+    app.buttons["startDefaultUI"].tap()
+    let username = app.textFields["username"]
+    XCTAssertTrue(username.waitForExistence(timeout: timeout), status(app))
+    username.tap()
+    username.typeText("alice")
+    app.buttons["Continue"].tap()
+    let password = app.secureTextFields["password"]
+    XCTAssertTrue(password.waitForExistence(timeout: timeout), status(app))
+    password.tap()
+    password.typeText("alice-password")
+    app.buttons["Sign in"].tap()
+    XCTAssertTrue(app.staticTexts["customTotpTitle"].waitForExistence(timeout: timeout), "custom presenter not used: \(status(app))")
+    let custom = app.textFields["customTotp"]
+    custom.tap()
+    custom.typeText(TOTP.code(secret: Self.aliceTotpSecret))
+    app.buttons["Go"].tap()
+    XCTAssertTrue(wait(timeout) { self.status(app).contains("Signed in as alice") }, status(app))
+  }
+
+  /// S6: password-only login on demo-ios-stepup (acr 1); Transfer is refused with 401 until the
+  /// step-up asks for the TOTP only; then it succeeds with acr 2.
+  func testS6StepUpForTheProtectedTransfer() throws {
+    let app = XCUIApplication()
+    app.launch()
+    loginThroughPassword(app, scenario: "s6StepUp", username: "alice", password: "alice-password")
+    XCTAssertTrue(app.staticTexts["signedInTokenType"].waitForExistence(timeout: timeout), "not signed in: \(status(app))")
+    XCTAssertTrue(status(app).contains("acr 1"), status(app))
+    app.tabBars.buttons["Home"].tap()
+    tap(app, app.buttons["transfer"])
+    // The resource server answered 401 and the app started the step-up: only the TOTP is asked.
+    XCTAssertTrue(wait(timeout) { self.status(app).contains("Step-up") }, status(app))
+    app.tabBars.buttons["Login"].tap()
+    let totp = app.textFields["totp"]
+    XCTAssertTrue(totp.waitForExistence(timeout: timeout), "totp not asked on step-up: \(status(app))")
+    XCTAssertFalse(app.secureTextFields["password"].exists, "the primary factor is not asked again")
+    totp.tap()
+    totp.typeText(TOTP.code(secret: Self.aliceTotpSecret))
+    app.buttons["Verify code"].tap()
+    XCTAssertTrue(wait(timeout) { self.status(app).contains("acr 2") }, status(app))
+    app.tabBars.buttons["Home"].tap()
+    tap(app, app.buttons["transfer"])
+    XCTAssertTrue(wait(timeout) { self.label(app.staticTexts["resourceResult"]).contains("HTTP 200") }, label(app.staticTexts["resourceResult"]))
+  }
+
+  /// S8: the server ends the session (refresh token revoked); the next refresh reports reauthentication_required.
+  func testS8RefreshAfterServerSideLogoutRequiresReauthentication() throws {
+    let app = XCUIApplication()
+    app.launch()
+    loginThroughPassword(app, scenario: "s8RefreshReauth", username: "alice", password: "alice-password")
+    let totp = app.textFields["totp"]
+    XCTAssertTrue(totp.waitForExistence(timeout: timeout), status(app))
+    totp.tap()
+    totp.typeText(TOTP.code(secret: Self.aliceTotpSecret))
+    app.buttons["Verify code"].tap()
+    XCTAssertTrue(app.staticTexts["signedInTokenType"].waitForExistence(timeout: timeout), status(app))
+    app.tabBars.buttons["Home"].tap()
+    tap(app, app.buttons["endSession"])
+    XCTAssertTrue(wait(timeout) { self.status(app).contains("Session ended on the server") }, status(app))
+    tap(app, app.buttons["Refresh tokens"])
+    XCTAssertTrue(wait(timeout) { self.status(app).contains("reauthentication_required") }, status(app))
+    XCTAssertTrue(app.staticTexts["notSignedIn"].waitForExistence(timeout: timeout))
+  }
+
   // MARK: -
 
   /// SwiftUI lists only expose the rows on screen: swipe up until the element exists, then tap it.
@@ -240,7 +363,9 @@ enum Mailpit {
   private static func get(_ path: String) -> [String: Any]? {
     let semaphore = DispatchSemaphore(value: 0)
     var result: [String: Any]?
-    URLSession.shared.dataTask(with: base.appending(path: path)) { data, _, _ in
+    let url = URL(string: base.absoluteString + path)!
+    URLSession.shared.dataTask(with: url) { data, _, error in
+      if let error { NSLog("mailpit %@: %@", url.absoluteString, String(describing: error)) }
       result = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
       semaphore.signal()
     }.resume()

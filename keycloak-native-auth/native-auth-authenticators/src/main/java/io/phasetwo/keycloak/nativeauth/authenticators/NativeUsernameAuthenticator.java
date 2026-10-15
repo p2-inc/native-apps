@@ -13,7 +13,11 @@ import org.keycloak.events.Errors;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.ModelDuplicateException;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.sessions.AuthenticationSessionModel;
+import java.util.List;
+import java.util.Map;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 
@@ -81,8 +85,7 @@ public class NativeUsernameAuthenticator extends NativeAuthenticatorBase {
       if (revealUserNotFound(context)) {
         failAndRechallenge(context, Protocol.DESC_ERR_INVALID_USER, MSG_INVALID_USER);
       } else {
-        // Generic error; see spec/09 for the enumeration-resistance limitation of Phase 0.
-        failAndRechallenge(context, Protocol.DESC_ERR_INVALID_CREDENTIAL, "Invalid username or password");
+        phantomPasswordChallenge(context, username);
       }
       return;
     }
@@ -90,7 +93,43 @@ public class NativeUsernameAuthenticator extends NativeAuthenticatorBase {
       return;
     }
     context.setUser(user);
+    NativePasskeyAuthenticator.scheduleEnrolmentOnFirstLogin(context, user);
     context.success();
+  }
+
+  /**
+   * spec/03 §4.1: an unknown (or disabled / locked) user gets the same {@code password} challenge a
+   * real user would, and {@code NativePasswordAuthenticator} then fails every answer generically.
+   * The descriptor is the real password execution's, so routing and re-challenge work unchanged.
+   */
+  private void phantomPasswordChallenge(AuthenticationFlowContext context, String username) {
+    AuthenticationExecutionModel password = passwordExecution(context);
+    if (password == null) {
+      // No native-password in this flow (e.g. passkey-only): nothing to impersonate; generic error.
+      failAndRechallenge(context, Protocol.DESC_ERR_INVALID_CREDENTIAL, "Invalid username or password");
+      return;
+    }
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    authSession.setAuthNote(NativeRequestContext.AUTH_NOTE_PHANTOM, username);
+    authSession.setAuthNote(NativeRequestContext.AUTH_NOTE_PHANTOM_ATTEMPTS, "0");
+    ChallengeDescriptor d =
+        new ChallengeDescriptor(ChallengeType.PASSWORD)
+            .setLabel("Password")
+            .setId(password.getId())
+            .setRequired(true)
+            .param("username_known", true);
+    challenge(context, List.of(d), false, null);
+  }
+
+  /** The first {@code native-password} execution of the top-level flow, in flow order. */
+  private static AuthenticationExecutionModel passwordExecution(AuthenticationFlowContext context) {
+    RealmModel realm = context.getRealm();
+    return flowOrder(realm, context.getTopLevelFlow()).entrySet().stream()
+        .sorted(Map.Entry.comparingByValue())
+        .map(e -> realm.getAuthenticationExecutionById(e.getKey()))
+        .filter(e -> e != null && !e.isAuthenticatorFlow() && NativePasswordAuthenticatorFactory.PROVIDER_ID.equals(e.getAuthenticator()) && !e.isDisabled())
+        .findFirst()
+        .orElse(null);
   }
 
   private static boolean revealUserNotFound(AuthenticationFlowContext context) {
@@ -120,13 +159,18 @@ public class NativeUsernameAuthenticator extends NativeAuthenticatorBase {
   }
 
   private void failAndRechallengeGeneric(AuthenticationFlowContext context) {
-    challenge(
-        context,
-        buildChallengeSet(
-            context,
-            new ChallengeDescriptor.ChallengeError(
-                Protocol.DESC_ERR_INVALID_CREDENTIAL, "Invalid username or password")),
-        true,
-        AuthenticationFlowError.INVALID_USER);
+    if (revealUserNotFound(context)) {
+      challenge(
+          context,
+          buildChallengeSet(
+              context,
+              new ChallengeDescriptor.ChallengeError(
+                  Protocol.DESC_ERR_INVALID_CREDENTIAL, "Invalid username or password")),
+          true,
+          AuthenticationFlowError.INVALID_USER);
+      return;
+    }
+    // Same path as an unknown user (spec/03 §4.1): the password step then fails generically.
+    phantomPasswordChallenge(context, context.getAuthenticationSession().getAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME));
   }
 }

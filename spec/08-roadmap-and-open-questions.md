@@ -91,14 +91,18 @@ Exit criteria: tokens obtained without a browser; events show in the admin conso
 > Accept recommendation
 - **Q7 — Which required actions get native variants.** Minimum: passkey register, push enrol. Candidates: update password, verify email, terms. Everything else → `redirect_to_web`. Product decision.
 > Accept recommendation. update password, verify email, terms. Everything else → `redirect_to_web`
+> **Done (14 D1):** `native-update-password`, `native-verify-email`, `native-terms` substitute for Keycloak's actions; everything else is `redirect_to_web`.
 - **Q8 — Username-less by default?** Should the first challenge be `passkey` (discoverable) with `username` as an alternative, or `username` first? Affects flow template and chooser defaults. Recommend passkey-first when the realm policy requires resident keys.
 > Accept recommendation
 - **Q9 — SMS provider.** Ship only `sms-webhook` and let operators integrate, or add a Twilio adapter? Recommend webhook only in v1.
 > Webhook.
+> **Done (13 D4, 14 D5):** `sms-webhook` sender; `SmsOtpIT` drives it against a host-side sink.
 - **Q10 — OTP delivery for email: reuse Keycloak's existing `EmailSenderProvider` + theme templates** (yes) — confirm theme packaging approach (our JAR ships a theme with `native-otp.ftl` + messages).
 > Accept recommendation
+> **Done (14 D5):** the `native-auth-otp-sender` JAR ships `theme-resources/templates/{html,text}/native-otp.ftl` and `nativeOtp*` messages (en, de); sent through `EmailTemplateProvider`, overridable by the realm's email theme.
 - **Q11 — Step-up `auth_session` lifetime.** Tie to SSO session max, SSO idle, or a dedicated realm attribute? Recommend SSO idle (so it dies with the session).
 > yes
+> **Done (14 D6):** `exp` = SSO idle timeout from minting, capped by the session max; `stepUp` still checks `isSessionValid`.
 - **Q12 — Number-match on the native (scenario B) side.** Who shows the number — the initiating native client (we return it in `push.params.user_verification`) — confirmed in spec; verify ba-itsys exposes the chosen number to the authenticator (it does for the browser template).
 > Accept recommendation
 

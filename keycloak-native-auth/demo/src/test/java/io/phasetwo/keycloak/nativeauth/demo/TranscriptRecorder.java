@@ -165,11 +165,12 @@ public final class TranscriptRecorder implements Filter, BeforeEachCallback, Aft
       headers.put(h.getName(), MASKED_HEADERS.contains(name) ? maskHeader(h.getValue()) : h.getValue());
     }
     if (!headers.isEmpty()) req.put("headers", headers);
-    Map<String, String> form = spec.getFormParams();
+    Map<String, ?> form = spec.getFormParams();
     if (form != null && !form.isEmpty()) {
       Map<String, String> masked = new LinkedHashMap<>();
       boolean challengeEndpoint = path.endsWith("/native-auth/challenge");
-      form.forEach((k, v) -> masked.put(k, MASKED_FORM_FIELDS.contains(k) || (challengeEndpoint && MASKED_CHALLENGE_FORM_FIELDS.contains(k)) ? MASK : v));
+      // RestAssured keeps a NoParameterValue marker for a form param sent without a value.
+      form.forEach((k, v) -> masked.put(k, MASKED_FORM_FIELDS.contains(k) || (challengeEndpoint && MASKED_CHALLENGE_FORM_FIELDS.contains(k)) ? MASK : (v instanceof String s ? s : "")));
       req.put("form", masked);
     }
     Object body = spec.getBody();

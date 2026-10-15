@@ -2,7 +2,7 @@
 
 Swift Package, Swift 6 (strict concurrency), minimum **iOS 17** (passkeys need 16.6+; 17 simplifies `AuthorizationController` and `SwiftUI` APIs). Core also declares **macOS 14** (it is built and tested there, 12); visionOS can be added later since no UIKit is required in Core.
 
-**Status (Phase 2, 13):** `KeycloakNativeCore` and `KeycloakNativeUI` exist at `ios/KeycloakNative/` (step-up, `WebFallback`, OTP and the default screens included); `KeycloakNativePush` does not yet. Deviations from the API sketched below are listed in 12 D4 and 13 D5 (e.g. `stepUp` is `async`, `WebFallback.complete(_:flow:)` takes the flow, `NativeLoginView(kc:flow:onResult:)`).
+**Status (Phase 2b, 14):** `KeycloakNativeCore` and `KeycloakNativeUI` exist at `ios/KeycloakNative/` (step-up, `WebFallback`, OTP, recovery codes, the in-band required actions, the default screens with a string catalogue and `.nativeLoginStrings(bundle:)`, and the UI product's own tests included); `KeycloakNativePush` does not yet. Deviations from the API sketched below are listed in 12 D4, 13 D5 and 14 (e.g. `stepUp` is `async`, `WebFallback.complete(_:flow:)` takes the flow, `NativeLoginView(kc:flow:onResult:)`).
 
 ## 1. Package products
 

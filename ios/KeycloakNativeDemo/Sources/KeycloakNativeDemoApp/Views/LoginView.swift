@@ -45,7 +45,7 @@ struct LoginView: View {
             Text("\(challenge.type.wire)\(challenge.required ? "" : " · alternative")")
           } footer: {
             if let error = challenge.error {
-              Text("\(error.code): \(error.message ?? "")").foregroundStyle(.red)
+              Text("\(error.code): \(error.message ?? "")" + (challenge.retry?.remaining.map { " (\($0) attempt\($0 == 1 ? "" : "s") left)" } ?? "")).foregroundStyle(.red)
             } else if let label = challenge.label {
               Text(label)
             }
@@ -131,7 +131,13 @@ struct LoginView: View {
       if let url = params?.url { Link("Read the full terms (\(params?.version ?? "no version"))", destination: url).font(.footnote) }
       Button("Accept") { Task { await model.answer(.terms(accepted: true), to: challenge) } }.disabled(model.isBusy).accessibilityIdentifier("acceptTerms")
       Button("Decline", role: .destructive) { Task { await model.answer(.terms(accepted: false), to: challenge) } }.disabled(model.isBusy).accessibilityIdentifier("declineTerms")
-    case .push, .recoveryCode, .select, .unknown:
+    case .recoveryCode:
+      let params = challenge.recoveryCodeParams
+      Text("\(params?.remaining.map(String.init) ?? "?") unused code(s) left" + (params?.shouldWarn == true ? " — generate new ones soon" : "")).font(.footnote).foregroundStyle(.secondary)
+      TextField("XXXX-XXXX-XXXX", text: $model.recoveryCode).autocorrectionDisabled().accessibilityIdentifier("recoveryCode")
+      Button("Sign in with a recovery code") { Task { await model.answer(.recoveryCode(model.recoveryCode), to: challenge) } }
+        .disabled(model.isBusy || model.recoveryCode.isEmpty)
+    case .push, .select, .unknown:
       Text("Unsupported challenge type '\(challenge.type.wire)' in this app version: update the app or use the web.")
         .foregroundStyle(.orange)
     }

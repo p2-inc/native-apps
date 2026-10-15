@@ -23,10 +23,16 @@ let package = Package(
     : [],
   targets: [
     .target(name: "KeycloakNativeCore"),
-    .target(name: "KeycloakNativeUI", dependencies: ["KeycloakNativeCore"]),
+    // Localizable.xcstrings (spec/05 §4): English source, German; apps override with .nativeLoginStrings(bundle:).
+    .target(name: "KeycloakNativeUI", dependencies: ["KeycloakNativeCore"], resources: [.process("Resources")]),
     .testTarget(
       name: "KeycloakNativeCoreTests",
       dependencies: ["KeycloakNativeCore"]
+        + (testingFromSource ? [.product(name: "Testing", package: "swift-testing")] : [])
+    ),
+    .testTarget(
+      name: "KeycloakNativeUITests",
+      dependencies: ["KeycloakNativeUI", "KeycloakNativeCore"]
         + (testingFromSource ? [.product(name: "Testing", package: "swift-testing")] : [])
     ),
   ],

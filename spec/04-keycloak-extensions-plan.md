@@ -133,9 +133,10 @@ Config properties exposed in the admin console (via `getConfigProperties()`): OT
 
 ## 4. Required actions (JSON variants)
 
-- `native-passkey-register` (Phase 1 ✅, module `native-auth-required-actions`): `requiredActionChallenge()` emits `passkey_registration`; `processAction()` validates attestation and stores credential. Operators enable it as the default action for new users in the native realm (the demo export registers it; note that an export listing `requiredActions` must list Keycloak's defaults too, spec/11 D1). Outside a native session (browser login) it ignores itself with a warning and stays on the user. Having `native-passkey` set it via `setRequiredActions` when `configuredFor` is false ("enrol on first login") is still open.
+- `native-passkey-register` (Phase 1 ✅, module `native-auth-required-actions`): `requiredActionChallenge()` emits `passkey_registration`; `processAction()` validates attestation and stores credential. Operators enable it as the default action for new users in the native realm (the demo export registers it; note that an export listing `requiredActions` must list Keycloak's defaults too, spec/11 D1). Outside a native session (browser login) it ignores itself with a warning and stays on the user. "Enrol on first login" exists since Phase 2b (spec/14 D4): with `enrol-on-first-login=true` on an ALTERNATIVE `native-passkey` execution, a user without a passkey authenticates with the other alternative and `native-passkey-register` is added to the authentication session, so the passkey is created in-band before the code is issued.
 - `native-push-enroll`: same shape wrapping ba-itsys enrolment.
-- Any other required action (update password, T&C, verify email, profile) → endpoint emits `redirect_to_web` (reason = alias). Phase 2 may add `native-update-password` and `native-verify-email` if product wants them.
+- `native-update-password`, `native-verify-email`, `native-terms` (Phase 2b, spec/03 §4.11–§4.14, spec/14 D1): JSON variants that substitute for Keycloak's `UPDATE_PASSWORD`, `VERIFY_EMAIL`, `TERMS_AND_CONDITIONS` when registered and enabled in the realm.
+- Any other required action (update profile, configure OTP, configure recovery codes, …) → endpoint emits `redirect_to_web` (reason = alias).
 
 ## 5. OTP sender SPI
 

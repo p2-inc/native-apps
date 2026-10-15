@@ -50,6 +50,19 @@ public final class NativeRequestContext {
 
   public static final String CLIENT_NOTE_DEVICE_NAME = "native-auth.device_name";
 
+  /**
+   * Auth note: the username step did not identify a user (unknown, disabled or locked account) and the
+   * session continues with a phantom {@code password} challenge that always fails (spec/03 §4.1).
+   * The value is the attempted username; {@link #AUTH_NOTE_PHANTOM_ATTEMPTS} counts the answers.
+   */
+  public static final String AUTH_NOTE_PHANTOM = "native-auth.phantom";
+
+  public static final String AUTH_NOTE_PHANTOM_ATTEMPTS = "native-auth.phantom.attempts";
+
+  public static boolean isPhantom(AuthenticationSessionModel authSession) {
+    return authSession.getAuthNote(AUTH_NOTE_PHANTOM) != null;
+  }
+
   /** Client note: this authentication session is a step-up inside an existing user session (spec/03 §5). */
   public static final String CLIENT_NOTE_STEP_UP = "native-auth.step-up";
 

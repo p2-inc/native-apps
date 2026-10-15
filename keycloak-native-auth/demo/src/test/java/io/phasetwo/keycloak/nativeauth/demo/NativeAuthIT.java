@@ -403,12 +403,31 @@ class NativeAuthIT {
   }
 
   @Test
-  void unknownUsernameRechallengesWithGenericError() {
+  void unknownUsernameGetsAPhantomPasswordChallengeThatLocksLikeARealAccount() {
+    // spec/03 §4.1: an unknown user cannot be told from a real one with a wrong password — the same
+    // [password] set, the same invalid_credential + retry.remaining countdown, the same lock-out
+    // after failureFactor (5) attempts. Nothing is sent that could lead anywhere.
     Response r = start(CLIENT, Pkce.s256());
     r = answer(r, "username", "username", "nobody-" + System.nanoTime());
-    assertChallenge(r, "username");
-    assertEquals("invalid_credential", r.jsonPath().getString("challenges[0].error.code"));
+    assertChallenge(r, "password");
+    assertEquals(true, descriptor(r, "password").get("required"));
+    assertEquals(true, ((Map<?, ?>) descriptor(r, "password").get("params")).get("username_known"));
     assertEquals(null, r.jsonPath().getString("context.username"));
+    assertNull(errorCode(r, "password"));
+
+    r = answer(r, "password", "password", "");
+    assertEquals("missing_credential", errorCode(r, "password"));
+
+    for (int attempt = 1; attempt <= 4; attempt++) {
+      r = answer(r, "password", "password", "wrong-" + attempt);
+      assertChallenge(r, "password");
+      assertEquals("invalid_credential", errorCode(r, "password"), r.asString());
+      assertEquals(5 - attempt, r.jsonPath().getInt("challenges[0].retry.remaining"), r.asString());
+    }
+    r = answer(r, "password", "password", "wrong-5");
+    assertEquals(403, r.statusCode(), r.asString());
+    assertEquals("access_denied", r.jsonPath().getString("error"));
+    assertTrue(r.jsonPath().getString("error_description").toLowerCase().contains("locked"), r.asString());
   }
 
   @Test
@@ -547,6 +566,7 @@ class NativeAuthIT {
     r = answer(r, "username", "username", "erin");
     assertChallenge(r, "password");
     boolean locked = false;
+    Integer previousRemaining = null;
     for (int attempt = 1; attempt <= 6 && !locked; attempt++) {
       r = answer(r, "password", "password", "wrong-password-" + attempt);
       if (r.statusCode() == 403 && "access_denied".equals(r.jsonPath().getString("error"))) {
@@ -556,15 +576,23 @@ class NativeAuthIT {
       } else {
         assertOffers(r, "password");
         assertEquals("invalid_credential", errorCode(r, "password"), r.asString());
+        // spec/03 §3.3 retry.remaining counts down from failureFactor - 1 (the lock may come earlier
+        // through the quick-login rule, which the counter does not model).
+        int remaining = r.jsonPath().getInt("challenges[0].retry.remaining");
+        assertTrue(remaining >= 0 && remaining <= 5 - attempt, "remaining " + remaining + " after attempt " + attempt);
+        if (previousRemaining != null) assertTrue(remaining < previousRemaining, r.asString());
+        previousRemaining = remaining;
       }
     }
     assertTrue(locked, "expected access_denied within 6 attempts, last response: " + r.asString());
 
-    // A new login for the locked account must not reveal it: the username step answers generically.
+    // A new login for the locked account must not reveal it: the username step answers with the
+    // same phantom password challenge an unknown user gets (spec/03 §4.1).
     r = start(CLIENT, Pkce.s256());
     r = answer(r, "username", "username", "erin");
-    assertChallenge(r, "username");
-    assertEquals("invalid_credential", errorCode(r, "username"), r.asString());
+    assertChallenge(r, "password");
+    assertNull(errorCode(r, "password"), r.asString());
+    assertEquals(null, r.jsonPath().getString("context.username"));
   }
 
   // ---------------------------------------------------------------------------------------------

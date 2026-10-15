@@ -33,6 +33,7 @@ public final class DemoModel {
   public var newPassword = ""
   public var newPasswordConfirm = ""
   public var verifyEmailCode = ""
+  public var recoveryCode = ""
 
   private var sdks: [String: KeycloakNative] = [:]
 
@@ -91,6 +92,7 @@ public final class DemoModel {
     newPassword = ""
     newPasswordConfirm = ""
     verifyEmailCode = ""
+    recoveryCode = ""
     resourceResult = nil
     step = nil
     flow = nil

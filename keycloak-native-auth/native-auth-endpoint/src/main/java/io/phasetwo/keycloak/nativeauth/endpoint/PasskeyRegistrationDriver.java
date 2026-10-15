@@ -161,6 +161,12 @@ final class PasskeyRegistrationDriver {
     if (userSession == null) {
       throw unauthorized("Token has no user session");
     }
+    if (NativeAuthConfig.passkeyRegistrationNativeClientsOnly(realm) && !NativeAuthConfig.isNativeEnabled(auth.getClient())) {
+      // spec/11 D5 option: a web client's token may not add passkeys when the realm says so.
+      String clientId = auth.getClient() == null ? auth.getToken().getIssuedFor() : auth.getClient().getClientId();
+      log.debugf("Passkey registration refused: client %s is not enabled for native authentication", clientId);
+      throw new NativeAuthException(Response.Status.FORBIDDEN, Protocol.ERR_ACCESS_DENIED, "Passkey registration is restricted to native-enabled clients");
+    }
     int maxAge = NativeAuthConfig.passkeyRegistrationMaxAge(realm);
     if (maxAge > 0) {
       int authTime = authTime(userSession);

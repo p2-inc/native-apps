@@ -77,9 +77,8 @@
 - A step-up on a flow without `conditional-level-of-authentication` executions re-runs every factor and keeps `acr=1`; LoA levels need the step-up flow layout (`native-step-up` is the template).
 - `redirect_to_web` requires a full browser login (no hand-off of the native session), PKCE on the native request and a registered redirect URI; the `request_uri` is single use and lives 60 s (realm PAR lifespan).
 - DPoP binding is opportunistic (a session started without a proof stays unbound); no `DPoP-Nonce` at the challenge endpoint; a failed code exchange consumes the code (Keycloak).
-- `native-otp`'s `configuredFor` uses the realm-default channel (`email`), not the execution's config; the SMS webhook sender has no integration test; OTP codes are hashed in the authentication session and die with it.
-- The `KeycloakNativeUI` strings are English literals (no localisation catalogue yet); the product has no tests of its own beyond the demo app's S5/S13 screens.
-- S4–S8/S13 app screens were exercised through the SDK's live tests and compiled for the simulator, not driven by XCUITest.
+- `native-otp`'s `configuredFor` uses the realm-default channel (`email`), not the execution's config; OTP codes are hashed in the authentication session and die with it. (The SMS webhook sender has an integration test since Phase 2b.)
+- (Phase 2b) `KeycloakNativeUI` has a string catalogue (en, de) with an override bundle and model tests; the XCUITests cover S4/S5/S6/S8/S13 and the required actions; S7 stays manual. A VoiceOver / Dynamic Type pass needs a device.
 
 ## 2. Task list
 
@@ -130,8 +129,8 @@ Server (`keycloak-native-auth`) — **Phase 1a done** (decisions in 11):
 - [x] ITs with a hand-written software authenticator (11 D6): allow-list login, discoverable login, registration via required action and via the authenticated endpoints, wrong signature → re-challenge, stale token refused, `[passkey, password]` for alice after username
 - [x] Post-login `auth_session` re-mint (03 §5); `resume()` rejects it with `invalid_session` until step-up (11 D4)
 - [x] Internal-API usage confined to `ChallengeFlowDriver`, `CodeIssuer`, `RequiredActionDriver`, `PasskeyRegistrationDriver` (08 R2, 11)
-- [ ] "Enrol on first login": `native-passkey` adds `native-passkey-register` via `setRequiredActions` when policy says so (04 §4)
-- [ ] Optional: restrict `/passkey/register/*` to native-enabled clients (11 D5)
+- [x] "Enrol on first login": `native-passkey` schedules `native-passkey-register` for the login when `enrol-on-first-login` is set (14 D4)
+- [x] Optional: restrict `/passkey/register/*` to native-enabled clients (11 D5) — realm attribute, Phase 2b (14 D4)
 
 **Phase 1b — iOS SDK core + example app** — **done on macOS** (plan in 05 and 06, decisions in `12-phase1b-decisions.md`):
 
@@ -173,11 +172,11 @@ Server (`keycloak-native-auth`) — **done in Phase 2 (13)** unless marked:
 - [x] `RedirectToWebBuilder`: PAR `request_uri` for non-native required actions (03 §3.4), only with PKCE and a redirect URI; `RedirectToWebIT` with carol + transcript (13 D2)
 - [x] Native variants of UPDATE_PASSWORD, VERIFY_EMAIL, TERMS as `NativeRequiredAction`s (08 Q7) — Phase 2b (14 D1)
 - [x] `native-otp` (`email` via the realm SMTP settings, `sms-webhook` sender) in `native-auth-otp-sender`; `action=resend` with cooldown; mailpit in compose and in the ITs (13 D4)
-- [ ] IT for the `sms-webhook` sender (host-side sink through Testcontainers' `exposeHostPorts`)
+- [x] IT for the `sms-webhook` sender (host-side sink through Testcontainers' `exposeHostPorts`) — Phase 2b (14 D5)
 - [x] DPoP proof verification and binding of `auth_session` / code at the challenge endpoint (13 D3; was a Phase 4 item)
-- [ ] `native-recovery-code` (03 §4.8); `native-select` (03 §4.9, optional)
-- [ ] Username phantom challenge (03 §4.1) and `retry.remaining`
-- [ ] "Enrol on first login" for `native-passkey` (`setRequiredActions`, 04 §4); optional restriction of `/passkey/register/*` to native clients (11 D5)
+- [x] `native-recovery-code` (03 §4.8) — Phase 2b (14 D2); `native-select` (03 §4.9) stays optional and unimplemented
+- [x] Username phantom challenge (03 §4.1) and `retry.remaining` — Phase 2b (14 D3)
+- [x] "Enrol on first login" for `native-passkey` and the native-clients-only restriction — Phase 2b (14 D4)
 - [ ] Well-known `authorization_challenge_endpoint` override (04 §2.3, optional)
 
 iOS SDK (`ios/KeycloakNative`) — **done in Phase 2 (13 D5)** unless marked:
@@ -185,13 +184,13 @@ iOS SDK (`ios/KeycloakNative`) — **done in Phase 2 (13 D5)** unless marked:
 - [x] `FlowStep.redirectToWeb` + `WebFallback` (`ASWebAuthenticationSession` behind a presenter seam, PAR `request_uri`, `state` check, PKCE of the original flow, exchange with `redirect_uri`)
 - [x] `ChallengeAnswer` cases `otp`, `otpResend` plus `OTPParams` (`sent`, `resend_allowed_at`); `recoveryCode`, `select` wait for their authenticators
 - [x] `KeycloakNativeUI` product: `NativeLoginView`, default screens per type, chooser, presenter override, accessibility identifiers; the example app's hand-rolled screens are the "full control" sample
-- [ ] Localisation catalogue for `KeycloakNativeUI` (05 §4); tests of the product itself
+- [x] Localisation catalogue for `KeycloakNativeUI` (05 §4); tests of the product itself — Phase 2b (14 D7)
 - [ ] Completion-handler / Combine variants (05 §2) if UIKit consumers need them
 - [x] Transcript replay: `Harness.replay(seqs:)` for non-contiguous exchanges; the strict field-set rule is kept
 
 Example app — **done in Phase 2** (compiled for the simulator; S4/S6/S7 paths verified through the SDK's live tests, not through XCUITest):
 - [x] S4 (email OTP + resend, mailpit), S5 (default UI with chooser), S6 (step-up with the compose resource server returning `401 insufficient_user_authentication`), S7 (redirect-to-web for carol), S8 (revoked session → `reauthentication_required`), S13 (custom presenter)
-- [ ] XCUITests for S4–S8/S13 (S7 needs a user in Safari)
+- [x] XCUITests for S4/S5/S6/S8/S13 — Phase 2b (14 D7); S7 needs Safari and stays manual
 
 Spec:
 - [ ] Freeze protocol v1.0-rc for the Phase 1 challenge types (`username`, `password`, `totp`, `passkey`, `passkey_registration`); conformance suite = the recorded transcripts (04 §8)
@@ -200,16 +199,16 @@ Spec:
 ### Phase 2b — Close-out of Phase 2 (no hardware needed)
 Server:
 - [x] Native required actions `native-update-password`, `native-verify-email`, `native-terms` as `NativeRequiredAction`s (08 Q7): 03 §4.11–§4.14; they **substitute** for Keycloak's `UPDATE_PASSWORD` / `VERIFY_EMAIL` / `TERMS_AND_CONDITIONS` when registered and enabled (14 D1); carol runs in-band, frank (`UPDATE_PROFILE`) is still redirected (`RequiredActionsIT`, `RedirectToWebIT`)
-- [ ] `native-recovery-code` (03 §4.8) on Keycloak's recovery-codes credential; IT with a user who has codes configured
-- [ ] Username phantom challenge (03 §4.1: unknown user gets a `password` challenge that always fails generically) and `retry.remaining` from the brute-force detector
-- [ ] "Enrol on first login" for `native-passkey` (`setRequiredActions`, 04 §4) behind an authenticator config flag; optional restriction of `/passkey/register/*` to native clients (11 D5)
-- [ ] IT for the `sms-webhook` sender (host-side sink via Testcontainers `exposeHostPorts`); themed email template for the OTP (08 Q10)
-- [ ] Step-up `auth_session` claim lifetime = SSO idle (08 Q11), keeping the `isSessionValid` check
+- [x] `native-recovery-code` (03 §4.8) on Keycloak's recovery-codes credential; user `ivy` with seeded codes, `RecoveryCodeIT` (14 D2)
+- [x] Username phantom challenge (03 §4.1) and `retry.remaining` from the brute-force detector (14 D3; `NativeAuthIT`)
+- [x] "Enrol on first login" for `native-passkey` behind the execution config `enrol-on-first-login`; `/passkey/register/*` restricted to native clients with `native-auth.passkey-registration-native-clients-only` (14 D4, `EnrolOnFirstLoginIT`)
+- [x] IT for the `sms-webhook` sender (host-side sink via Testcontainers `exposeHostPorts`, `SmsOtpIT`, flow `native-sms`); themed email template for the OTP (08 Q10) shipped as theme resources (14 D5)
+- [x] Step-up `auth_session` claim lifetime = SSO idle (08 Q11), keeping the `isSessionValid` check (14 D6, `StepUpIT`)
 - [ ] Well-known `authorization_challenge_endpoint` override (04 §2.3, optional)
 SDK / UI / app:
-- [~] `ChallengeAnswer` + screens for the new types: `updatePassword`, `verifyEmail`, `terms` done (`Phase2bReplayTests`, default screens, demo scenarios carol/grace/hank); `recoveryCode` with slice 2
-- [ ] `KeycloakNativeUI`: `Localizable.xcstrings`, `.nativeLoginStrings(bundle:)`, VoiceOver pass, snapshot or view tests of the default screens
-- [ ] XCUITests for S4 (mailpit code via its API), S5/S13, S6 (TOTP computed in the test), S8; S7 stays manual (Safari)
+- [x] `ChallengeAnswer` + screens for the new types: `updatePassword`, `verifyEmail`, `terms`, `recoveryCode` (`Phase2bReplayTests`, default screens, demo scenarios carol/grace/hank/ivy); `retry.remaining` shown
+- [x] `KeycloakNativeUI`: `Localizable.xcstrings` (en, de), `.nativeLoginStrings(bundle:)` with fallback to the package catalogue, model tests of the default screens (`KeycloakNativeUITests`, 14 D7); a VoiceOver pass on hardware is still open
+- [x] XCUITests for S4 (mailpit code via its API), S5/S13, S6 (TOTP computed in the test), S8, carol/grace/hank; S7 stays manual (Safari) (14 D7)
 - [ ] Completion-handler / Combine variants of the async API (05 §2) if UIKit consumers need them
 - [ ] Protocol v1.0-rc freeze for all implemented types once the native required actions land (04 §8)
 

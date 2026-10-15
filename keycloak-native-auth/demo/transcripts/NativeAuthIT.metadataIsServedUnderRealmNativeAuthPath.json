@@ -1,8 +1,8 @@
 {
   "test": "NativeAuthIT.metadataIsServedUnderRealmNativeAuthPath",
-  "recorded_at": "2026-10-15T10:37:50.363444Z",
+  "recorded_at": "2026-10-15T11:06:57.676472Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:51441",
+  "base_url": "http://localhost:53335",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -34,16 +34,16 @@
         "json": {
           "protocol_version": "1",
           "fipa_draft": "draft-ietf-oauth-first-party-apps-04",
-          "authorization_challenge_endpoint": "http://localhost:51441/realms/demo/native-auth/challenge",
-          "token_endpoint": "http://localhost:51441/realms/demo/protocol/openid-connect/token",
-          "authorization_endpoint": "http://localhost:51441/realms/demo/protocol/openid-connect/auth",
+          "authorization_challenge_endpoint": "http://localhost:53335/realms/demo/native-auth/challenge",
+          "token_endpoint": "http://localhost:53335/realms/demo/protocol/openid-connect/token",
+          "authorization_endpoint": "http://localhost:53335/realms/demo/protocol/openid-connect/auth",
           "code_exchange": {
             "redirect_uri_required": false
           },
           "passkey": {
             "rp_id": "localhost",
-            "register_options_endpoint": "http://localhost:51441/realms/demo/native-auth/passkey/register/options",
-            "register_finish_endpoint": "http://localhost:51441/realms/demo/native-auth/passkey/register/finish"
+            "register_options_endpoint": "http://localhost:53335/realms/demo/native-auth/passkey/register/options",
+            "register_finish_endpoint": "http://localhost:53335/realms/demo/native-auth/passkey/register/finish"
           },
           "challenge_types_supported": [
             "username",
@@ -52,6 +52,7 @@
             "passkey_registration",
             "totp",
             "otp",
+            "recovery_code",
             "update_password",
             "verify_email",
             "terms"

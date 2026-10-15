@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.keycloak.WebAuthnConstants;
+import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.CredentialValidator;
@@ -22,6 +23,8 @@ import org.keycloak.credential.WebAuthnPasswordlessCredentialProviderFactory;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -96,10 +99,67 @@ public class NativePasskeyAuthenticator extends NativeAuthenticatorBase
         return;
       }
       // Known user without a passkey: nothing to offer here, let the next alternative challenge.
+      if (enrolOnFirstLogin(context)) {
+        // spec/14 D4: the passkey is enrolled in-band once the other alternative has authenticated.
+        RequiredActionProviderModel action = context.getRealm().getRequiredActionProviderByAlias(Protocol.PASSKEY_REGISTER_ACTION);
+        if (action != null && action.isEnabled()) {
+          context.getAuthenticationSession().addRequiredAction(Protocol.PASSKEY_REGISTER_ACTION);
+          log.debugf("native-passkey: user %s has no passkey; scheduling %s for this login", user.getUsername(), Protocol.PASSKEY_REGISTER_ACTION);
+        } else {
+          log.warnf("native-passkey: %s is on but required action %s is not enabled in realm %s", NativePasskeyAuthenticatorFactory.CONFIG_ENROL_ON_FIRST_LOGIN, Protocol.PASSKEY_REGISTER_ACTION, context.getRealm().getName());
+        }
+      }
       context.attempted();
       return;
     }
     super.authenticate(context);
+  }
+
+  private static boolean enrolOnFirstLogin(AuthenticationFlowContext context) {
+    return enrolOnFirstLogin(context.getRealm(), context.getAuthenticatorConfig());
+  }
+
+  private static boolean enrolOnFirstLogin(RealmModel realm, AuthenticatorConfigModel config) {
+    return config != null
+        && config.getConfig() != null
+        && Boolean.parseBoolean(config.getConfig().get(NativePasskeyAuthenticatorFactory.CONFIG_ENROL_ON_FIRST_LOGIN));
+  }
+
+  /**
+   * "Enrol on first login" (spec/14 D4), called by {@code native-username} once a user is identified:
+   * the engine never runs this authenticator for a known user without a passkey (the selection
+   * resolver drops credential-based alternatives the user lacks), so the username step checks the
+   * flow's {@code native-passkey} executions for the flag and schedules {@code
+   * native-passkey-register} for this login. Idempotent; a no-op when the user has a passkey.
+   */
+  public static void scheduleEnrolmentOnFirstLogin(AuthenticationFlowContext context, UserModel user) {
+    RealmModel realm = context.getRealm();
+    if (!NativeRequestContext.isNative(context) || context.getTopLevelFlow() == null) {
+      return;
+    }
+    boolean flagged =
+        flowOrder(realm, context.getTopLevelFlow()).keySet().stream()
+            .map(realm::getAuthenticationExecutionById)
+            .anyMatch(
+                e ->
+                    e != null
+                        && !e.isAuthenticatorFlow()
+                        && !e.isDisabled()
+                        && NativePasskeyAuthenticatorFactory.PROVIDER_ID.equals(e.getAuthenticator())
+                        && enrolOnFirstLogin(realm, realm.getAuthenticatorConfigById(e.getAuthenticatorConfig())));
+    if (!flagged || user.credentialManager().isConfiguredFor(WebAuthnCredentialModel.TYPE_PASSWORDLESS)) {
+      return;
+    }
+    RequiredActionProviderModel action = realm.getRequiredActionProviderByAlias(Protocol.PASSKEY_REGISTER_ACTION);
+    if (action == null || !action.isEnabled()) {
+      Logger.getLogger(NativePasskeyAuthenticator.class).warnf(
+          "native-passkey: %s is on but required action %s is not enabled in realm %s",
+          NativePasskeyAuthenticatorFactory.CONFIG_ENROL_ON_FIRST_LOGIN, Protocol.PASSKEY_REGISTER_ACTION, realm.getName());
+      return;
+    }
+    context.getAuthenticationSession().addRequiredAction(Protocol.PASSKEY_REGISTER_ACTION);
+    Logger.getLogger(NativePasskeyAuthenticator.class).debugf(
+        "native-passkey: user %s has no passkey; scheduling %s for this login", user.getUsername(), Protocol.PASSKEY_REGISTER_ACTION);
   }
 
   // ---------------------------------------------------------------------------------------------

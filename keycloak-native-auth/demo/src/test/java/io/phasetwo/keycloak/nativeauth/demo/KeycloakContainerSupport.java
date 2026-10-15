@@ -24,6 +24,7 @@ final class KeycloakContainerSupport {
 
   private static GenericContainer<?> container;
   private static GenericContainer<?> mailpit;
+  private static SmsSink smsSink;
   private static String baseUrl;
   private static String mailpitUrl;
 
@@ -54,10 +55,18 @@ final class KeycloakContainerSupport {
       mailpitUrl = "http://" + mp.getHost() + ":" + mp.getMappedPort(8025);
       Runtime.getRuntime().addShutdownHook(new Thread(mp::stop));
 
+      // Host-side sink for the sms-webhook sender (SmsOtpIT): the container reaches it through
+      // Testcontainers' host.testcontainers.internal alias.
+      SmsSink sink = SmsSink.start();
+      smsSink = sink;
+      org.testcontainers.Testcontainers.exposeHostPorts(sink.port());
+
       GenericContainer<?> kc =
           new GenericContainer<>(image)
               .withNetwork(network)
               .withCommand("start-dev", "--import-realm")
+              .withEnv("KC_SPI_NATIVE_OTP_SENDER__SMS_WEBHOOK__URL", "http://host.testcontainers.internal:" + sink.port() + "/sms")
+              .withEnv("KC_SPI_NATIVE_OTP_SENDER__SMS_WEBHOOK__TOKEN", SmsSink.TOKEN)
               .withEnv("KC_BOOTSTRAP_ADMIN_USERNAME", ADMIN)
               .withEnv("KC_BOOTSTRAP_ADMIN_PASSWORD", ADMIN_PASSWORD)
               .withEnv("KC_HTTP_ENABLED", "true")
@@ -95,6 +104,12 @@ final class KeycloakContainerSupport {
       TranscriptRecorder.install();
     }
     return baseUrl;
+  }
+
+  /** The host-side webhook the {@code sms-webhook} sender posts to (started with the container). */
+  static SmsSink smsSink() {
+    baseUrl();
+    return smsSink;
   }
 
   /** Base URL of the mailpit HTTP API ({@code /api/v1/messages}) for the email OTP tests. */

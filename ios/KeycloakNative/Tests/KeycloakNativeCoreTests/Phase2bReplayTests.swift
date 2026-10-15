@@ -112,6 +112,124 @@ import Testing
     #expect(transport.remaining == 0)
   }
 
+  // MARK: - Recovery codes (spec/03 §4.8, spec/14 D2)
+
+  private func ivySecondFactor(_ h: Harness) async throws -> (NativeLoginFlow, [Challenge]) {
+    let flow = h.sdk.authentication().startLogin(Self.itParameters)
+    var step = try await flow.start()
+    step = try await flow.respond(.username("ivy"), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password("ivy-password"), to: try #require(step.challenges?.first(.password)))
+    return (flow, try #require(step.challenges))
+  }
+
+  @Test func ivyUsesARecoveryCodeInsteadOfTheTotp() async throws {
+    // Exchanges 1-6: [totp, recovery_code], a wrong code, then a code in display format → tokens.
+    let (h, transport, _) = try Harness.replay(["RecoveryCodeIT.ivyUsesRecoveryCodesUntilTheyRunOut"], clientId: Self.client, range: 1...6)
+    let (flow, set) = try await ivySecondFactor(h)
+    #expect(set.types == ["totp", "recovery_code"] && set[1].required == false)
+    let recovery = try #require(set.first(.recoveryCode))
+    #expect(recovery.recoveryCodeParams?.remaining == 3 && recovery.recoveryCodeParams?.warningThreshold == 4 && recovery.recoveryCodeParams?.shouldWarn == true)
+    var step = try await flow.respond(.recoveryCode("IVY9-IVY9-IVY9"), to: recovery)
+    let wrong = try #require(step.challenges?.first(.recoveryCode))
+    #expect(wrong.error?.code == ChallengeError.Code.invalidCredential && wrong.recoveryCodeParams?.remaining == 3)
+    step = try await flow.respond(.recoveryCode("ivy1-ivy1-ivy1"), to: wrong)
+    #expect(step.credentials?.accessTokenClaims?["preferred_username"]?.stringValue == "ivy")
+    let logged = h.observer.entries.compactMap(\.requestBody).joined()
+    #expect(!logged.contains("IVY9") && !logged.contains("ivy1"), "recovery codes are masked in the flow log")
+    #expect(transport.remaining == 0)
+  }
+
+  @Test func ivyUsedCodeIsRefusedAndTheCountGoesDown() async throws {
+    // Exchanges 7-10: the second login shows remaining 2 and refuses the code used before (the IT's
+    // second successful code was not exchanged, so the replay stops there).
+    let (h, transport, _) = try Harness.replay(["RecoveryCodeIT.ivyUsesRecoveryCodesUntilTheyRunOut"], clientId: Self.client, range: 7...10)
+    let (flow, set) = try await ivySecondFactor(h)
+    let recovery = try #require(set.first(.recoveryCode))
+    #expect(recovery.recoveryCodeParams?.remaining == 2)
+    let step = try await flow.respond(.recoveryCode("IVY1IVY1IVY1"), to: recovery)
+    #expect(step.challenges?.first(.recoveryCode)?.error?.code == ChallengeError.Code.invalidCredential)
+    #expect(transport.remaining == 0)
+  }
+
+  @Test func ivyLastRecoveryCodeHandsTheLoginToTheBrowser() async throws {
+    let (h, transport, _) = try Harness.replay(["RecoveryCodeIT.ivyUsesRecoveryCodesUntilTheyRunOut"], clientId: Self.client, range: 12...18)
+    let flow = h.sdk.authentication().startLogin(Self.itParameters)
+    var step = try await flow.start()
+    step = try await flow.respond(.username("ivy"), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password("ivy-password"), to: try #require(step.challenges?.first(.password)))
+    let recovery = try #require(step.challenges?.first(.recoveryCode))
+    #expect(recovery.recoveryCodeParams?.remaining == 1)
+    step = try await flow.respond(.recoveryCode("IVY3IVY3IVY3"), to: recovery)
+    guard case .redirectToWeb(let request) = step else { Issue.record("expected redirect_to_web, got \(step)"); return }
+    #expect(request.reason == "required_action:CONFIGURE_RECOVERY_AUTHN_CODES")
+
+    let again = h.sdk.authentication().startLogin(Self.itParameters)
+    step = try await again.start()
+    step = try await again.respond(.username("ivy"), to: try #require(step.challenges?.first(.username)))
+    step = try await again.respond(.password("ivy-password"), to: try #require(step.challenges?.first(.password)))
+    #expect(step.challenges?.types == ["totp"], "no code left: the alternative is gone")
+    #expect(transport.remaining == 0)
+  }
+
+  // MARK: - Enrol on first login (spec/14 D4), SMS webhook (spec/14 D5), idle-timeout auth_session (spec/14 D6)
+
+  @Test func bobEnrolsAPasskeyRightAfterHisFirstPasswordLogin() async throws {
+    let (h, transport, t) = try Harness.replay(["EnrolOnFirstLoginIT.bobEnrolsAPasskeyRightAfterHisFirstPasswordLogin"], clientId: Self.client)
+    h.passkeys.enqueue(PasskeyAttestation(form: t[0].form(4)))
+    let flow = h.sdk.authentication().startLogin(Self.itParameters)
+    var step = try await flow.start()
+    step = try await flow.respond(.username("bob"), to: try #require(step.challenges?.first(.username)))
+    #expect(step.challenges?.types == ["password"], "no passkey yet: the password is the only primary factor")
+    step = try await flow.respond(.password("bob-password"), to: try #require(step.challenges?.first(.password)))
+    let registration = try #require(step.challenges?.first(.passkeyRegistration))
+    #expect(registration.id == "native-passkey-register" && registration.required && registration.type.isRequiredAction)
+    let params = try #require(registration.passkeyRegistrationParams)
+    #expect(params.user.name == "bob")
+    step = try await flow.respond(.passkeyRegistration(try await h.sdk.passkeys().register(params), label: "Bob's phone"), to: registration)
+    #expect(step.credentials?.accessTokenClaims?["preferred_username"]?.stringValue == "bob")
+
+    // The next login offers the new passkey beside the password.
+    let again = h.sdk.authentication().startLogin(Self.itParameters)
+    step = try await again.start()
+    step = try await again.respond(.username("bob"), to: try #require(step.challenges?.first(.username)))
+    #expect(step.challenges?.types == ["passkey", "password"] && step.challenges?.first(.passkey)?.passkeyParams?.discoverable == false)
+    #expect(transport.remaining == 0)
+  }
+
+  @Test func bobGetsAnSmsCodeThroughTheWebhook() async throws {
+    let (h, transport, _) = try Harness.replay(["SmsOtpIT.bobGetsAnSmsCodeThroughTheWebhook"], clientId: "demo-ios-sms")
+    let flow = h.sdk.authentication().startLogin(Self.itParameters)
+    var step = try await flow.start()
+    step = try await flow.respond(.username("bob"), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password("bob-password"), to: try #require(step.challenges?.first(.password)))
+    let otp = try #require(step.challenges?.first(.otp))
+    let params = try #require(otp.otpParams)
+    #expect(otp.required && params.channel == "sms" && params.destinationMasked == "***23" && params.sent)
+    step = try await flow.respond(.otp("000000"), to: otp)
+    let wrong = try #require(step.challenges?.first(.otp))
+    #expect(wrong.error?.code == ChallengeError.Code.invalidCredential && wrong.otpParams?.sent == true)
+    step = try await flow.respond(.otp("000000"), to: wrong)
+    #expect(step.credentials?.accessTokenClaims?["preferred_username"]?.stringValue == "bob")
+    #expect(transport.remaining == 0)
+  }
+
+  @Test func postLoginAuthSessionDiesWithTheIdleTimeoutEvenIfTheSessionIsKeptAlive() async throws {
+    // 1-4: login + exchange; 5: a refresh keeps the session alive; 6: the step-up with the expired
+    // post-login auth_session is invalid_session (the IT's final refresh, 7, is not replayed).
+    let (h, transport, _) = try Harness.replay(["StepUpIT.postLoginAuthSessionDiesWithTheIdleTimeoutEvenIfTheSessionIsKeptAlive"], clientId: Phase2ReplayTests.stepUpClient, range: 1...6)
+    let flow = h.sdk.authentication().startLogin(Self.itParameters)
+    var step = try await flow.start()
+    step = try await flow.respond(.username("alice"), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password("alice-password"), to: try #require(step.challenges?.first(.password)))
+    let credentials = try #require(step.credentials)
+    let refreshed = try await h.sdk.tokens().refresh(credentials)
+    #expect(refreshed.authSession == credentials.authSession, "a refresh does not renew the post-login auth_session")
+    let stepUp = try await h.sdk.authentication().stepUp(LoginParameters(scope: "openid profile", acrValues: "2", deviceName: "NativeAuthIT"), authSession: refreshed.authSession)
+    let error = await #expect(throws: NativeAuthError.self) { try await stepUp.start() }
+    #expect(error?.code == NativeAuthError.Code.invalidSession, "the idle timeout passed: log in again (spec/14 D6)")
+    #expect(transport.remaining == 0)
+  }
+
   @Test func answersCarryTheRightFields() {
     #expect(ChallengeAnswer.updatePassword("a", confirm: "b").formFields.map(\.name) == ["password", "password_confirm"])
     #expect(ChallengeAnswer.verifyEmail(code: "1").formFields.map { "\($0.name)=\($0.value)" } == ["code=1"])

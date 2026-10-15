@@ -2,3 +2,4 @@ io.phasetwo.keycloak.nativeauth.authenticators.NativeUsernameAuthenticatorFactor
 io.phasetwo.keycloak.nativeauth.authenticators.NativePasswordAuthenticatorFactory
 io.phasetwo.keycloak.nativeauth.authenticators.NativeTotpAuthenticatorFactory
 io.phasetwo.keycloak.nativeauth.authenticators.NativePasskeyAuthenticatorFactory
+io.phasetwo.keycloak.nativeauth.authenticators.NativeRecoveryCodeAuthenticatorFactory

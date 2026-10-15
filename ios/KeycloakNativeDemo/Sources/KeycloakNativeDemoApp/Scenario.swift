@@ -18,6 +18,7 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
   case carolUpdatePassword
   case graceVerifyEmail
   case hankTerms
+  case ivyRecoveryCode
 
   public var id: String { rawValue }
 
@@ -38,6 +39,7 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .carolUpdatePassword: "Update password in-band (carol)"
     case .graceVerifyEmail: "Verify email with a code (grace)"
     case .hankTerms: "Accept terms and conditions (hank)"
+    case .ivyRecoveryCode: "Recovery code instead of TOTP (ivy)"
     }
   }
 
@@ -73,6 +75,8 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
       "grace / grace-password has VERIFY_EMAIL pending; native-verify-email sends a 6-digit code to g***@example.com (mailpit, http://localhost:8025) as soon as the challenge appears (spec/03 §4.13); resend has a 30 s cooldown."
     case .hankTerms:
       "hank / hank-password has TERMS_AND_CONDITIONS pending; native-terms shows the realm's terms text and link (spec/03 §4.14). Accept continues to the tokens; Decline ends the login with access_denied."
+    case .ivyRecoveryCode:
+      "ivy / ivy-password has TOTP and three recovery codes: the second factor offers [totp, recovery_code] (spec/03 §4.8). Codes IVY1-IVY1-IVY1, IVY2-IVY2-IVY2, IVY3-IVY3-IVY3 are single use and consumed in order; after the last one Keycloak requires new codes (redirect to web). Reset with docker compose down -v."
     }
   }
 
@@ -104,6 +108,7 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .carolUpdatePassword: "carol"
     case .graceVerifyEmail: "grace"
     case .hankTerms: "hank"
+    case .ivyRecoveryCode: "ivy"
     case .s2DiscoverablePasskey: nil
     }
   }

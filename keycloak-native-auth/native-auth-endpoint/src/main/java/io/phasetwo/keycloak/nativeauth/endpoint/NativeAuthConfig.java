@@ -113,6 +113,11 @@ public final class NativeAuthConfig {
     }
   }
 
+  /** spec/11 D5: whether {@code /passkey/register/*} accept only tokens issued to native-enabled clients. */
+  public static boolean passkeyRegistrationNativeClientsOnly(RealmModel realm) {
+    return Boolean.parseBoolean(realm.getAttribute(Protocol.ATTR_PASSKEY_REGISTRATION_NATIVE_CLIENTS_ONLY));
+  }
+
   /** Realm-level description for metadata (client-specific values cannot be shown there). */
   public static Metadata.CodeExchange codeExchangeMetadata(RealmModel realm) {
     return switch (codeRedirectUriMode(realm)) {

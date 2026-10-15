@@ -91,7 +91,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
 { "authorization_code": "…", "auth_session": "…" }
 ```
 
-`auth_session` MAY be present; if so the client MUST store it and replace any earlier copy. The Keycloak implementation always returns it: a **post-login** value bound to the user session (lifetime = SSO session max, 11 D4) that the client presents in a §2.1 request to step up or re-authenticate without typing the username again (§5, 13 D1). It is also bound to the DPoP key when the login used one (§8). Exchange the code at the token endpoint with `grant_type=authorization_code`, `client_id`, `code`, `code_verifier`, and **no** `redirect_uri` — unless metadata says otherwise: `code_exchange.redirect_uri_required` is `false` by default (Keycloak accepts a code stored without a redirect URI when the token request omits the parameter; verified in 09 Q1). When it is `true` the client MUST send exactly `code_exchange.redirect_uri` (operator-chosen `sentinel` or `client-fixed` mode).
+`auth_session` MAY be present; if so the client MUST store it and replace any earlier copy. The Keycloak implementation always returns it: a **post-login** value bound to the user session (lifetime = the realm's SSO **idle** timeout from the moment it was issued, never beyond the SSO session max, 14 D6; a successful step-up and a §6 refusal issue a fresh one) that the client presents in a §2.1 request to step up or re-authenticate without typing the username again (§5, 13 D1). It is also bound to the DPoP key when the login used one (§8). Exchange the code at the token endpoint with `grant_type=authorization_code`, `client_id`, `code`, `code_verifier`, and **no** `redirect_uri` — unless metadata says otherwise: `code_exchange.redirect_uri_required` is `false` by default (Keycloak accepts a code stored without a redirect URI when the token request omits the parameter; verified in 09 Q1). When it is `true` the client MUST send exactly `code_exchange.redirect_uri` (operator-chosen `sentinel` or `client-fixed` mode).
 
 ### 3.2 Challenge — more input required
 
@@ -127,7 +127,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
   "id": "4f2e…",            // execution id, echo as challenge_id
   "label": "Sign in with a passkey",
   "required": true,          // false when it is one of several alternatives
-  "retry": { "remaining": 3 },      // optional; present after a failed attempt
+  "retry": { "remaining": 3 },      // optional; on the descriptor that just failed: attempts left before the account is locked (realm brute-force protection)
   "error": { "code": "invalid_credential", "message": "…" },  // optional; the previous attempt failed
   "params": { …type-specific… }
 }
@@ -175,13 +175,13 @@ params:
 { "allow_email": true, "hint": "alice" }
 ```
 response: `username=<string>`
-Failure: the server MUST NOT reveal whether the user exists; it re-issues the challenge set as if the user existed, with `error.code = "invalid_user"` only when realm policy permits (configurable; default: generic).
+Failure: the server MUST NOT reveal whether the user exists. The Keycloak implementation answers an unknown (or disabled / locked) username with a **phantom** `password` challenge that looks like a real user's: the set is `[password]` with `params.username_known = true`, every answer fails with `error.code = "invalid_credential"` and a decreasing `retry.remaining`, and after the realm's `failureFactor` attempts the flow ends with `403 access_denied` ("Account temporarily locked"), exactly as for an existing user with wrong passwords. Only the `native-username` setting `reveal-user-not-found=true` changes this into an immediate re-challenge of `username` with `error.code = "invalid_user"`. A phantom session can never be authenticated through the password; a discoverable `passkey` alternative in the same set still identifies a real user through `user_handle` as usual.
 
 ### 4.2 `password`
 
 params: `{ "username_known": true }`
 response: `password=<string>`
-Notes: supports realm brute-force detection via the processor. The SDK MUST send over TLS only and never log the value.
+Notes: supports realm brute-force detection via the processor; after a wrong password the descriptor carries `retry.remaining` (§3.3) when the realm's brute-force protection is on. The SDK MUST send over TLS only and never log the value.
 
 ### 4.3 `passkey` — WebAuthn assertion (login)
 
@@ -301,7 +301,7 @@ Types not understood by a client MUST be ignored unless they are the only `requi
 
 ## 5. Session semantics
 
-- `auth_session` is opaque (a JWE). Encodes `{ root_session_id, tab_id, client_id, issued_at, dpop_jkt? }`. Lifetime = realm *login timeout* (default 30 min) while a flow is in progress; after code issuance it is re-minted with lifetime = SSO session max so it can be used for step-up.
+- `auth_session` is opaque (a JWE). Encodes `{ root_session_id, tab_id, client_id, issued_at, dpop_jkt? }`. Lifetime = realm *login timeout* (default 30 min) while a flow is in progress; after code issuance it is re-minted (post-login shape, pointing at the user session) with lifetime = the realm's SSO *idle* timeout, capped by the SSO session max, so it can be used for step-up while the session is in use; an expired or ended-session value is `invalid_session` and the client logs in again (14 D6).
 - A new `auth_session` value MAY be returned on **any** response; the client MUST always replace its stored copy.
 - Step-up / re-authentication (13 D1): send the **post-login** `auth_session` together with a complete §2.1 request (new PKCE pair, `scope`, and `acr_values` and/or `max_age`/`prompt=login`). The server checks that the client matches, that the user session behind the value is still valid and the user enabled (else `invalid_session`: start a fresh login), and the DPoP binding (§8). It then runs the native flow as an SSO re-authentication: the user is already identified (the `username` challenge is skipped and `context.username` is set from the first response), the levels already authenticated in the user session are carried over, and only the "Condition - Level of Authentication" sub-flows whose level the request needs produce challenges. `acr_values` is mapped to a level through the client/realm ACR-to-LoA map, or taken literally when numeric (Keycloak semantics). `max_age` (when the authentication is older) and `prompt=login` force every level to be authenticated again. When nothing has to be asked the server answers `200` with a code at once. On success a new code is issued for the **same** user session (same `sid`), the tokens carry the new `acr` and, when a factor was run, a new `auth_time`; the success body carries a fresh post-login `auth_session`. A flow without LoA conditions re-runs all its factors.
 - Freshness for §6: `/passkey/register/*` answer a stale authentication with `403 insufficient_authorization` **plus** `auth_session` (post-login) and `max_age` (the realm's limit); the client steps up with that `auth_session` and `max_age`, then retries.

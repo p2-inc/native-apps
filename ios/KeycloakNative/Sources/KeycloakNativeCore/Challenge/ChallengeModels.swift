@@ -54,11 +54,11 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     }
   }
 
-  /// Whether this SDK version has a `ChallengeAnswer` for the type. `push`, `recovery_code` and
-  /// `select` are specified but arrive with the Phase 3 server work.
+  /// Whether this SDK version has a `ChallengeAnswer` for the type. `push` and `select` are
+  /// specified but arrive with the Phase 3 server work.
   public var isSupported: Bool {
     switch self {
-    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp, .updatePassword, .verifyEmail, .terms: true
+    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp, .recoveryCode, .updatePassword, .verifyEmail, .terms: true
     default: false
     }
   }
@@ -156,9 +156,27 @@ public struct Challenge: Sendable, Identifiable, Equatable {
     type == .passkeyRegistration ? PasskeyRegistrationParams(json: params) : nil
   }
   public var otpParams: OTPParams? { type == .otp ? OTPParams(json: params) : nil }
+  public var recoveryCodeParams: RecoveryCodeParams? { type == .recoveryCode ? RecoveryCodeParams(json: params) : nil }
   public var updatePasswordParams: UpdatePasswordParams? { type == .updatePassword ? UpdatePasswordParams(json: params) : nil }
   public var verifyEmailParams: VerifyEmailParams? { type == .verifyEmail ? VerifyEmailParams(json: params) : nil }
   public var termsParams: TermsParams? { type == .terms ? TermsParams(json: params) : nil }
+}
+
+/// spec/03 §4.8 — how many single-use recovery codes are left before this attempt.
+public struct RecoveryCodeParams: Sendable, Equatable {
+  public let remaining: Int?
+  /// The realm's `recoveryCodesWarningThreshold`: suggest generating new codes at or below it.
+  public let warningThreshold: Int?
+
+  public init(json: JSONValue) {
+    remaining = json["remaining"]?.intValue
+    warningThreshold = json["warning_threshold"]?.intValue
+  }
+
+  public var shouldWarn: Bool {
+    guard let remaining, let warningThreshold else { return false }
+    return remaining <= warningThreshold
+  }
 }
 
 /// spec/03 §4.12 — the realm's password policy, for pre-validation and hints.
@@ -500,8 +518,10 @@ public enum ChallengeAnswer: Sendable, Equatable {
   case verifyEmailResend
   /// `terms` (spec/03 §4.14): `accepted=true` continues, `accepted=false` ends the login.
   case terms(accepted: Bool)
-  // EXTENSION POINT (Phase 3): push(poll|cancel), recoveryCode(String), select(challengeId:) follow
-  // the server-side authenticators.
+  /// `recovery_code` (spec/03 §4.8): one single-use code; separators and case do not matter.
+  case recoveryCode(String)
+  // EXTENSION POINT (Phase 3): push(poll|cancel), select(challengeId:) follow the server-side
+  // authenticators.
 
   public var challengeType: ChallengeType {
     switch self {
@@ -514,6 +534,7 @@ public enum ChallengeAnswer: Sendable, Equatable {
     case .updatePassword: .updatePassword
     case .verifyEmail, .verifyEmailResend: .verifyEmail
     case .terms: .terms
+    case .recoveryCode: .recoveryCode
     }
   }
 
@@ -546,6 +567,8 @@ public enum ChallengeAnswer: Sendable, Equatable {
       return [("action", "resend")]
     case .terms(let accepted):
       return [("accepted", accepted ? "true" : "false")]
+    case .recoveryCode(let code):
+      return [("recovery_code", code)]
     }
   }
 }

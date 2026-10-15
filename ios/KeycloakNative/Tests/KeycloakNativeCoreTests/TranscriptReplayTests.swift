@@ -114,15 +114,28 @@ import Testing
     #expect(step.challenges?.first(.password)?.error?.code == ChallengeError.Code.missingCredential)
   }
 
-  @Test func unknownUsernameRechallengesGenerically() async throws {
-    let (h, _, t) = try Harness.replay(["NativeAuthIT.unknownUsernameRechallengesWithGenericError"], clientId: Self.demoIOS)
+  @Test func unknownUsernameGetsAPhantomPasswordChallengeThatLocksLikeARealAccount() async throws {
+    // spec/03 §4.1 (spec/14 D3): the unknown user sees [password], invalid_credential with a
+    // retry.remaining countdown, then access_denied — indistinguishable from a real account.
+    let (h, transport, t) = try Harness.replay(["NativeAuthIT.unknownUsernameGetsAPhantomPasswordChallengeThatLocksLikeARealAccount"], clientId: Self.demoIOS)
     let flow = h.sdk.authentication().startLogin(Self.itParameters)
     var step = try await flow.start()
     let sent = try #require(t[0].form(2)["username"])
     step = try await flow.respond(.username(sent), to: try #require(step.challenges?.first(.username)))
     guard case .challenges(let set, let context) = step else { Issue.record("expected challenges"); return }
-    #expect(set.types == ["username"] && set[0].error?.code == "invalid_credential")
-    #expect(context.username == nil)
+    #expect(set.types == ["password"] && set[0].required && set[0].passwordParams?.usernameKnown == true && set[0].error == nil)
+    #expect(context.username == nil, "a phantom user is never identified")
+    step = try await flow.respond(.password(""), to: set[0])
+    #expect(step.challenges?.first(.password)?.error?.code == ChallengeError.Code.missingCredential)
+    for expectedRemaining in [4, 3, 2, 1] {
+      let password = try #require(step.challenges?.first(.password))
+      step = try await flow.respond(.password("wrong"), to: password)
+      let failed = try #require(step.challenges?.first(.password))
+      #expect(failed.error?.code == ChallengeError.Code.invalidCredential && failed.retry?.remaining == expectedRemaining)
+    }
+    let locked = await #expect(throws: NativeAuthError.self) { try await flow.respond(.password("wrong"), to: try #require(step.challenges?.first(.password))) }
+    #expect(locked?.code == NativeAuthError.Code.accessDenied && locked?.errorDescription?.lowercased().contains("locked") == true)
+    #expect(transport.remaining == 0)
   }
 
   // MARK: - Sessions and errors (spec/03 §3.5)
@@ -212,7 +225,8 @@ import Testing
       let password = try #require(step.challenges?.first(.password))
       do {
         step = try await flow.respond(.password("wrong-password-\(attempt)"), to: password)
-        #expect(step.challenges?.first(.password)?.error?.code == "invalid_credential")
+        let failed = try #require(step.challenges?.first(.password))
+        #expect(failed.error?.code == "invalid_credential" && (failed.retry?.remaining ?? -1) >= 0, "retry.remaining counts down (spec/03 §3.3)")
       } catch let error as NativeAuthError {
         locked = error
         break
@@ -223,11 +237,13 @@ import Testing
     let v21 = await flow.currentState
     #expect(v21 == .finished)
 
-    // The locked account is not revealed on a new login.
+    // The locked account is not revealed on a new login: the same phantom password challenge an
+    // unknown user gets (spec/03 §4.1).
     let second = h.sdk.authentication().startLogin(Self.itParameters)
     step = try await second.start()
     step = try await second.respond(.username("erin"), to: try #require(step.challenges?.first(.username)))
-    #expect(step.challenges?.types == ["username"] && step.challenges?.first?.error?.code == "invalid_credential")
+    guard case .challenges(let set, let context) = step else { Issue.record("expected the phantom password challenge"); return }
+    #expect(set.types == ["password"] && set[0].error == nil && context.username == nil)
     #expect(transport.remaining == 0)
   }
 

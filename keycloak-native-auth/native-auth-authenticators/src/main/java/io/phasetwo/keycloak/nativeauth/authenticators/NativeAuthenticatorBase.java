@@ -24,6 +24,7 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserLoginFailureModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
@@ -174,11 +175,32 @@ public abstract class NativeAuthenticatorBase implements NativeAuthenticator {
 
   /** Re-issue the set with {@code error} on this challenge and count it as a failed attempt. */
   protected void failAndRechallenge(AuthenticationFlowContext context, String code, String message) {
-    challenge(
-        context,
-        buildChallengeSet(context, new ChallengeDescriptor.ChallengeError(code, message)),
-        true,
-        AuthenticationFlowError.INVALID_CREDENTIALS);
+    List<ChallengeDescriptor> set = buildChallengeSet(context, new ChallengeDescriptor.ChallengeError(code, message));
+    ChallengeDescriptor.Retry retry = retryAfterThisFailure(context);
+    if (retry != null) {
+      String current = context.getExecution().getId();
+      set.stream().filter(d -> current.equals(d.getId())).findFirst().ifPresent(d -> d.setRetry(retry));
+    }
+    challenge(context, set, true, AuthenticationFlowError.INVALID_CREDENTIALS);
+  }
+
+  /**
+   * {@code retry.remaining} (spec/03 §3.3): attempts left before the realm's brute-force protection
+   * locks the account, counting the failure being reported now (the processor records it after this
+   * method returns). {@code null} when the realm has no brute-force protection.
+   */
+  protected ChallengeDescriptor.Retry retryAfterThisFailure(AuthenticationFlowContext context) {
+    RealmModel realm = context.getRealm();
+    if (!realm.isBruteForceProtected() || realm.getFailureFactor() <= 0) {
+      return null;
+    }
+    UserModel user = context.getUser();
+    if (user == null) {
+      return null;
+    }
+    UserLoginFailureModel failures = context.getSession().loginFailures().getUserLoginFailure(realm, user.getId());
+    int recorded = failures == null ? 0 : failures.getNumFailures();
+    return new ChallengeDescriptor.Retry(Math.max(0, realm.getFailureFactor() - (recorded + 1)));
   }
 
   /** Re-issue the set with {@code error} on this challenge without counting a failed attempt. */

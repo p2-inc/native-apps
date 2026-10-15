@@ -12,9 +12,10 @@ dependencies):
   exchange/refresh/revoke/logout and a Keychain-backed `CredentialsManager`.
 - `KeycloakNativeUI`: `NativeLoginView` drives a flow with default SwiftUI screens for every
   challenge type (username, password, TOTP, OTP with resend countdown, passkey, passkey registration,
-  update password with policy hints, verify email, terms, browser fallback) and a "Try another way"
-  chooser; any screen is replaceable with `.challengePresenter(for:)`, the chooser with
-  `.challengeChooser`.
+  recovery code, update password with policy hints, verify email, terms, browser fallback) and a
+  "Try another way" chooser; any screen is replaceable with `.challengePresenter(for:)`, the chooser
+  with `.challengeChooser`. Texts come from the package's `Localizable.xcstrings` (English, German);
+  `.nativeLoginStrings(bundle:)` overrides any key from the app's own bundle.
 
 Design: `../../spec/05`, decisions: `../../spec/12-phase1b-decisions.md` and
 `../../spec/13-phase2-decisions.md`.
@@ -70,7 +71,8 @@ the registration endpoints carries `authSession` and `maxAge`: hand it to
 
 ```bash
 swift build
-swift test          # replays keycloak-native-auth/demo/transcripts/*.json through a mock transport
+swift test          # Core: replays keycloak-native-auth/demo/transcripts/*.json through a mock transport
+                    # UI: NativeLoginModel behaviour with a scripted transport, the string catalogue and overrides
 ```
 
 With Xcode installed this is all that is needed (verified with Xcode 27 / Swift 6.4).
@@ -90,5 +92,5 @@ override with `KEYCLOAK_NATIVE_LIVE_MAILPIT` / `KEYCLOAK_NATIVE_LIVE_RESOURCE`),
 
 ## Not in this phase (marked extension points, no stubs)
 
-`push`, `recovery_code` and `select` answers (Phase 3 authenticators), `KeycloakNativePush`,
-completion-handler / Combine variants of the async API.
+`push` and `select` answers (Phase 3 authenticators), `KeycloakNativePush`, completion-handler /
+Combine variants of the async API.

@@ -21,8 +21,8 @@ Decisions are recorded in `../spec/09-phase0-decisions.md` (Phase 0), `../spec/1
 | Module | Deployed to Keycloak | Contents |
 |--------|----------------------|----------|
 | `native-auth-core` | yes | Protocol model (snake_case JSON), `AuthSessionCodec` (JWE), `NativeAuthenticator` and `NativeRequiredAction` SPIs, `NativeRequestContext` |
-| `native-auth-authenticators` | yes | `native-username`, `native-password`, `native-totp`, `native-passkey` |
-| `native-auth-otp-sender` | yes | `native-otp` authenticator (spec/03 §4.6) and the `native-otp-sender` SPI with the `email` (realm SMTP) and `sms-webhook` senders |
+| `native-auth-authenticators` | yes | `native-username` (with the phantom password challenge for unknown users), `native-password`, `native-totp`, `native-passkey`, `native-recovery-code` |
+| `native-auth-otp-sender` | yes | `native-otp` authenticator (spec/03 §4.6), the `native-otp-sender` SPI with the `email` (realm SMTP, theme template `native-otp.ftl` + `nativeOtp*` messages shipped as theme resources) and `sms-webhook` senders, `OtpCodes` (shared with `native-verify-email`) |
 | `native-auth-required-actions` | yes | `native-passkey-register`, `native-update-password`, `native-verify-email`, `native-terms` (spec/03 §4.11–§4.14) plus the passkey registration helpers (`PasskeyRegistrationOptions`, `PasskeyRegistrationVerifier`) |
 | `native-auth-endpoint` | yes | `RealmResourceProvider` id `native-auth`: `GET /metadata`, `POST /challenge`, `POST /passkey/register/options|finish`; `ChallengeFlowDriver`, `CodeIssuer`, `RequiredActionDriver`, `PasskeyRegistrationDriver`, `DPoPProofChecker`, `RedirectToWebBuilder` |
 | `demo` | no | `docker-compose.yml` (Keycloak, Postgres, mailpit, a Node resource server for the step-up demo), `realm-export/demo-realm.json`, `scripts/walkthrough.sh`, `scripts/passkey-walkthrough.md`, Testcontainers integration tests |
@@ -42,7 +42,8 @@ bodies verbatim); `demo/scripts/update-transcripts.sh` copies them to the commit
 `demo/transcripts/`, which the iOS SDK's unit tests replay (`../ios/KeycloakNative`).
 
 The integration tests (`demo/src/test/java/.../NativeAuthIT.java`, `PasskeyIT.java`, `StepUpIT.java`,
-`OtpIT.java`, `RedirectToWebIT.java`, `DPoPBindingIT.java`, `RequiredActionsIT.java`) start Keycloak (plus a mailpit SMTP sink)
+`OtpIT.java`, `SmsOtpIT.java`, `RedirectToWebIT.java`, `DPoPBindingIT.java`, `RequiredActionsIT.java`,
+`RecoveryCodeIT.java`, `EnrolOnFirstLoginIT.java`) start Keycloak (plus a mailpit SMTP sink and an in-JVM SMS webhook sink)
 with the freshly built provider JARs and the demo realm, and exercise the happy path, re-challenge on
 wrong password / wrong TOTP / wrong passkey signature, invalid / cancelled / expired `auth_session`,
 unknown `challenge_id`, the `redirect_uri` modes, the multi-alternative challenge set, passkey
@@ -82,7 +83,7 @@ Demo realm contents:
 
 - Flow `native`: `native-username` (REQUIRED) → subflow *primary factor* (REQUIRED: `native-passkey`
   ALTERNATIVE, `native-password` ALTERNATIVE) → subflow *second factor* (CONDITIONAL: *Condition - user
-  configured* + `native-totp` ALTERNATIVE). Selected through the realm attribute
+  configured* + `native-totp` ALTERNATIVE + `native-recovery-code` ALTERNATIVE). Selected through the realm attribute
   `native-auth.flow-alias=native`. The passkey alternative is offered to a user only once they have
   one; the challenge set is ordered like the flow (passkey first).
 - Flow `native-alternatives` (spec/08 Q2 prototype): password and TOTP as ALTERNATIVE siblings;
@@ -98,7 +99,15 @@ Demo realm contents:
 - Flow `native-otp` (client `demo-ios-otp`, spec/03 §4.6): `native-username` → `native-password` →
   CONDITIONAL second factor with `native-totp` and `native-otp` (email) as ALTERNATIVEs. The code is
   only sent when `otp` is the single option or the client asks for it (`action=resend`); config alias
-  `native-otp - email`: 6 digits, 300 s, 10 s resend cooldown, 3 attempts. Emails land in mailpit.
+  `native-otp - email`: 6 digits, 300 s, 10 s resend cooldown, 3 attempts. Emails land in mailpit
+  (template `native-otp.ftl`, subject `nativeOtpSubject`; override both in the realm's email theme).
+- Flow `native-sms` (client `demo-ios-sms`): `native-username` → `native-password` → `native-otp`
+  REQUIRED with config `native-otp - sms` (channel `sms-webhook`). The sender needs
+  `--spi-native-otp-sender--sms-webhook--url` (and optionally `--token`); the integration test
+  `SmsOtpIT` points it at an in-JVM sink through `host.testcontainers.internal`, the compose stack
+  does not configure it (set `KC_SPI_NATIVE_OTP_SENDER__SMS_WEBHOOK__URL` on the `keycloak` service
+  to try it). bob carries the `phoneNumber` attribute the sender reads (the realm's user profile
+  must allow unmanaged attributes, which the IT switches on).
 - WebAuthn **Passwordless** policy: RP ID `localhost`, ES256/RS256, user verification `required`,
   resident key `required`, attestation `none`, no extra origins. Required actions
   `native-passkey-register`, `native-update-password`, `native-verify-email` and `native-terms` are
@@ -119,9 +128,14 @@ Demo realm contents:
   pending `native-passkey-register` action (a passkey is enrolled in-band on the first native login),
   `erin` / `erin-password` reserved for the brute-force demo (spec/06 S14): `failureFactor` is 5 in
   the demo realm, so five wrong passwords (or two within a second) lock the account for a minute and
-  the flow ends with `403 access_denied`. No passkey is pre-registered in the export; the
-  integration tests register them. frank's native login ends with `403 redirect_to_web` (a PAR
-  `request_uri` for the browser, spec/03 §3.4).
+  the flow ends with `403 access_denied`; `ivy` / `ivy-password` with TOTP (secret
+  `ivy-totp-secret-20261015`) and three recovery codes `IVY1-IVY1-IVY1`, `IVY2-IVY2-IVY2`,
+  `IVY3-IVY3-IVY3` (seeded hashed; single use, consumed in order; after the last one Keycloak
+  requires new codes, which the native flow hands to the browser). No passkey is pre-registered in
+  the export; the integration tests register them. frank's native login ends with `403
+  redirect_to_web` (a PAR `request_uri` for the browser, spec/03 §3.4). An unknown username gets a
+  phantom `password` challenge that fails like a real user's wrong password and locks after
+  `failureFactor` attempts (spec/03 §4.1).
 - `smtpServer` points at the compose/Testcontainers `mailpit` host (`noreply@demo.local`).
 - `otpPolicyCodeReusable=true` so the walkthrough and tests can log in repeatedly within one
   30 s TOTP window. Keep the Keycloak default (`false`) in real deployments.
@@ -141,7 +155,9 @@ Demo realm contents:
 | authenticator `native-otp` | `channel`, `digits`, `ttl`, `resend-cooldown`, `max-attempts` | sender id (`email`, `sms-webhook`), code length, lifetime (s), seconds between sends, wrong codes before the code is invalidated | `email`, 6, 300, 30, 5 |
 | SPI `native-otp-sender` / `sms-webhook` | `--spi-native-otp-sender--sms-webhook--url`, `--token`, `--phone-attribute` | webhook that receives `{"to","message"}` (optional bearer token), user attribute holding the number | –, –, `phoneNumber` |
 | realm | WebAuthn Passwordless policy (`webAuthnPolicyPasswordless*`) | RP ID, algorithms, user verification, resident key, attestation, extra origins, create timeout: drives both the `passkey` and `passkey_registration` descriptors | Keycloak defaults |
-| authenticator `native-username` | `reveal-user-not-found` | `true` → error code `invalid_user`, otherwise generic `invalid_credential` | `false` |
+| authenticator `native-username` | `reveal-user-not-found` | `true` → error code `invalid_user` at the username step, otherwise the phantom password challenge (spec/03 §4.1) | `false` |
+| authenticator `native-passkey` | `enrol-on-first-login` | `true` → a native login of a user without a passkey continues with the other alternative and then asks for `passkey_registration` in-band (`native-passkey-register` must be enabled; ALTERNATIVE executions only) | `false` |
+| realm | `native-auth.passkey-registration-native-clients-only` | `true` → `/passkey/register/*` answer `403 access_denied` for tokens issued to clients without `native-auth.enabled` | `false` |
 | required action `native-verify-email` (config) | `digits`, `ttl`, `resend-cooldown`, `max-attempts` | code length, lifetime (s), seconds between sends, wrong codes before the code is invalidated; delivery uses the `email` native-otp-sender | 6, 300, 30, 5 |
 | required action `native-terms` (config) / realm | `terms-text`, `terms-url`, `terms-version` / `native-auth.terms-text`, `native-auth.terms-url`, `native-auth.terms-version` | what the `terms` challenge shows; the realm attributes are the fallback (importable) | a generic sentence |
 
@@ -220,14 +236,17 @@ algorithms the challenge endpoint verifies).
 - `auth_session` is a `dir`/AES-GCM JWE under the realm's `aes-generated` key (`A128GCM` with the
   default 128-bit key, `A256GCM` if the key provider is configured with `secretSize=32`). It is never
   logged; log lines use a SHA-256 prefix.
-- Codes are PKCE-bound and single use; wrong password / TOTP / passkey attempts go through Keycloak's
-  brute-force detector; brute-force or disabled accounts end with `403 access_denied`.
+- Codes are PKCE-bound and single use; wrong password / TOTP / passkey / recovery-code attempts go
+  through Keycloak's brute-force detector; brute-force or disabled accounts end with `403
+  access_denied`, and the failed descriptor carries `retry.remaining`. Unknown, disabled and locked
+  usernames are answered with a phantom password challenge (same countdown, same lock-out), so the
+  username step does not reveal whether an account exists.
 - Passkey challenges are single use and re-issued with every challenge set; registration challenges
   are additionally stored as single-use objects so a ceremony completes at most once cluster-wide.
-- The success body's `auth_session` is a post-login JWE bound to the user session (lifetime = SSO
-  session max) and, when the login carried DPoP proofs, to the DPoP key; presenting it starts a
-  step-up (spec/03 §5) whose code is issued for the same user session. A revoked/ended user session
-  answers `invalid_session`.
+- The success body's `auth_session` is a post-login JWE bound to the user session (lifetime = the
+  SSO idle timeout from minting, capped by the session max; spec/14 D6) and, when the login carried
+  DPoP proofs, to the DPoP key; presenting it starts a step-up (spec/03 §5) whose code is issued for
+  the same user session. A revoked/ended user session or an expired value answers `invalid_session`.
 - OTP codes are stored salted-and-hashed in the authentication session, expire after `ttl`, are
   invalidated after `max-attempts` wrong codes, and wrong codes count as brute-force failures.
 - `request_uri` values for `redirect_to_web` are single use and expire with the realm's PAR lifespan.

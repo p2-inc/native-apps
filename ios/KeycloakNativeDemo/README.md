@@ -49,12 +49,17 @@ xcodebuild test -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo
   -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' CODE_SIGN_IDENTITY="-"
 ```
 
-`UITests/DemoAppUITests.swift` drives the real app against the compose stack: S3 (password + TOTP
-computed from the seeded secret), the Keychain restore across a relaunch, refresh, logout, the
-software DPoP key (`jkt` in Diagnostics, `token_type DPoP`) and S14. They are not part of CI (the
-runner has no Keycloak); CI only compiles them (`build-for-testing`).
+`UITests/DemoAppUITests.swift` drives the real app against a **fresh** compose stack
+(`docker compose down -v && KC_PORT=8089 docker compose up --wait`, because the required-action
+scenarios are consumed by their first run): S3 (password + TOTP computed from the seeded secret),
+the Keychain restore across a relaunch, refresh, logout, the software DPoP key (`jkt` in
+Diagnostics, `token_type DPoP`), S14, S4 (e-mail code read from mailpit's API), S5 and S13 (default
+UI with the chooser, custom TOTP presenter), S6 (step-up for Transfer), S8 (server-side logout →
+`reauthentication_required`) and the carol / grace / hank required actions. They are not part of CI
+(the runner has no Keycloak); CI only compiles them (`build-for-testing`). S7 needs Safari and stays
+manual.
 
-### Phase 2 scenarios on the simulator (S4, S6, S7, S8, S5/S13)
+### Phase 2 scenarios on the simulator (S4, S6, S7, S8, S5/S13; all but S7 also run as XCUITests)
 
 - **S4** (client `demo-ios-otp`): `bob / bob-password` → the email code is sent at once; read it in
   mailpit (`http://localhost:8025`). `alice` gets `[totp, otp]` and a "Send me a code" button.
@@ -82,7 +87,12 @@ runner has no Keycloak); CI only compiles them (`build-for-testing`).
 - **hank** (`hank / hank-password`): `terms` — Accept continues to the tokens, Decline ends the
   login with `access_denied`.
 
-These three scenarios are covered by XCUITests (`testCarolUpdatesPasswordInBand`, `testGraceVerifiesEmail`,
+- **ivy** (`ivy / ivy-password`): the second factor offers `[totp, recovery_code]`; enter
+  `IVY1-IVY1-IVY1` (then `IVY2-…`, `IVY3-…`; after the last one Keycloak requires new codes and the
+  login goes to the browser). Wrong passwords anywhere show "n attempts left" (`retry.remaining`);
+  an unknown username gets the same password challenge and countdown as a real one.
+
+The carol / grace / hank scenarios are covered by XCUITests (`testCarolUpdatesPasswordInBand`, `testGraceVerifiesEmail`,
 `testHankAcceptsTerms` in `UITests/DemoAppUITests.swift`).
 
 ## 2. Real passkeys (S1, S2, S11, dave): HTTPS host + Associated Domains

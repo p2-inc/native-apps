@@ -1,0 +1,706 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ requires a passkey for %@ before you can continue.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ benötigt einen Passkey für %@, bevor Sie fortfahren können."
+          }
+        }
+      }
+    },
+    "%lld attempts left": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch %lld Versuche"
+          }
+        }
+      }
+    },
+    "1 attempt left": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch 1 Versuch"
+          }
+        }
+      }
+    },
+    "Accept": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Akzeptieren"
+          }
+        }
+      }
+    },
+    "Authenticator": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authenticator"
+          }
+        }
+      }
+    },
+    "Authenticator code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authenticator-Code"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        }
+      }
+    },
+    "Choose a new password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Passwort wählen"
+          }
+        }
+      }
+    },
+    "Code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code"
+          }
+        }
+      }
+    },
+    "Confirm it's you, %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bestätigen Sie, dass Sie es sind, %@"
+          }
+        }
+      }
+    },
+    "Confirm new password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Passwort bestätigen"
+          }
+        }
+      }
+    },
+    "Contacting the server…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung zum Server…"
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiter"
+          }
+        }
+      }
+    },
+    "Continue in your browser": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Browser fortfahren"
+          }
+        }
+      }
+    },
+    "Continue with passkey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Passkey fortfahren"
+          }
+        }
+      }
+    },
+    "Create a passkey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passkey erstellen"
+          }
+        }
+      }
+    },
+    "Create passkey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passkey erstellen"
+          }
+        }
+      }
+    },
+    "Decline": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ablehnen"
+          }
+        }
+      }
+    },
+    "Default": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        }
+      }
+    },
+    "Email code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E-Mail-Code"
+          }
+        }
+      }
+    },
+    "Email me a code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code per E-Mail senden"
+          }
+        }
+      }
+    },
+    "Enter one of your unused recovery codes (%lld left).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geben Sie einen unbenutzten Wiederherstellungscode ein (noch %lld)."
+          }
+        }
+      }
+    },
+    "Enter one of your unused recovery codes.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geben Sie einen unbenutzten Wiederherstellungscode ein."
+          }
+        }
+      }
+    },
+    "Enter the %lld-digit code from your authenticator app.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geben Sie den %lld-stelligen Code aus Ihrer Authenticator-App ein."
+          }
+        }
+      }
+    },
+    "Enter your password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwort eingeben"
+          }
+        }
+      }
+    },
+    "New password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Passwort"
+          }
+        }
+      }
+    },
+    "Open browser": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browser öffnen"
+          }
+        }
+      }
+    },
+    "Passkey name (optional)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name des Passkeys (optional)"
+          }
+        }
+      }
+    },
+    "Password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwort"
+          }
+        }
+      }
+    },
+    "Passwords do not match": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Passwörter stimmen nicht überein"
+          }
+        }
+      }
+    },
+    "Read the full terms": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vollständige Bedingungen lesen"
+          }
+        }
+      }
+    },
+    "Recovery code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederherstellungscode"
+          }
+        }
+      }
+    },
+    "Resend code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code erneut senden"
+          }
+        }
+      }
+    },
+    "Resend code in %lld s": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut senden in %lld s"
+          }
+        }
+      }
+    },
+    "Send a code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code senden"
+          }
+        }
+      }
+    },
+    "Send a code (%lld s)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code senden (%lld s)"
+          }
+        }
+      }
+    },
+    "Send me a code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code senden"
+          }
+        }
+      }
+    },
+    "Send me a code (%lld s)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code senden (%lld s)"
+          }
+        }
+      }
+    },
+    "Sign in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmelden"
+          }
+        }
+      }
+    },
+    "Sign in with a passkey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Passkey anmelden"
+          }
+        }
+      }
+    },
+    "Signing in as %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldung als %@"
+          }
+        }
+      }
+    },
+    "Terms and conditions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzungsbedingungen"
+          }
+        }
+      }
+    },
+    "Text me a code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code per SMS senden"
+          }
+        }
+      }
+    },
+    "Text message code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SMS-Code"
+          }
+        }
+      }
+    },
+    "This service": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Dienst"
+          }
+        }
+      }
+    },
+    "This sign-in has to be completed on the web.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Anmeldung muss im Web abgeschlossen werden."
+          }
+        }
+      }
+    },
+    "This version of the app cannot handle the '%@' sign-in method. Update the app or sign in on the web.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese App-Version unterstützt die Anmeldemethode „%@“ nicht. Aktualisieren Sie die App oder melden Sie sich im Web an."
+          }
+        }
+      }
+    },
+    "Try another way": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anderen Weg versuchen"
+          }
+        }
+      }
+    },
+    "Update password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwort aktualisieren"
+          }
+        }
+      }
+    },
+    "Update required": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisierung erforderlich"
+          }
+        }
+      }
+    },
+    "Use a passkey": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passkey verwenden"
+          }
+        }
+      }
+    },
+    "Use a passkey saved on this device.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwenden Sie einen auf diesem Gerät gespeicherten Passkey."
+          }
+        }
+      }
+    },
+    "Use a recovery code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederherstellungscode verwenden"
+          }
+        }
+      }
+    },
+    "Use an authenticator app": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authenticator-App verwenden"
+          }
+        }
+      }
+    },
+    "Use the passkey registered for this account.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwenden Sie den für dieses Konto registrierten Passkey."
+          }
+        }
+      }
+    },
+    "Use your password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwort verwenden"
+          }
+        }
+      }
+    },
+    "Username": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benutzername"
+          }
+        }
+      }
+    },
+    "Username or email": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benutzername oder E-Mail"
+          }
+        }
+      }
+    },
+    "Verify": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfen"
+          }
+        }
+      }
+    },
+    "Verify your email": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E-Mail-Adresse bestätigen"
+          }
+        }
+      }
+    },
+    "Version %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %@"
+          }
+        }
+      }
+    },
+    "We can send a %lld-digit code to %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wir können einen %lld-stelligen Code an %@ senden."
+          }
+        }
+      }
+    },
+    "We need to send a %lld-digit code to %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wir müssen einen %lld-stelligen Code an %@ senden."
+          }
+        }
+      }
+    },
+    "We sent a %lld-digit code to %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wir haben einen %lld-stelligen Code an %@ gesendet."
+          }
+        }
+      }
+    },
+    "You are running low on recovery codes; generate new ones after signing in.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihre Wiederherstellungscodes gehen zur Neige; erzeugen Sie nach der Anmeldung neue."
+          }
+        }
+      }
+    },
+    "Your account needs attention (%@). Finish it on the web, then you will be returned here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihr Konto benötigt Aufmerksamkeit (%@). Schließen Sie dies im Web ab; danach kehren Sie hierher zurück."
+          }
+        }
+      }
+    },
+    "Your password must be updated before you can continue.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihr Passwort muss aktualisiert werden, bevor Sie fortfahren können."
+          }
+        }
+      }
+    },
+    "your account": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihr Konto"
+          }
+        }
+      }
+    },
+    "your email address": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihre E-Mail-Adresse"
+          }
+        }
+      }
+    },
+    "your phone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihr Telefon"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

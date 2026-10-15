@@ -109,6 +109,10 @@ public final class Protocol {
   public static final String DEFAULT_FLOW_ALIAS = "native";
   /** Client attribute: {@code redirect_uri} used for {@code redirect_to_web} (spec/03 §3.4); defaults to the first registered one. */
   public static final String CLIENT_ATTR_WEB_FALLBACK_REDIRECT_URI = "native-auth.web-fallback-redirect-uri";
+  /** Provider id of the native passkey-registration required action (spec/03 §4.4); referenced by {@code native-passkey}'s enrol-on-first-login. */
+  public static final String PASSKEY_REGISTER_ACTION = "native-passkey-register";
+  /** Realm attribute: {@code true} restricts {@code /passkey/register/*} to tokens issued to native-enabled clients (spec/11 D5). */
+  public static final String ATTR_PASSKEY_REGISTRATION_NATIVE_CLIENTS_ONLY = "native-auth.passkey-registration-native-clients-only";
   /** Realm attributes: fallback configuration of {@code native-terms} (spec/03 §4.14) when the required action has no config. */
   public static final String ATTR_TERMS_TEXT = "native-auth.terms-text";
   public static final String ATTR_TERMS_URL = "native-auth.terms-url";
