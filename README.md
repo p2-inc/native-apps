@@ -1,5 +1,9 @@
 # native-apps — browserless native authentication for Keycloak
 
+Start with the [developer documentation](docs/README.md) for setup, protocol and flow examples,
+iOS integration, sample walkthrough, troubleshooting, and security responsibilities.
+The iOS SDK and sample are implemented; Android SDK and sample support is planned and **not implemented**.
+
 | Directory | What |
 |---|---|
 | `spec/` | Investigation, protocol specification (`03`), architecture and plans. Read `spec/00-README.md` first, then `spec/10-status-and-task-list.md` for the current state and open tasks. |
