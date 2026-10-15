@@ -166,11 +166,15 @@ import Testing
     #expect(english("Cancel") == "Cancel")
     #expect(english("%lld attempts left", 3) == "3 attempts left")
     #expect(english("We sent a %lld-digit code to %@.", 6, "a***@example.com") == "We sent a 6-digit code to a***@example.com.")
-    // The German table shipped in Localizable.xcstrings, read directly from the package bundle.
-    let de = try #require(Bundle.module.path(forResource: "Localizable", ofType: "strings", inDirectory: nil, forLocalization: "de"))
-    let german = try #require(Bundle(path: (de as NSString).deletingLastPathComponent))
-    #expect(german.localizedString(forKey: "Cancel", value: nil, table: nil) == "Abbrechen")
-    #expect(NativeLoginStrings(override: german)("Try another way") == "Anderen Weg versuchen")
+    // The German translations of Localizable.xcstrings, whether the build compiled the catalogue
+    // into de.lproj (Xcode, default build system) or copied the file (CLT-only native build).
+    let german = NativeLoginStrings(preferredLanguages: ["de"])
+    #expect(german("Cancel") == "Abbrechen")
+    #expect(german("Try another way") == "Anderen Weg versuchen")
+    #expect(german("%lld attempts left", 3) == "Noch 3 Versuche")
+    #expect(german("XXXX-XXXX-XXXX") == "XXXX-XXXX-XXXX", "untranslated keys stay as they are")
+    #expect(NativeLoginStrings(preferredLanguages: ["fr", "de"])("Accept") == "Akzeptieren", "the first available language wins")
+    #expect(NativeLoginStrings(preferredLanguages: ["fr"])("Accept") == "Accept", "unknown languages fall back to the source text")
   }
 
   @Test func overrideBundleWinsAndMissingKeysFallBack() throws {
