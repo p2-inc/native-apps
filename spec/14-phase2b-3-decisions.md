@@ -1,6 +1,6 @@
 # 14 — Phase 2b (close-out of Phase 2) and Phase 3 (push MFA) decisions
 
-**Date:** 15 October 2026 (in progress)
+**Date:** 15 October 2026 (Phase 2b complete; Phase 3 in progress)
 **Keycloak:** 26.8.1 (unchanged, 09 Q4)
 **Code:** `keycloak-native-auth/` (required actions, authenticators, endpoint, demo), `ios/KeycloakNative/`,
 `ios/KeycloakNativeDemo/`
@@ -229,6 +229,16 @@ step-up asks the TOTP only → `acr 2` → Transfer 200), S8 (server-side logout
 mailpit's API with a plain `URL(string:)` — `URL.appending(path:)` percent-encodes the `?` of a
 query and was the reason the first grace run found no mail.
 
+## D8 — Protocol v1.0-rc: freeze the implemented sections, keep the wire version at `"1"`
+
+03 §10.1 lists what is frozen (everything implemented on both sides: §1.1 minus `push`, §2, §3,
+§4.1–§4.6, §4.8, §4.10–§4.14, §5, §6, §8) and what stays draft (`push`, §7, `select`, §9). The wire
+value `protocol_version` remains `"1"` because clients compare majors only (03 §10) and nothing
+incompatible changed. The conformance suite is the committed transcript set (53 files after this
+phase); the SDK's replay tests and the integration tests are its two readers. Left for v1.0: the
+Phase 3 push items and a final editorial pass. The optional well-known override (04 §2.3) and the
+completion-handler / Combine API variants (05 §2) were not built: nothing in the phase needed them.
+
 ---
 
 ## Verified (how) — running list
@@ -243,7 +253,10 @@ query and was the reason the first grace run found no mail.
 | Slice 4 (enrol on first login, native-clients-only registration): `EnrolOnFirstLoginIT` (3) | `mvn verify -Dit.test=EnrolOnFirstLoginIT`, full run at the end |
 | Slice 5 (SMS webhook, themed mail, idle-timeout `auth_session`): `SmsOtpIT` (1), `StepUpIT` (6), `OtpIT` / `RequiredActionsIT` with the templated mail | `mvn verify -Dit.test=…`, full run at the end |
 | Slices 2–5 together: 52 integration tests, 15 unit tests | full `mvn verify` after slice 5 |
-| Slice 6: `KeycloakNativeUITests` (7) + the Core suites | `swift test` (both toolchain modes) |
+| Slice 6: `KeycloakNativeUITests` (7) + the Core suites: 102 tests | `swift test` (Xcode 27 toolchain) and `KEYCLOAK_NATIVE_TESTING_FROM_SOURCE=1 swift test --build-system native` |
+| End of Phase 2b: compose stack + `walkthrough.sh` | `docker compose down -v && KC_PORT=8089 docker compose up --wait && KC_BASE=http://localhost:8089 ./scripts/walkthrough.sh` → exit 0 |
+| End of Phase 2b: 10 live SDK tests (S3 lifecycle, S11→S1→S2, dave, S6, S4, S7 on frank, carol, grace, hank, S14) | `KEYCLOAK_NATIVE_LIVE_BASE=http://localhost:8089 swift test --filter LiveServerTests` |
+| End of Phase 2b: 10 XCUITests on the iPhone 18 Pro simulator (iOS 27.0): S3 + relaunch/refresh/logout, S14, S4, S5, S13, S6, S8, carol, grace, hank | `xcodebuild test … CODE_SIGN_IDENTITY="-"` against a fresh compose stack (5 min) |
 | Demo app package | `swift build` (macOS) |
 
 ## Left out (honest list) — running

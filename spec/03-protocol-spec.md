@@ -1,6 +1,6 @@
 # 03 — Keycloak Native Authentication Profile (protocol specification)
 
-**Profile version:** `1` (draft for review)
+**Profile version:** `1` — **v1.0-rc** (frozen 15 October 2026 for the implemented challenge types, see §10; the wire value stays `"1"`)
 **Base specification:** OAuth 2.0 for First-Party Applications, `draft-ietf-oauth-first-party-apps-04`
 **Push MFA device API:** ba-itsys `keycloak-push-mfa-extension` v1.11 API, unchanged
 **Audience:** implementers of the Keycloak extensions, the iOS/Android SDKs, and any third-party client
@@ -364,6 +364,10 @@ Requests MAY carry `OAuth-Client-Attestation` and `OAuth-Client-Attestation-PoP`
 - `protocol_version` is a string; clients compare major numbers only. Servers MUST keep `1.x` responses backward compatible: new optional fields and new challenge types may be added; existing fields may not change type or meaning.
 - Clients MUST ignore unknown fields.
 - Servers MUST reject unknown continuation parameters with `invalid_request` only when they conflict with known ones; otherwise ignore.
+
+### 10.1 v1.0-rc freeze (15 October 2026, 04 §8, 14 D8)
+
+The following is frozen as **v1.0-rc**: §1.1 metadata (except the `push` block), §2, §3.1–§3.5, §4.1–§4.6, §4.8, §4.10–§4.14, §5, §6 and §8. Changes to these sections before v1.0 are limited to additive optional fields and clarifications; a field rename or a changed status code would be a 2.x. Still **draft** in this document: §4.7 `push`, §7 (the push device API), §1.1's `push` block and `/push/enroll/start` (Phase 3), §4.9 `select` (unimplemented, optional) and §9 attestation (Phase 4). The conformance suite for the frozen parts is the recorded transcript set `keycloak-native-auth/demo/transcripts/` (one file per integration test, 12 D1): a server is conformant when the same integration tests pass against it, a client when it replays the transcripts as the iOS SDK does.
 
 ## 11. Example end-to-end transcript (curl)
 

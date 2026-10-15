@@ -79,15 +79,17 @@ final class DemoAppUITests: XCTestCase {
     app.launch()
     app.tabBars.buttons["Scenarios"].tap()
     tap(app, app.buttons["scenario-s14BruteForce"])
+    // The scenario list has grown: the "Run" section sits below the fold, so scroll to it.
     let run = app.buttons["Run S14 now (locks user erin for a minute)"]
-    XCTAssertTrue(run.waitForExistence(timeout: timeout))
-    run.tap()
-    // erin may still be locked from an earlier run (the username step then re-challenges with
-    // invalid_credential and the scenario stops): wait out the 60 s lock once and try again.
+    tap(app, run)
+    // erin may still be locked from an earlier run (spec/03 §4.1: a locked account gets the same
+    // phantom password challenge and countdown as an unknown one, so the scenario still ends with
+    // access_denied after five attempts); the only other outcome is a transient state — wait out
+    // the 60 s lock once and try again.
     if !wait(timeout, { self.status(app).contains("access_denied") }) {
       XCTAssertTrue(status(app).contains("invalid_credential") || status(app).contains("Server offers"), status(app))
       sleep(61)
-      run.tap()
+      tap(app, run)
       XCTAssertTrue(wait(timeout) { self.status(app).contains("access_denied") }, status(app))
     }
     XCTAssertTrue(status(app).contains("Locked out after repeated failures"), status(app))

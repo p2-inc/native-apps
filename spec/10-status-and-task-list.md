@@ -84,21 +84,17 @@
 
 Legend: `[x]` done · `[ ]` open · `[~]` partially done. Phase numbering follows 08.
 
-**Where we are (15 Oct 2026):** Phases 0, 1a, 1b, the simulator half of 1c and Phase 2 are complete
-on `main` and pushed to `origin` (13). Everything is verified by `mvn verify` (41 ITs), `swift test`
-(80 tests, both toolchain modes), the live SDK tests against the compose stack, the curl walkthrough
-from a clean clone and two XCUITests on the iOS 27 simulator. Manual testing from Xcode hit tooling
-problems on the build Mac (13 "Post-phase notes"), not product problems.
+**Where we are (15 Oct 2026, end of Phase 2b):** Phases 0, 1a, 1b, the simulator half of 1c, Phase 2
+and **Phase 2b** are complete on `main` and pushed to `origin` (14). Verified by `mvn verify` (52 ITs,
+15 unit tests), `swift test` (102 tests across Core and UI, both toolchain modes), 10 live SDK tests
+against the compose stack, the curl walkthrough from a clean clone and 10 XCUITests on the iOS 27
+simulator. The protocol is frozen as v1.0-rc for everything implemented (03 §10.1).
 
 **Next, in this order:**
-1. **Phase 2b — close-out** (below): the Phase 2 leftovers that need no hardware, ordered by value:
-   native required actions for update-password / verify-email / terms (08 Q7), recovery codes,
-   phantom username challenge + `retry.remaining`, enrol-on-first-login, SMS webhook IT, UI product
-   localisation and tests, XCUITests for S4/S5/S6/S8/S13.
+1. **Phase 3 — push MFA** (below; 08 Q5/Q6 answered: build the programmatic enrolment API and the
+   APNs sender in this repo and offer them upstream; no shipped client secret).
 2. **Phase 1c — hardware half** whenever a device and an Apple team are available (S1, S2, S11,
-   dave, the cancel path, Secure Enclave, Associated Domains behind a tunnel).
-3. **Phase 3 — push MFA** (08; Q5/Q6 answered: build the programmatic enrolment API and the APNs
-   sender in this repo and offer them upstream; device token via token exchange, not a shipped secret).
+   dave, the cancel path, Secure Enclave, Associated Domains behind a tunnel, a VoiceOver pass).
 
 Working rule (unchanged): change `spec/03` first, implement on the server, re-record with
 `mvn verify && demo/scripts/update-transcripts.sh` (delete the recordings of renamed tests in
@@ -193,8 +189,8 @@ Example app — **done in Phase 2** (compiled for the simulator; S4/S6/S7 paths 
 - [x] XCUITests for S4/S5/S6/S8/S13 — Phase 2b (14 D7); S7 needs Safari and stays manual
 
 Spec:
-- [ ] Freeze protocol v1.0-rc for the Phase 1 challenge types (`username`, `password`, `totp`, `passkey`, `passkey_registration`); conformance suite = the recorded transcripts (04 §8)
-- [ ] Spec v1.0 once Phase 2 types are implemented on both sides
+- [x] Freeze protocol v1.0-rc for the implemented challenge types; conformance suite = the recorded transcripts (03 §10.1, 14 D8)
+- [ ] Spec v1.0 once Phase 3's `push` block and §7 are implemented on both sides
 
 ### Phase 2b — Close-out of Phase 2 (no hardware needed)
 Server:
@@ -204,13 +200,13 @@ Server:
 - [x] "Enrol on first login" for `native-passkey` behind the execution config `enrol-on-first-login`; `/passkey/register/*` restricted to native clients with `native-auth.passkey-registration-native-clients-only` (14 D4, `EnrolOnFirstLoginIT`)
 - [x] IT for the `sms-webhook` sender (host-side sink via Testcontainers `exposeHostPorts`, `SmsOtpIT`, flow `native-sms`); themed email template for the OTP (08 Q10) shipped as theme resources (14 D5)
 - [x] Step-up `auth_session` claim lifetime = SSO idle (08 Q11), keeping the `isSessionValid` check (14 D6, `StepUpIT`)
-- [ ] Well-known `authorization_challenge_endpoint` override (04 §2.3, optional)
+- [ ] Well-known `authorization_challenge_endpoint` override (04 §2.3, optional) — not done; clients use `/native-auth/metadata`
 SDK / UI / app:
 - [x] `ChallengeAnswer` + screens for the new types: `updatePassword`, `verifyEmail`, `terms`, `recoveryCode` (`Phase2bReplayTests`, default screens, demo scenarios carol/grace/hank/ivy); `retry.remaining` shown
 - [x] `KeycloakNativeUI`: `Localizable.xcstrings` (en, de), `.nativeLoginStrings(bundle:)` with fallback to the package catalogue, model tests of the default screens (`KeycloakNativeUITests`, 14 D7); a VoiceOver pass on hardware is still open
 - [x] XCUITests for S4 (mailpit code via its API), S5/S13, S6 (TOTP computed in the test), S8, carol/grace/hank; S7 stays manual (Safari) (14 D7)
 - [ ] Completion-handler / Combine variants of the async API (05 §2) if UIKit consumers need them
-- [ ] Protocol v1.0-rc freeze for all implemented types once the native required actions land (04 §8)
+- [x] Protocol v1.0-rc freeze for all implemented types (03 §10.1, 14 D8); `push`, §7, `select`, §9 stay draft
 
 ### Phase 3 — Push MFA
 - [ ] Integrate ba-itsys `keycloak-push-mfa-extension` (scenario A) in the demo compose
