@@ -14,6 +14,10 @@ public enum ChallengeType {
   PUSH("push"),
   RECOVERY_CODE("recovery_code"),
   SELECT("select"),
+  /** Native required actions (spec/03 §4.12–§4.14). */
+  UPDATE_PASSWORD("update_password"),
+  VERIFY_EMAIL("verify_email"),
+  TERMS("terms"),
   REDIRECT_TO_WEB("redirect_to_web");
 
   private final String wire;

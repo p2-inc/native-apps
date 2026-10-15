@@ -3,6 +3,7 @@ package io.phasetwo.keycloak.nativeauth.endpoint;
 import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequestContext;
 import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequiredActionFactory;
 import jakarta.ws.rs.core.Response;
+import java.util.List;
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationProcessor;
 import org.keycloak.authentication.RequiredActionContext;
@@ -15,6 +16,8 @@ import org.keycloak.events.EventType;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.RequiredActionProviderModel;
+import org.keycloak.models.UserModel;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.sessions.AuthenticationSessionModel;
@@ -48,6 +51,12 @@ final class RequiredActionDriver {
   private final RealmModel realm;
   private final HttpRequest request;
   private final EventBuilder event;
+  /** The message the action passed to {@code failure(String)} in the last call, if any. */
+  private String lastFailureMessage;
+
+  String lastFailureMessage() {
+    return lastFailureMessage;
+  }
 
   RequiredActionDriver(KeycloakSession session, RealmModel realm, HttpRequest request, EventBuilder event) {
     this.session = session;
@@ -64,12 +73,45 @@ final class RequiredActionDriver {
     return factory instanceof NativeRequiredActionFactory n ? n : null;
   }
 
-  /** Equivalent of {@code AuthenticationManager.executeAction} for a native action. */
-  Status challenge(AuthenticationSessionModel authSession, NativeRequiredActionFactory factory) {
+  /**
+   * Equivalent of {@code AuthenticationManager.executeAction} for a native action.
+   *
+   * @param alias the user's pending required action this native action serves: its own id, or the
+   *     Keycloak action it substitutes for (spec/03 §4.11)
+   */
+  Status challenge(AuthenticationSessionModel authSession, NativeRequiredActionFactory factory, String alias) {
+    NativeRequestContext.setPendingRequiredActionAlias(authSession, alias);
     RequiredActionContextResult context = context(authSession, factory);
     RequiredActionProvider provider = AuthenticationManager.createRequiredAction(context);
     provider.requiredActionChallenge(context);
     return afterChallenge(authSession, factory, context, provider);
+  }
+
+  /**
+   * The installed native action that substitutes for the Keycloak required action {@code alias}
+   * (spec/03 §4.11): registered and enabled in the realm under its own id, and able to serve the
+   * user; {@code null} when there is none.
+   */
+  static NativeRequiredActionFactory substituteFor(KeycloakSession session, RealmModel realm, String alias, UserModel user) {
+    return session.getKeycloakSessionFactory().getProviderFactoriesStream(RequiredActionProvider.class)
+        .filter(f -> f instanceof NativeRequiredActionFactory)
+        .map(f -> (NativeRequiredActionFactory) f)
+        .filter(f -> alias.equals(f.substitutesFor()))
+        .filter(
+            f -> {
+              RequiredActionProviderModel model = realm.getRequiredActionProviderByAlias(f.getId());
+              if (model == null || !model.isEnabled()) {
+                log.debugf("Native required action '%s' could serve '%s' but is not registered and enabled in realm '%s'", f.getId(), alias, realm.getName());
+                return false;
+              }
+              if (!f.canServe(session, realm, user)) {
+                log.debugf("Native required action '%s' cannot serve '%s' for user %s", f.getId(), alias, user.getUsername());
+                return false;
+              }
+              return true;
+            })
+        .findFirst()
+        .orElse(null);
   }
 
   /** Equivalent of {@code LoginActionsService.processRequireAction} for a native action. */
@@ -113,8 +155,12 @@ final class RequiredActionDriver {
       }
       case SUCCESS -> {
         event.clone().event(EventType.CUSTOM_REQUIRED_ACTION).detail(Details.CUSTOM_REQUIRED_ACTION, factory.getId()).success();
-        authSession.getAuthenticatedUser().removeRequiredAction(factory.getId());
-        authSession.removeRequiredAction(factory.getId());
+        // The served action (the Keycloak alias when substituting, spec/03 §4.11) and the native id.
+        String alias = NativeRequestContext.pendingRequiredActionAlias(authSession);
+        for (String done : alias == null || alias.equals(factory.getId()) ? List.of(factory.getId()) : List.of(alias, factory.getId())) {
+          authSession.getAuthenticatedUser().removeRequiredAction(done);
+          authSession.removeRequiredAction(done);
+        }
         authSession.removeAuthNote(AuthenticationProcessor.CURRENT_AUTHENTICATION_EXECUTION);
         AuthenticationManager.setKcActionStatus(factory.getId(), RequiredActionContext.KcActionStatus.SUCCESS, authSession);
         NativeRequestContext.clearPendingRequiredAction(authSession);
@@ -128,6 +174,7 @@ final class RequiredActionDriver {
         return Status.FAILURE;
       }
       default -> {
+        lastFailureMessage = context.getErrorMessage();
         NativeRequestContext.clearPendingRequiredAction(authSession);
         return Status.FAILURE;
       }

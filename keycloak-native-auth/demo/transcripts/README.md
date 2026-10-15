@@ -28,7 +28,9 @@ Format:
   recorded; admin API calls the tests make are not part of the contract.
 - `request.form` holds form fields; `request.json` a JSON body (passkey `finish`); `response.json` the
   parsed body, verbatim. Values in `masked_form_fields` and the `Authorization`/`DPoP` headers are
-  replaced by `***`. HTML responses (the authorization endpoint during `redirect_to_web`) are
+  replaced by `***`; `code` is masked on the challenge endpoint only (there it is the e-mail
+  verification code of `verify_email`), on the token endpoint it is the authorization code and stays
+  verbatim. HTML responses (the authorization endpoint during `redirect_to_web`) are
   recorded as `body_omitted` with their size: browser pages are not part of the contract.
 - `auth_session`, codes and tokens are recorded verbatim: they are JWEs/JWTs under keys of a test
   container that no longer exists, so they are inert. `base_url` carries the container's random port;

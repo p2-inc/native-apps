@@ -1,18 +1,11 @@
 package io.phasetwo.keycloak.nativeauth.otp;
 
 import io.phasetwo.keycloak.nativeauth.authenticators.NativeAuthenticatorBase;
-import io.phasetwo.keycloak.nativeauth.core.json.NativeAuthJson;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeDescriptor;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeType;
 import io.phasetwo.keycloak.nativeauth.core.model.Protocol;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.Map;
 import org.keycloak.authentication.AuthenticationFlowContext;
-import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.common.util.Time;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
@@ -32,18 +25,6 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 public class NativeOtpAuthenticator extends NativeAuthenticatorBase {
 
   static final String NOTE_PREFIX = "native-auth.otp.";
-
-  /** Serialized into the auth note. */
-  public static final class State {
-    public String hash;
-    public String salt;
-    public long sentAt;
-    public int attempts;
-
-    boolean outstanding(int ttl) {
-      return hash != null && Time.currentTime() <= sentAt + ttl;
-    }
-  }
 
   private final KeycloakSession session;
 
@@ -74,7 +55,7 @@ public class NativeOtpAuthenticator extends NativeAuthenticatorBase {
   public ChallengeDescriptor describe(AuthenticationFlowContext context, AuthenticationExecutionModel execution) {
     Settings s = settings(context.getRealm().getAuthenticatorConfigById(execution.getAuthenticatorConfig()));
     NativeOtpSender sender = sender(s);
-    State state = state(context.getAuthenticationSession(), execution.getId());
+    OtpCodes.State state = state(context.getAuthenticationSession(), execution.getId());
     boolean sent = state != null && state.outstanding(s.ttl);
     ChallengeDescriptor d =
         new ChallengeDescriptor(ChallengeType.OTP)
@@ -99,11 +80,11 @@ public class NativeOtpAuthenticator extends NativeAuthenticatorBase {
       return;
     }
     Settings s = settings(context.getRealm().getAuthenticatorConfigById(execution.getAuthenticatorConfig()));
-    State state = state(context.getAuthenticationSession(), execution.getId());
+    OtpCodes.State state = state(context.getAuthenticationSession(), execution.getId());
     if (state != null) {
       return; // sent before in this session (maybe expired or exhausted): the client resends explicitly
     }
-    State fresh = send(context, execution.getId(), s);
+    OtpCodes.State fresh = send(context, execution.getId(), s);
     if (fresh != null) {
       descriptor.param("sent", true).param("resend_allowed_at", fresh.sentAt + s.cooldown);
     }
@@ -117,7 +98,7 @@ public class NativeOtpAuthenticator extends NativeAuthenticatorBase {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
     if (Protocol.ACTION_RESEND.equals(param(context, Protocol.ACTION))) {
-      State state = state(authSession, executionId);
+      OtpCodes.State state = state(authSession, executionId);
       long now = Time.currentTime();
       if (state != null && now < state.sentAt + s.cooldown) {
         rechallenge(context, Protocol.DESC_ERR_RESEND_TOO_SOON, "Wait before requesting another code");
@@ -139,12 +120,12 @@ public class NativeOtpAuthenticator extends NativeAuthenticatorBase {
     if (!checkUserEnabled(context, user)) {
       return;
     }
-    State state = state(authSession, executionId);
+    OtpCodes.State state = state(authSession, executionId);
     if (state == null || !state.outstanding(s.ttl)) {
       rechallenge(context, Protocol.DESC_ERR_EXPIRED_CODE, "No valid code outstanding; request a new one");
       return;
     }
-    if (!hash(state.salt, otp).equals(state.hash)) {
+    if (!OtpCodes.matches(state, otp)) {
       state.attempts++;
       context.getEvent().user(user).error(Errors.INVALID_USER_CREDENTIALS);
       if (state.attempts >= s.maxAttempts) {
@@ -165,57 +146,36 @@ public class NativeOtpAuthenticator extends NativeAuthenticatorBase {
   // ---------------------------------------------------------------------------------------------
 
   /** Generates, stores (hashed) and delivers a code; {@code null} when delivery failed. */
-  private State send(AuthenticationFlowContext context, String executionId, Settings s) {
+  private OtpCodes.State send(AuthenticationFlowContext context, String executionId, Settings s) {
     NativeOtpSender sender = sender(s);
     UserModel user = context.getUser();
     if (sender == null || user == null) {
       log.warnf("native-otp: no sender '%s' installed", s.channel);
       return null;
     }
-    String code = SecretGenerator.getInstance().randomString(s.digits, SecretGenerator.DIGITS);
-    State state = new State();
-    state.salt = SecretGenerator.getInstance().randomString(16);
-    state.hash = hash(state.salt, code);
-    state.sentAt = Time.currentTime();
-    state.attempts = 0;
     try {
-      sender.send(context.getRealm(), user, code, s.ttl);
+      OtpCodes.State state =
+          OtpCodes.send(context.getAuthenticationSession(), NOTE_PREFIX + executionId, sender, context.getRealm(), user, s.digits, s.ttl);
+      context.getEvent().detail("otp_channel", sender.channel());
+      log.debugf("native-otp: sent a code to user %s via %s", user.getUsername(), sender.channel());
+      return state;
     } catch (NativeOtpException e) {
       log.warnf(e, "native-otp: sending the code to user %s failed", user.getUsername());
       context.getEvent().detail("otp_channel", sender.channel()).error(Errors.EMAIL_SEND_FAILED);
       return null;
     }
-    save(context.getAuthenticationSession(), executionId, state);
-    context.getEvent().detail("otp_channel", sender.channel());
-    log.debugf("native-otp: sent a code to user %s via %s", user.getUsername(), sender.channel());
-    return state;
   }
 
   private NativeOtpSender sender(Settings s) {
     return session.getProvider(NativeOtpSender.class, s.channel);
   }
 
-  static State state(AuthenticationSessionModel authSession, String executionId) {
-    String note = authSession.getAuthNote(NOTE_PREFIX + executionId);
-    if (note == null) return null;
-    try {
-      return NativeAuthJson.read(note, State.class);
-    } catch (IOException e) {
-      return null;
-    }
+  static OtpCodes.State state(AuthenticationSessionModel authSession, String executionId) {
+    return OtpCodes.load(authSession, NOTE_PREFIX + executionId);
   }
 
-  private static void save(AuthenticationSessionModel authSession, String executionId, State state) {
-    authSession.setAuthNote(NOTE_PREFIX + executionId, NativeAuthJson.write(state));
-  }
-
-  static String hash(String salt, String code) {
-    try {
-      byte[] digest = MessageDigest.getInstance("SHA-256").digest((salt + ":" + code).getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(digest);
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
-    }
+  private static void save(AuthenticationSessionModel authSession, String executionId, OtpCodes.State state) {
+    OtpCodes.save(authSession, NOTE_PREFIX + executionId, state);
   }
 
   /** Effective configuration of one execution. */
@@ -236,10 +196,6 @@ public class NativeOtpAuthenticator extends NativeAuthenticatorBase {
   }
 
   private static int intOrDefault(String value, int fallback) {
-    try {
-      return value == null || value.isBlank() ? fallback : Integer.parseInt(value.trim());
-    } catch (NumberFormatException e) {
-      return fallback;
-    }
+    return OtpCodes.intOrDefault(value, fallback);
   }
 }

@@ -32,7 +32,7 @@ Entitlements: Associated Domains (`webcredentials:idp.example.com`), Push Notifi
 | S4 | Username → password → email OTP with resend | `otp`, `action=resend`, cooldown |
 | S5 | Choose factor: passkey vs password; TOTP vs push | multi-entry `challenges[]`, chooser UI |
 | S6 | Step-up: open "Transfer" → RFC 9470 401 → `stepUp(acrValues: "2")` → passkey only | `auth_session` reuse, LoA conditions, new `acr` in token |
-| S7 | Redirect-to-web fallback: user with Terms & Conditions required action | `redirect_to_web` + PAR `request_uri`, `ASWebAuthenticationSession`, code exchange |
+| S7 | Redirect-to-web fallback: user `frank` with the Update Profile required action (no native variant) | `redirect_to_web` + PAR `request_uri`, `ASWebAuthenticationSession`, code exchange |
 | S8 | Refresh forces re-auth (admin shortens SSO idle) | token endpoint `insufficient_authorization` → `reauthenticationRequired` |
 | S9 | Push enrolment in-app, then approve a **browser** login (scenario A) with number match | `/native-auth/push/enroll/start`, `/push-mfa/enroll/complete`, APNs, `/login/pending`, `/respond` |
 | S10 | Push as native challenge from a second device/simulator (scenario B) | `push` challenge, `action=poll`, approve on phone |
@@ -40,6 +40,7 @@ Entitlements: Associated Domains (`webcredentials:idp.example.com`), Push Notifi
 | S12 | Rotate push key; update APNs token; panic lockout | `/device/rotate-key`, `/device/push-provider`, `/login/lockout` |
 | S13 | Custom UI: toggle "Use custom TOTP screen" in Diagnostics | `challengePresenter(for:)` override |
 | S14 | Failure handling: wrong password ×N → brute-force lock → `access_denied` | error mapping, `retry.remaining` |
+| carol / grace / hank | Phase 2b required actions in-band: update password (policy hints, `invalid_password`), verify email with a mailed code, terms accept / decline | `update_password`, `verify_email`, `terms` (spec/03 §4.12–§4.14) |
 
 Each scenario is a button on Home with a short description, and the FlowLogView records the full transcript so a developer can compare it to `03-protocol-spec.md`.
 

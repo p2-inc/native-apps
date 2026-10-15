@@ -1,7 +1,7 @@
 # Keycloak Native Mobile Authentication — Investigation & Build Plan
 
 **Date:** 15 October 2026
-**Status:** Phase 0 spike (`09`), Phase 1a server passkeys (`11`), Phase 1b iOS SDK core + example app (`12`), Phase 1c simulator pass and Phase 2 step-up / redirect-to-web / OTP / UI product (`13`) done; username + password + TOTP + passkeys + email OTP, step-up and the browser fallback work end to end against Keycloak 26.8.1 from curl, the Java integration tests, the Swift SDK and the example app on the iOS 27 simulator (not yet on a physical device)
+**Status:** Phase 0 spike (`09`), Phase 1a server passkeys (`11`), Phase 1b iOS SDK core + example app (`12`), Phase 1c simulator pass and Phase 2 step-up / redirect-to-web / OTP / UI product (`13`) done; Phase 2b close-out and Phase 3 push MFA in progress (`14`); username + password + TOTP + passkeys + email OTP, step-up and the browser fallback work end to end against Keycloak 26.8.1 from curl, the Java integration tests, the Swift SDK and the example app on the iOS 27 simulator (not yet on a physical device)
 **Scope:** Browserless native authentication for Keycloak (passkeys, TOTP, OTP codes, push MFA), delivered as (1) a set of Keycloak extensions, (2) an iOS SDK, and (3) an example iOS app.
 
 ## Documents in this folder
@@ -21,6 +21,7 @@
 | 11 | `11-phase1-decisions.md` | **Phase 1a (server passkeys) decisions** (14 Oct 2026): native required actions in-band, `native-passkey` eligibility/discoverable login, flow-order challenge sets, post-login `auth_session`, registration endpoints and freshness rule, the test software authenticator. |
 | 12 | `12-phase1b-decisions.md` | **Phase 1b (iOS SDK core + example app) decisions** (14 Oct 2026): transcript fixture format, DPoP token binding found on the server, RP ID rule and tunnel strategy, public API deviations from 05, what was verified on macOS only. |
 | 13 | `13-phase2-decisions.md` | **Phase 1c (simulator pass) and Phase 2 decisions** (14 Oct 2026): step-up re-entering the flow like the cookie authenticator, `redirect_to_web` as a server-stored PAR, DPoP binding of session/code/post-login session, `native-otp` with the sender SPI and the single-option send rule, SDK/UI product shape, what ran on the simulator. |
+| 14 | `14-phase2b-3-decisions.md` | **Phase 2b (close-out) and Phase 3 (push MFA) decisions** (15 Oct 2026): native required actions substituting for Keycloak's update-password / verify-email / terms, recovery codes, the username phantom challenge and `retry.remaining`, enrol-on-first-login, SMS webhook IT and themed OTP mail, UI localisation and tests, the push-MFA integration. |
 
 ## Executive summary
 

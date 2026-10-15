@@ -52,7 +52,10 @@
   "adminEventsEnabled": false,
   "attributes": {
     "native-auth.flow-alias": "native",
-    "native-auth.code-redirect-uri-mode": "none"
+    "native-auth.code-redirect-uri-mode": "none",
+    "native-auth.terms-text": "Demo terms: by continuing you agree that this realm is for demonstration only.",
+    "native-auth.terms-url": "https://example.com/terms",
+    "native-auth.terms-version": "2026-10"
   },
   "clients": [
     {
@@ -266,6 +269,60 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "username": "frank",
+      "enabled": true,
+      "email": "frank@example.com",
+      "emailVerified": true,
+      "firstName": "Frank",
+      "lastName": "Example",
+      "requiredActions": [
+        "UPDATE_PROFILE"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "frank-password",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "grace",
+      "enabled": true,
+      "email": "grace@example.com",
+      "emailVerified": false,
+      "firstName": "Grace",
+      "lastName": "Example",
+      "requiredActions": [
+        "VERIFY_EMAIL"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "grace-password",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "hank",
+      "enabled": true,
+      "email": "hank@example.com",
+      "emailVerified": true,
+      "firstName": "Hank",
+      "lastName": "Example",
+      "requiredActions": [
+        "TERMS_AND_CONDITIONS"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "hank-password",
+          "temporary": false
+        }
+      ]
     }
   ],
   "requiredActions": [
@@ -273,7 +330,7 @@
       "alias": "TERMS_AND_CONDITIONS",
       "name": "Terms and Conditions",
       "providerId": "TERMS_AND_CONDITIONS",
-      "enabled": false,
+      "enabled": true,
       "defaultAction": false,
       "priority": 20,
       "config": {}
@@ -396,6 +453,33 @@
       "config": {}
     },
     {
+      "alias": "native-update-password",
+      "name": "Native: update password",
+      "providerId": "native-update-password",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 141,
+      "config": {}
+    },
+    {
+      "alias": "native-verify-email",
+      "name": "Native: verify email (code)",
+      "providerId": "native-verify-email",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 142,
+      "config": {}
+    },
+    {
+      "alias": "native-terms",
+      "name": "Native: terms and conditions",
+      "providerId": "native-terms",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 143,
+      "config": {}
+    },
+    {
       "alias": "update_user_locale",
       "name": "Update User Locale",
       "providerId": "update_user_locale",
@@ -408,7 +492,7 @@
   "authenticationFlows": [
     {
       "alias": "native",
-      "description": "Native (browserless) authentication: username -> primary factor -> conditional second factor (spec/04 §7)",
+      "description": "Native (browserless) authentication: username -> primary factor -> conditional second factor (spec/04 \u00a77)",
       "providerId": "basic-flow",
       "topLevel": true,
       "builtIn": false,
@@ -619,7 +703,7 @@
     },
     {
       "alias": "native-step-up",
-      "description": "Native flow with step-up levels (spec/03 §5): level 1 = primary factor (passkey or password, valid 10 h), level 2 = TOTP (re-asked on every step-up); client demo-ios-stepup",
+      "description": "Native flow with step-up levels (spec/03 \u00a75): level 1 = primary factor (passkey or password, valid 10 h), level 2 = TOTP (re-asked on every step-up); client demo-ios-stepup",
       "providerId": "basic-flow",
       "topLevel": true,
       "builtIn": false,
@@ -727,7 +811,7 @@
     },
     {
       "alias": "native-otp",
-      "description": "Native flow with a one-time code second factor (spec/03 §4.6): username -> password -> [totp | email otp]; client demo-ios-otp",
+      "description": "Native flow with a one-time code second factor (spec/03 \u00a74.6): username -> password -> [totp | email otp]; client demo-ios-otp",
       "providerId": "basic-flow",
       "topLevel": true,
       "builtIn": false,

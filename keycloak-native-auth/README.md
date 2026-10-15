@@ -5,13 +5,16 @@ Browserless native authentication for Keycloak: a FiPA-style *authorization chal
 and returns JSON challenges instead of HTML forms, plus native-aware authenticators. The wire
 protocol is `../spec/03-protocol-spec.md`; design and plan are in `../spec/`.
 
-**Status: Phase 2** — username + password + TOTP + **passkeys** (allow-list and discoverable
+**Status: Phase 2b** — username + password + TOTP + **passkeys** (allow-list and discoverable
 login, registration mid-flow through a native required action and after login through
 bearer-authenticated endpoints), **email / SMS one-time codes**, **step-up / re-authentication**
-with the post-login `auth_session`, **redirect-to-web** for required actions the native flow cannot
-serve, and **DPoP binding** of `auth_session` and code at the challenge endpoint. Push MFA is Phase 3.
+with the post-login `auth_session`, **native required actions** for update-password / verify-email /
+terms (serving Keycloak's own `UPDATE_PASSWORD`, `VERIFY_EMAIL`, `TERMS_AND_CONDITIONS` in-band),
+**redirect-to-web** for required actions the native flow cannot serve, and **DPoP binding** of
+`auth_session` and code at the challenge endpoint. Push MFA is Phase 3.
 Decisions are recorded in `../spec/09-phase0-decisions.md` (Phase 0), `../spec/11-phase1-decisions.md`
-(Phase 1a), `../spec/12-phase1b-decisions.md` (iOS SDK) and `../spec/13-phase2-decisions.md` (Phase 2).
+(Phase 1a), `../spec/12-phase1b-decisions.md` (iOS SDK), `../spec/13-phase2-decisions.md` (Phase 2) and
+`../spec/14-phase2b-3-decisions.md` (Phase 2b / 3).
 
 ## Modules
 
@@ -20,7 +23,7 @@ Decisions are recorded in `../spec/09-phase0-decisions.md` (Phase 0), `../spec/1
 | `native-auth-core` | yes | Protocol model (snake_case JSON), `AuthSessionCodec` (JWE), `NativeAuthenticator` and `NativeRequiredAction` SPIs, `NativeRequestContext` |
 | `native-auth-authenticators` | yes | `native-username`, `native-password`, `native-totp`, `native-passkey` |
 | `native-auth-otp-sender` | yes | `native-otp` authenticator (spec/03 §4.6) and the `native-otp-sender` SPI with the `email` (realm SMTP) and `sms-webhook` senders |
-| `native-auth-required-actions` | yes | `native-passkey-register` plus the passkey registration helpers (`PasskeyRegistrationOptions`, `PasskeyRegistrationVerifier`) |
+| `native-auth-required-actions` | yes | `native-passkey-register`, `native-update-password`, `native-verify-email`, `native-terms` (spec/03 §4.11–§4.14) plus the passkey registration helpers (`PasskeyRegistrationOptions`, `PasskeyRegistrationVerifier`) |
 | `native-auth-endpoint` | yes | `RealmResourceProvider` id `native-auth`: `GET /metadata`, `POST /challenge`, `POST /passkey/register/options|finish`; `ChallengeFlowDriver`, `CodeIssuer`, `RequiredActionDriver`, `PasskeyRegistrationDriver`, `DPoPProofChecker`, `RedirectToWebBuilder` |
 | `demo` | no | `docker-compose.yml` (Keycloak, Postgres, mailpit, a Node resource server for the step-up demo), `realm-export/demo-realm.json`, `scripts/walkthrough.sh`, `scripts/passkey-walkthrough.md`, Testcontainers integration tests |
 
@@ -39,14 +42,16 @@ bodies verbatim); `demo/scripts/update-transcripts.sh` copies them to the commit
 `demo/transcripts/`, which the iOS SDK's unit tests replay (`../ios/KeycloakNative`).
 
 The integration tests (`demo/src/test/java/.../NativeAuthIT.java`, `PasskeyIT.java`, `StepUpIT.java`,
-`OtpIT.java`, `RedirectToWebIT.java`, `DPoPBindingIT.java`) start Keycloak (plus a mailpit SMTP sink)
+`OtpIT.java`, `RedirectToWebIT.java`, `DPoPBindingIT.java`, `RequiredActionsIT.java`) start Keycloak (plus a mailpit SMTP sink)
 with the freshly built provider JARs and the demo realm, and exercise the happy path, re-challenge on
 wrong password / wrong TOTP / wrong passkey signature, invalid / cancelled / expired `auth_session`,
 unknown `challenge_id`, the `redirect_uri` modes, the multi-alternative challenge set, passkey
 registration (authenticated endpoints and the `native-passkey-register` required action), allow-list
 and discoverable passkey login, step-up with LoA conditions, `max_age` re-authentication, email OTP
-with resend / cooldown / exhaustion, the browser fallback driven through Keycloak's HTML forms, and
-DPoP-bound sessions and codes. `PasskeyIT` uses a software WebAuthn authenticator
+with resend / cooldown / exhaustion, the browser fallback driven through Keycloak's HTML forms,
+DPoP-bound sessions and codes, and the native required actions (update password with a policy
+violation, verify email with a mailed code, terms accepted / declined, the fallback to
+`redirect_to_web` when the native variant is disabled). `PasskeyIT` uses a software WebAuthn authenticator
 (`SoftwareAuthenticator`, ES256, `none` attestation) and `DPoPBindingIT` a test-side proof signer
 (`DPoPProofs`), so no device is needed.
 
@@ -95,22 +100,28 @@ Demo realm contents:
   only sent when `otp` is the single option or the client asks for it (`action=resend`); config alias
   `native-otp - email`: 6 digits, 300 s, 10 s resend cooldown, 3 attempts. Emails land in mailpit.
 - WebAuthn **Passwordless** policy: RP ID `localhost`, ES256/RS256, user verification `required`,
-  resident key `required`, attestation `none`, no extra origins. Required action
-  `native-passkey-register` is registered and enabled (the export lists Keycloak's default required
-  actions too, because Keycloak seeds them only into an empty list).
+  resident key `required`, attestation `none`, no extra origins. Required actions
+  `native-passkey-register`, `native-update-password`, `native-verify-email` and `native-terms` are
+  registered and enabled, and Keycloak's `TERMS_AND_CONDITIONS` is enabled (the export lists
+  Keycloak's default required actions too, because Keycloak seeds them only into an empty list).
+  Realm attributes `native-auth.terms-text|url|version` feed the `terms` challenge (a realm export
+  cannot carry required-action config).
 - Client `demo-ios`: public, PKCE S256 required, attribute `native-auth.enabled=true`,
   standard flow enabled (needed for the code exchange), redirect URI `demoapp://auth/callback`
   reserved for the later `redirect_to_web` fallback.
 - Users: `alice` / `alice-password` with TOTP (secret `alice-totp-secret-20261014`, label *Phone*),
   `bob` / `bob-password` (password only, so the conditional second factor is skipped),
-  `carol` / `carol-password` with a pending *Update Password* required action (shows the
-  `access_denied` extension point for non-native required actions), `dave` / `dave-password` with the
+  `carol` / `carol-password` with a pending *Update Password* required action (served in-band by
+  `native-update-password`, spec/03 §4.12), `frank` / `frank-password` with *Update Profile* pending
+  (no native variant: `redirect_to_web`), `grace` / `grace-password` with *Verify Email* pending
+  (served by `native-verify-email`: a code lands in mailpit), `hank` / `hank-password` with *Terms and
+  Conditions* pending (served by `native-terms`), `dave` / `dave-password` with the
   pending `native-passkey-register` action (a passkey is enrolled in-band on the first native login),
   `erin` / `erin-password` reserved for the brute-force demo (spec/06 S14): `failureFactor` is 5 in
   the demo realm, so five wrong passwords (or two within a second) lock the account for a minute and
   the flow ends with `403 access_denied`. No passkey is pre-registered in the export; the
-  integration tests register them. carol's native login now ends with `403 redirect_to_web` (a PAR
-  `request_uri` for the browser, spec/03 §3.4) instead of `access_denied`.
+  integration tests register them. frank's native login ends with `403 redirect_to_web` (a PAR
+  `request_uri` for the browser, spec/03 §3.4).
 - `smtpServer` points at the compose/Testcontainers `mailpit` host (`noreply@demo.local`).
 - `otpPolicyCodeReusable=true` so the walkthrough and tests can log in repeatedly within one
   30 s TOTP window. Keep the Keycloak default (`false`) in real deployments.
@@ -131,6 +142,8 @@ Demo realm contents:
 | SPI `native-otp-sender` / `sms-webhook` | `--spi-native-otp-sender--sms-webhook--url`, `--token`, `--phone-attribute` | webhook that receives `{"to","message"}` (optional bearer token), user attribute holding the number | –, –, `phoneNumber` |
 | realm | WebAuthn Passwordless policy (`webAuthnPolicyPasswordless*`) | RP ID, algorithms, user verification, resident key, attestation, extra origins, create timeout: drives both the `passkey` and `passkey_registration` descriptors | Keycloak defaults |
 | authenticator `native-username` | `reveal-user-not-found` | `true` → error code `invalid_user`, otherwise generic `invalid_credential` | `false` |
+| required action `native-verify-email` (config) | `digits`, `ttl`, `resend-cooldown`, `max-attempts` | code length, lifetime (s), seconds between sends, wrong codes before the code is invalidated; delivery uses the `email` native-otp-sender | 6, 300, 30, 5 |
+| required action `native-terms` (config) / realm | `terms-text`, `terms-url`, `terms-version` / `native-auth.terms-text`, `native-auth.terms-url`, `native-auth.terms-version` | what the `terms` challenge shows; the realm attributes are the fallback (importable) | a generic sentence |
 
 `GET /realms/{realm}/native-auth/metadata` advertises the effective `redirect_uri` requirement under
 `code_exchange`, the passkey RP ID and registration endpoints under `passkey`, the installed
@@ -185,10 +198,15 @@ algorithms the challenge endpoint verifies).
   offending execution id (spec/08 R8).
 - Executions that are ALTERNATIVE siblings (directly or through sub-flows) are offered together in
   one `challenges[]` set; the client answers whichever it prefers by `challenge_id`.
-- Native required actions (`native-passkey-register`) pending after the flow are served in-band as
-  another challenge; any other required action (update password, verify email, ...) ends the request
-  with `403 redirect_to_web` (a PAR `request_uri` for the browser) when the native request carried
-  PKCE and the client has a redirect URI, else `403 access_denied` naming the action.
+- Native required actions pending after the flow are served in-band as another challenge:
+  `native-passkey-register` under its own alias, and `native-update-password`, `native-verify-email`,
+  `native-terms` either under their own alias or **in place of** Keycloak's `UPDATE_PASSWORD`,
+  `VERIFY_EMAIL`, `TERMS_AND_CONDITIONS` when those are pending and the native action is registered
+  and enabled in the realm (disable it to fall back to the browser; a user without an e-mail address
+  cannot be served by `native-verify-email`). Any other required action (update profile, configure
+  OTP, ...) ends the request with `403 redirect_to_web` (a PAR `request_uri` for the browser) when
+  the native request carried PKCE and the client has a redirect URI, else `403 access_denied` naming
+  the action.
 - Step-up levels: put the factors under `conditional-level-of-authentication` sub-flows exactly as in
   Keycloak's browser step-up flow (see `native-step-up`); `native-username` skips itself when the
   user is already identified.

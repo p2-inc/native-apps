@@ -29,6 +29,10 @@ public final class DemoModel {
   public var otp = ""
   public var totpCredentialId: String?
   public var passkeyLabel = "My iPhone"
+  /// Phase 2b required actions (carol / grace).
+  public var newPassword = ""
+  public var newPasswordConfirm = ""
+  public var verifyEmailCode = ""
 
   private var sdks: [String: KeycloakNative] = [:]
 
@@ -84,6 +88,9 @@ public final class DemoModel {
     password = ""
     totp = ""
     otp = ""
+    newPassword = ""
+    newPasswordConfirm = ""
+    verifyEmailCode = ""
     resourceResult = nil
     step = nil
     flow = nil

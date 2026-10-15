@@ -54,6 +54,14 @@ public final class Protocol {
   public static final String REGISTRATION_ID = "registration_id";
   // otp (spec/03 §4.6)
   public static final String OTP = "otp";
+  // recovery_code (spec/03 §4.8)
+  public static final String RECOVERY_CODE = "recovery_code";
+  // update_password (spec/03 §4.12): PASSWORD plus
+  public static final String PASSWORD_CONFIRM = "password_confirm";
+  // verify_email (spec/03 §4.13)
+  public static final String CODE = "code";
+  // terms (spec/03 §4.14)
+  public static final String ACCEPTED = "accepted";
   // redirect_to_web (spec/03 §3.4) and step-up (§5, §6)
   public static final String REQUEST_URI = "request_uri";
   public static final String REDIRECT_URI = "redirect_uri";
@@ -85,6 +93,10 @@ public final class Protocol {
   public static final String DESC_ERR_EXPIRED_CODE = "expired_code";
   /** {@code otp}: {@code action=resend} before {@code resend_allowed_at} (spec/03 §4.6). */
   public static final String DESC_ERR_RESEND_TOO_SOON = "resend_too_soon";
+  /** {@code update_password}: {@code password_confirm} differs (spec/03 §4.12). */
+  public static final String DESC_ERR_PASSWORD_MISMATCH = "password_mismatch";
+  /** {@code update_password}: the realm's password policy rejected the value (spec/03 §4.12). */
+  public static final String DESC_ERR_INVALID_PASSWORD = "invalid_password";
 
   // ---- Keycloak client / realm attributes ----
   public static final String CLIENT_ATTR_ENABLED = "native-auth.enabled";
@@ -97,6 +109,10 @@ public final class Protocol {
   public static final String DEFAULT_FLOW_ALIAS = "native";
   /** Client attribute: {@code redirect_uri} used for {@code redirect_to_web} (spec/03 §3.4); defaults to the first registered one. */
   public static final String CLIENT_ATTR_WEB_FALLBACK_REDIRECT_URI = "native-auth.web-fallback-redirect-uri";
+  /** Realm attributes: fallback configuration of {@code native-terms} (spec/03 §4.14) when the required action has no config. */
+  public static final String ATTR_TERMS_TEXT = "native-auth.terms-text";
+  public static final String ATTR_TERMS_URL = "native-auth.terms-url";
+  public static final String ATTR_TERMS_VERSION = "native-auth.terms-version";
 
   /** Sentinel redirect URI stored with the code when {@code code-redirect-uri-mode=sentinel}. */
   public static final String SENTINEL_REDIRECT_URI = "urn:keycloak:native-auth";

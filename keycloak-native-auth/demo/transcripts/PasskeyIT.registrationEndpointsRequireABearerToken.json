@@ -1,13 +1,14 @@
 {
   "test": "PasskeyIT.registrationEndpointsRequireABearerToken",
-  "recorded_at": "2026-10-14T21:32:57.236836Z",
+  "recorded_at": "2026-10-15T10:37:58.599223Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:55746",
+  "base_url": "http://localhost:51441",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
     "otp",
     "password",
+    "password_confirm",
     "recovery_code",
     "refresh_token",
     "token",

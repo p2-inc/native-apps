@@ -183,17 +183,69 @@ struct LiveServerTests {
     #expect(step.credentials?.accessTokenClaims?["preferred_username"]?.stringValue == "alice")
   }
 
-  @Test func s7CarolIsRedirectedToTheWeb() async throws {
+  @Test func s7FrankIsRedirectedToTheWeb() async throws {
     let kc = sdk(clientId: "demo-ios")
     let flow = kc.authentication().startLogin(LoginParameters(scope: "openid", deviceName: "LiveServerTests"))
     var step = try await flow.start()
-    step = try await flow.respond(.username("carol"), to: try #require(step.challenges?.first(.username)))
-    step = try await flow.respond(.password("carol-password"), to: try #require(step.challenges?.first(.password)))
+    step = try await flow.respond(.username("frank"), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password("frank-password"), to: try #require(step.challenges?.first(.password)))
     guard case .redirectToWeb(let request) = step else { Issue.record("expected redirect_to_web, got \(step)"); return }
-    #expect(request.reason == "required_action:UPDATE_PASSWORD" && request.callbackScheme == "demoapp" && request.state != nil)
+    #expect(request.reason == "required_action:UPDATE_PROFILE" && request.callbackScheme == "demoapp" && request.state != nil)
     let url = try await kc.webFallback().authorizationURL(for: request)
     #expect(url.absoluteString.hasPrefix(Self.base + "/realms/demo/protocol/openid-connect/auth?"))
     // The browser flow itself is exercised by RedirectToWebIT; opening Safari is not possible here.
+  }
+
+  // MARK: - Phase 2b (spec/14 D1): required actions in-band. Each action is consumed by the first run
+  // in a container; later runs find the plain login and only check that it succeeds.
+
+  private func loginToRequiredAction(_ kc: KeycloakNative, username: String, password: String) async throws -> (NativeLoginFlow, FlowStep) {
+    let flow = kc.authentication().startLogin(LoginParameters(scope: "openid", deviceName: "LiveServerTests"))
+    var step = try await flow.start()
+    step = try await flow.respond(.username(username), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password(password), to: try #require(step.challenges?.first(.password)))
+    return (flow, step)
+  }
+
+  @Test func carolUpdatesHerPasswordInBand() async throws {
+    let kc = sdk(clientId: "demo-ios")
+    var (flow, step) = try await loginToRequiredAction(kc, username: "carol", password: "carol-password")
+    if let challenge = step.challenges?.first(.updatePassword) {
+      #expect(challenge.id == "native-update-password" && challenge.required)
+      step = try await flow.respond(.updatePassword("carol-password", confirm: "nope"), to: challenge)
+      let mismatch = try #require(step.challenges?.first(.updatePassword))
+      #expect(mismatch.error?.code == ChallengeError.Code.passwordMismatch)
+      step = try await flow.respond(.updatePassword("carol-password", confirm: "carol-password"), to: mismatch)
+    }
+    #expect(step.credentials?.accessTokenClaims?["preferred_username"]?.stringValue == "carol")
+  }
+
+  @Test func graceVerifiesHerEmailWithACode() async throws {
+    let mailpit = ProcessInfo.processInfo.environment["KEYCLOAK_NATIVE_LIVE_MAILPIT"] ?? "http://localhost:8025"
+    let kc = sdk(clientId: "demo-ios")
+    var (flow, step) = try await loginToRequiredAction(kc, username: "grace", password: "grace-password")
+    if let challenge = step.challenges?.first(.verifyEmail) {
+      let params = try #require(challenge.verifyEmailParams)
+      #expect(challenge.id == "native-verify-email" && params.sent && params.emailMasked == "g***@example.com")
+      let (data, _) = try await URLSession.shared.data(from: URL(string: mailpit + "/api/v1/messages?limit=20")!)
+      let messages = JSONValue(jsonData: data)?["messages"]?.arrayValue ?? []
+      let mine = try #require(messages.first { ($0["To"]?.arrayValue ?? []).contains { $0["Address"]?.stringValue == "grace@example.com" } })
+      let (body, _) = try await URLSession.shared.data(from: URL(string: mailpit + "/api/v1/message/" + (mine["ID"]?.stringValue ?? ""))!)
+      let text = JSONValue(jsonData: body)?["Text"]?.stringValue ?? ""
+      let match = try #require(text.firstRange(of: /code is (\d{6})/))
+      step = try await flow.respond(.verifyEmail(code: String(text[match].suffix(6))), to: challenge)
+    }
+    #expect(step.credentials?.accessTokenClaims?["email_verified"]?.boolValue == true)
+  }
+
+  @Test func hankAcceptsTheTerms() async throws {
+    let kc = sdk(clientId: "demo-ios")
+    var (flow, step) = try await loginToRequiredAction(kc, username: "hank", password: "hank-password")
+    if let challenge = step.challenges?.first(.terms) {
+      #expect(challenge.id == "native-terms" && challenge.termsParams?.text?.hasPrefix("Demo terms") == true)
+      step = try await flow.respond(.terms(accepted: true), to: challenge)
+    }
+    #expect(step.credentials?.accessTokenClaims?["preferred_username"]?.stringValue == "hank")
   }
 
   @Test func s14BruteForceLockEndsWithAccessDenied() async throws {

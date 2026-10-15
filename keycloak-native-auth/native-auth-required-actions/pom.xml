@@ -11,12 +11,17 @@
 
   <artifactId>native-auth-required-actions</artifactId>
   <name>Keycloak Native Auth :: required actions</name>
-  <description>Native (JSON) required actions: native-passkey-register, plus the passkey registration helpers shared with the authenticated registration endpoints.</description>
+  <description>Native (JSON) required actions: native-passkey-register, native-update-password, native-verify-email, native-terms, plus the passkey registration helpers shared with the authenticated registration endpoints.</description>
 
   <dependencies>
     <dependency>
       <groupId>io.phasetwo.keycloak</groupId>
       <artifactId>native-auth-core</artifactId>
+    </dependency>
+    <!-- native-verify-email delivers its code through the native-otp-sender SPI (spec/03 §4.13). -->
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-otp-sender</artifactId>
     </dependency>
     <dependency>
       <groupId>org.keycloak</groupId>

@@ -7,12 +7,14 @@ dependencies):
 - `KeycloakNativeCore`: metadata discovery, the challenge state machine, PKCE, DPoP proofs (Secure
   Enclave or software key; the server binds session, code and tokens to the key), the passkey bridge
   over `AuthenticationServices`, step-up / re-authentication with the post-login `auth_session`, the
-  browser fallback (`WebFallback` over `ASWebAuthenticationSession`), email/SMS one-time codes, token
+  browser fallback (`WebFallback` over `ASWebAuthenticationSession`), email/SMS one-time codes, the
+  in-band required actions (`updatePassword`, `verifyEmail`, `terms`, `passkeyRegistration`), token
   exchange/refresh/revoke/logout and a Keychain-backed `CredentialsManager`.
 - `KeycloakNativeUI`: `NativeLoginView` drives a flow with default SwiftUI screens for every
   challenge type (username, password, TOTP, OTP with resend countdown, passkey, passkey registration,
-  browser fallback) and a "Try another way" chooser; any screen is replaceable with
-  `.challengePresenter(for:)`, the chooser with `.challengeChooser`.
+  update password with policy hints, verify email, terms, browser fallback) and a "Try another way"
+  chooser; any screen is replaceable with `.challengePresenter(for:)`, the chooser with
+  `.challengeChooser`.
 
 Design: `../../spec/05`, decisions: `../../spec/12-phase1b-decisions.md` and
 `../../spec/13-phase2-decisions.md`.

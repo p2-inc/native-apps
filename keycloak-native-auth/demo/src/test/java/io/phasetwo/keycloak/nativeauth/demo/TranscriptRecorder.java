@@ -58,7 +58,14 @@ public final class TranscriptRecorder implements Filter, BeforeEachCallback, Aft
 
   /** Form fields whose values are never written to a transcript. */
   public static final Set<String> MASKED_FORM_FIELDS =
-      Set.of("password", "totp", "otp", "recovery_code", "code_verifier", "client_secret", "refresh_token", "token");
+      Set.of("password", "password_confirm", "totp", "otp", "recovery_code", "code_verifier", "client_secret", "refresh_token", "token");
+
+  /**
+   * Masked only on the challenge endpoint: there {@code code} is the e-mail verification code
+   * (spec/03 §4.13); on the token endpoint it is the authorization code, recorded verbatim so the
+   * SDK replay can check that the right code is exchanged.
+   */
+  public static final Set<String> MASKED_CHALLENGE_FORM_FIELDS = Set.of("code");
 
   private static final Set<String> MASKED_HEADERS = Set.of("authorization", "dpop");
   private static final Set<String> REQUEST_HEADERS = Set.of("accept", "content-type", "authorization", "dpop");
@@ -161,7 +168,8 @@ public final class TranscriptRecorder implements Filter, BeforeEachCallback, Aft
     Map<String, String> form = spec.getFormParams();
     if (form != null && !form.isEmpty()) {
       Map<String, String> masked = new LinkedHashMap<>();
-      form.forEach((k, v) -> masked.put(k, MASKED_FORM_FIELDS.contains(k) ? MASK : v));
+      boolean challengeEndpoint = path.endsWith("/native-auth/challenge");
+      form.forEach((k, v) -> masked.put(k, MASKED_FORM_FIELDS.contains(k) || (challengeEndpoint && MASKED_CHALLENGE_FORM_FIELDS.contains(k)) ? MASK : v));
       req.put("form", masked);
     }
     Object body = spec.getBody();

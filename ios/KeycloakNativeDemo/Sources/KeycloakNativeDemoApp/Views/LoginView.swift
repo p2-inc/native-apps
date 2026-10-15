@@ -112,6 +112,25 @@ struct LoginView: View {
         .disabled(model.isBusy)
     case .otp:
       OTPChallengeSection(challenge: challenge, params: challenge.otpParams)
+    case .updatePassword:
+      let params = challenge.updatePasswordParams
+      Text("Keycloak's UPDATE_PASSWORD served in-band by \(challenge.id) (spec/03 §4.12).").font(.footnote).foregroundStyle(.secondary)
+      if let hints = params?.hints, !hints.isEmpty {
+        Text(hints.joined(separator: " · ")).font(.footnote).foregroundStyle(.secondary)
+      }
+      SecureField("New password", text: $model.newPassword).textContentType(.newPassword).accessibilityIdentifier("newPassword")
+      SecureField("Confirm new password", text: $model.newPasswordConfirm).textContentType(.newPassword).accessibilityIdentifier("newPasswordConfirm")
+      Button("Update password") { Task { await model.answer(.updatePassword(model.newPassword, confirm: model.newPasswordConfirm), to: challenge) } }
+        .disabled(model.isBusy || model.newPassword.isEmpty)
+        .accessibilityIdentifier("updatePassword")
+    case .verifyEmail:
+      VerifyEmailChallengeSection(challenge: challenge, params: challenge.verifyEmailParams)
+    case .terms:
+      let params = challenge.termsParams
+      if let text = params?.text { Text(text).font(.footnote).accessibilityIdentifier("termsText") }
+      if let url = params?.url { Link("Read the full terms (\(params?.version ?? "no version"))", destination: url).font(.footnote) }
+      Button("Accept") { Task { await model.answer(.terms(accepted: true), to: challenge) } }.disabled(model.isBusy).accessibilityIdentifier("acceptTerms")
+      Button("Decline", role: .destructive) { Task { await model.answer(.terms(accepted: false), to: challenge) } }.disabled(model.isBusy).accessibilityIdentifier("declineTerms")
     case .push, .recoveryCode, .select, .unknown:
       Text("Unsupported challenge type '\(challenge.type.wire)' in this app version: update the app or use the web.")
         .foregroundStyle(.orange)
@@ -142,6 +161,33 @@ struct OTPChallengeSection: View {
     Button(sent ? (wait > 0 ? "Resend in \(wait) s" : "Resend code") : "Send me a code") { Task { await model.resendOtp(challenge) } }
       .disabled(model.isBusy || wait > 0)
       .accessibilityIdentifier("otpResend")
+      .onReceive(ticker) { now = $0 }
+  }
+}
+
+/// grace: the hand-rolled `verify_email` screen (spec/03 §4.13), same shape as the `otp` one.
+struct VerifyEmailChallengeSection: View {
+  @Environment(DemoModel.self) private var model
+  let challenge: Challenge
+  let params: VerifyEmailParams?
+  @State private var now = Date()
+  private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+  var body: some View {
+    @Bindable var model = model
+    let sent = params?.sent ?? false
+    let wait = Int(params?.resendWait(at: now).rounded(.up) ?? 0)
+    Text(sent ? "Code sent to \(params?.emailMasked ?? "?"), valid \(params?.ttl ?? 0) s (VERIFY_EMAIL served by \(challenge.id))" : "No code outstanding: ask for one")
+      .font(.footnote).foregroundStyle(.secondary)
+    if sent {
+      TextField("\(params?.digits ?? 6)-digit code", text: $model.verifyEmailCode).textContentType(.oneTimeCode).accessibilityIdentifier("verifyEmailCode")
+      Button("Verify email") { Task { await model.answer(.verifyEmail(code: model.verifyEmailCode), to: challenge) } }
+        .disabled(model.isBusy || model.verifyEmailCode.isEmpty)
+        .accessibilityIdentifier("verifyEmail")
+    }
+    Button(sent ? (wait > 0 ? "Resend in \(wait) s" : "Resend code") : "Send me a code") { Task { await model.answer(.verifyEmailResend, to: challenge) } }
+      .disabled(model.isBusy || wait > 0)
+      .accessibilityIdentifier("verifyEmailResend")
       .onReceive(ticker) { now = $0 }
   }
 }

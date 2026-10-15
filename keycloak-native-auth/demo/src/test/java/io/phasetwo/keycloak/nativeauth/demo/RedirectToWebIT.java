@@ -1,13 +1,10 @@
 package io.phasetwo.keycloak.nativeauth.demo;
 
-import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.adminRealmUrl;
-import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.adminToken;
 import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.baseUrl;
 import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.realmUrl;
 import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.CLIENT;
 import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.claims;
 import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.login;
-import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,7 +20,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
- * {@code redirect_to_web} (spec/03 §3.4, spec/13 D2): a non-native required action hands the login
+ * {@code redirect_to_web} (spec/03 §3.4, spec/13 D2): a required action without a native variant hands the login
  * to the browser through a PAR {@code request_uri}; the browser flow completes it and the code it
  * returns is exchanged with the native flow's PKCE verifier. The "browser" is RestAssured with a
  * cookie jar driving Keycloak's HTML forms.
@@ -66,9 +62,10 @@ class RedirectToWebIT {
 
   @Test
   void pendingNonNativeRequiredActionRedirectsToWebAndTheBrowserFlowCompletesIt() {
-    // carol must update her password; the native flow cannot serve that action (spec/11 D1).
+    // frank must update his profile; no native variant serves UPDATE_PROFILE (spec/03 §4.11), so
+    // the login is handed to the browser. (carol's UPDATE_PASSWORD runs in-band since Phase 2b.)
     Pkce pkce = Pkce.s256();
-    Response r = login(CLIENT, pkce, "carol", "carol-password", null);
+    Response r = login(CLIENT, pkce, "frank", "frank-password", null);
     assertEquals(403, r.statusCode(), r.asString());
     JsonPath j = r.jsonPath();
     assertEquals("redirect_to_web", j.getString("error"));
@@ -78,7 +75,7 @@ class RedirectToWebIT {
     assertEquals("demoapp://auth/callback", j.getString("redirect_uri"));
     String state = j.getString("state");
     assertNotNull(state);
-    assertEquals("required_action:UPDATE_PASSWORD", j.getString("reason"));
+    assertEquals("required_action:UPDATE_PROFILE", j.getString("reason"));
 
     try {
       // 1. The system browser opens the authorization endpoint with client_id + request_uri. The
@@ -92,20 +89,20 @@ class RedirectToWebIT {
       }
       assertEquals(200, page.statusCode(), page.body());
       String html = page.body();
-      assertTrue(html.contains("value=\"carol\""), "login_hint pre-fills the username:\n" + html);
+      assertTrue(html.contains("value=\"frank\""), "login_hint pre-fills the username:\n" + html);
 
-      // 2. carol signs in again in the browser flow …
-      HttpResponse<String> afterLogin = browser.post(formAction(html), "username=carol&password=carol-password");
+      // 2. frank signs in again in the browser flow …
+      HttpResponse<String> afterLogin = browser.post(formAction(html), "username=frank&password=frank-password");
       // … and is sent to the required action.
       assertEquals(302, afterLogin.statusCode(), afterLogin.body());
       String actionUrl = afterLogin.headers().firstValue("Location").orElseThrow();
       assertTrue(actionUrl.contains("required-action"), actionUrl);
       HttpResponse<String> actionPage = browser.get(actionUrl);
       assertEquals(200, actionPage.statusCode(), actionPage.body());
-      assertTrue(actionPage.body().contains("password-new"), actionPage.body());
+      assertTrue(actionPage.body().contains("firstName"), actionPage.body());
 
       // 3. The action completes and the browser is redirected to the app with a code.
-      HttpResponse<String> done = browser.post(formAction(actionPage.body()), "password-new=carol-password&password-confirm=carol-password");
+      HttpResponse<String> done = browser.post(formAction(actionPage.body()), "username=frank&email=frank%40example.com&firstName=Frank&lastName=Example");
       assertEquals(302, done.statusCode(), done.body());
       String location = done.headers().firstValue("Location").orElseThrow();
       assertTrue(location.startsWith("demoapp://auth/callback?"), location);
@@ -117,19 +114,19 @@ class RedirectToWebIT {
       // 4. The native app exchanges the code with its own verifier and the redirect_uri.
       Response tokens = NativeAuthIT.exchange(CLIENT, code, pkce, "demoapp://auth/callback");
       assertEquals(200, tokens.statusCode(), tokens.asString());
-      assertEquals("carol", claims(tokens.jsonPath().getString("access_token")).getString("preferred_username"));
+      assertEquals("frank", claims(tokens.jsonPath().getString("access_token")).getString("preferred_username"));
 
       // 5. The request_uri was single use.
       HttpResponse<String> reused =
           new Browser().get(realmUrl() + "/protocol/openid-connect/auth?client_id=" + CLIENT + "&request_uri=" + URLEncoder.encode(requestUri, StandardCharsets.UTF_8));
       assertEquals(400, reused.statusCode(), reused.body());
 
-      // 6. With the action done, the native flow now logs carol in directly.
+      // 6. With the action done, the native flow now logs frank in directly.
       Pkce pkce2 = Pkce.s256();
-      Response again = login(CLIENT, pkce2, "carol", "carol-password", null);
+      Response again = login(CLIENT, pkce2, "frank", "frank-password", null);
       assertEquals(200, again.statusCode(), again.asString());
     } finally {
-      restoreCarol();
+      Admin.updateUser("frank", "{\"requiredActions\":[\"UPDATE_PROFILE\"]}");
     }
   }
 
@@ -176,20 +173,5 @@ class RedirectToWebIT {
         throw new IllegalStateException(e);
       }
     }
-  }
-
-  /** Puts the UPDATE_PASSWORD action back so the scenario stays reproducible in this container. */
-  private static void restoreCarol() {
-    String token = adminToken();
-    List<Map<String, Object>> users =
-        given().auth().oauth2(token).queryParam("username", "carol").queryParam("exact", "true")
-            .get(adminRealmUrl() + "/users").then().statusCode(200).extract().jsonPath().getList("$");
-    String id = String.valueOf(users.get(0).get("id"));
-    given().auth().oauth2(token).contentType("application/json")
-        .body("{\"type\":\"password\",\"value\":\"carol-password\",\"temporary\":false}")
-        .put(adminRealmUrl() + "/users/" + id + "/reset-password").then().statusCode(204);
-    given().auth().oauth2(token).contentType("application/json")
-        .body("{\"requiredActions\":[\"UPDATE_PASSWORD\"]}")
-        .put(adminRealmUrl() + "/users/" + id).then().statusCode(204);
   }
 }

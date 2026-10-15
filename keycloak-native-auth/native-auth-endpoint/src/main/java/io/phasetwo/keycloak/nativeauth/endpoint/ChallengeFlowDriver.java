@@ -448,6 +448,10 @@ final class ChallengeFlowDriver {
             Response.Status.OK, new AuthorizationCodeResponse(outcome.code(), mintPostLogin(authSession, outcome.userSessionId())));
       }
       NativeRequiredActionFactory factory = RequiredActionDriver.nativeFactory(session, providerIdOf(alias));
+      if (factory == null) {
+        // One of Keycloak's own actions: serve it through its native variant when there is one (spec/03 §4.11).
+        factory = RequiredActionDriver.substituteFor(session, realm, alias, authSession.getAuthenticatedUser());
+      }
       if (factory == null || alias.equals(previous)) {
         // Non-native required action: hand the login to the browser (spec/03 §3.4) when possible.
         String reason = "required_action:" + alias;
@@ -464,7 +468,7 @@ final class ChallengeFlowDriver {
             reason + " cannot be completed in the native flow");
       }
       previous = alias;
-      switch (actions.challenge(authSession, factory)) {
+      switch (actions.challenge(authSession, factory, alias)) {
         case CHALLENGE -> {
           return challengeResponse(authSession, NativeRequestContext.markerResponse());
         }
@@ -472,7 +476,7 @@ final class ChallengeFlowDriver {
           // Nothing to ask (e.g. already satisfied); evaluate the next action.
         }
         case FAILURE -> {
-          return requiredActionFailed(authSession, event, alias);
+          return requiredActionFailed(authSession, event, alias, actions.lastFailureMessage());
         }
       }
     }
@@ -486,11 +490,12 @@ final class ChallengeFlowDriver {
       throw invalidRequest("challenge_id is not pending", authSession);
     }
     RequiredActionDriver actions = new RequiredActionDriver(session, realm, request, event);
+    String alias = NativeRequestContext.pendingRequiredActionAlias(authSession); // cleared by the driver on failure
     try {
       return switch (actions.processAction(authSession, factory)) {
         case CHALLENGE -> challengeResponse(authSession, NativeRequestContext.markerResponse());
         case SUCCESS -> complete(authSession, event);
-        case FAILURE -> requiredActionFailed(authSession, event, pending);
+        case FAILURE -> requiredActionFailed(authSession, event, alias, actions.lastFailureMessage());
       };
     } catch (AuthenticationFlowException e) {
       return failed(authSession, event, e);
@@ -499,11 +504,11 @@ final class ChallengeFlowDriver {
     }
   }
 
-  private Response requiredActionFailed(AuthenticationSessionModel authSession, EventBuilder event, String alias) {
+  private Response requiredActionFailed(AuthenticationSessionModel authSession, EventBuilder event, String alias, String message) {
     event.detail("required_action", alias).error(Errors.REJECTED_BY_USER);
     sessions.removeAuthenticationSession(realm, authSession, false);
     return Responses.error(
-        Response.Status.FORBIDDEN, Protocol.ERR_ACCESS_DENIED, "required_action:" + alias + " failed");
+        Response.Status.FORBIDDEN, Protocol.ERR_ACCESS_DENIED, "required_action:" + alias + " " + (message == null ? "failed" : message));
   }
 
   /** Required actions are addressed by alias in the realm; the factory id is what we dispatch on. */

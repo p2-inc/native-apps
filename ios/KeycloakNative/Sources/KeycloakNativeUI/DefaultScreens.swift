@@ -13,6 +13,9 @@ struct DefaultChallengeScreen: View {
     case .otp: OTPScreen(presentation: presentation)
     case .passkey: PasskeyScreen(presentation: presentation)
     case .passkeyRegistration: PasskeyRegistrationScreen(presentation: presentation)
+    case .updatePassword: UpdatePasswordScreen(presentation: presentation)
+    case .verifyEmail: VerifyEmailScreen(presentation: presentation)
+    case .terms: TermsScreen(presentation: presentation)
     case .push, .recoveryCode, .select, .unknown: UnsupportedScreen(presentation: presentation)
     }
   }
@@ -195,6 +198,106 @@ struct PasskeyRegistrationScreen: View {
       .buttonStyle(.borderedProminent)
       .disabled(presentation.isSubmitting)
       .accessibilityIdentifier("createPasskey")
+    }
+  }
+}
+
+/// `update_password` (spec/03 §4.12): the new password twice, with the realm's policy as hints.
+struct UpdatePasswordScreen: View {
+  let presentation: ChallengePresentationContext
+  @State private var password = ""
+  @State private var confirm = ""
+
+  var body: some View {
+    let params = presentation.challenge.updatePasswordParams
+    ChallengeFrame(presentation: presentation, title: "Choose a new password", subtitle: "Your password must be updated before you can continue.") {
+      SecureField("New password", text: $password)
+        .textContentType(.newPassword)
+        .textFieldStyle(.roundedBorder)
+        .accessibilityIdentifier("newPassword")
+      SecureField("Confirm new password", text: $confirm)
+        .textContentType(.newPassword)
+        .textFieldStyle(.roundedBorder)
+        .accessibilityIdentifier("newPasswordConfirm")
+        .onSubmit(submit)
+      if let hints = params?.hints, !hints.isEmpty {
+        VStack(alignment: .leading, spacing: 2) {
+          ForEach(hints, id: \.self) { Text("• \($0)").font(.footnote).foregroundStyle(.secondary) }
+        }
+      }
+      if !confirm.isEmpty, confirm != password {
+        Text("Passwords do not match").font(.footnote).foregroundStyle(.red)
+      }
+      Button("Update password", action: submit)
+        .buttonStyle(.borderedProminent)
+        .disabled(password.isEmpty || confirm != password || presentation.isSubmitting)
+        .accessibilityIdentifier("updatePassword")
+    }
+  }
+
+  private func submit() { presentation.submit(.updatePassword(password, confirm: confirm)) }
+}
+
+/// `verify_email` (spec/03 §4.13): the code sent to the masked address, with resend and cooldown.
+struct VerifyEmailScreen: View {
+  let presentation: ChallengePresentationContext
+  @State private var code = ""
+  @State private var now = Date()
+  private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+  var body: some View {
+    let params = presentation.challenge.verifyEmailParams
+    let sent = params?.sent ?? false
+    let wait = Int(params?.resendWait(at: now).rounded(.up) ?? 0)
+    let destination = params?.emailMasked ?? "your email address"
+    ChallengeFrame(
+      presentation: presentation,
+      title: "Verify your email",
+      subtitle: sent ? "We sent a \(params?.digits ?? 6)-digit code to \(destination)." : "We need to send a \(params?.digits ?? 6)-digit code to \(destination)."
+    ) {
+      if sent {
+        TextField("Code", text: $code)
+          .textContentType(.oneTimeCode)
+          .textFieldStyle(.roundedBorder)
+          .accessibilityIdentifier("verifyEmailCode")
+          .onSubmit(submit)
+        Button("Verify", action: submit)
+          .buttonStyle(.borderedProminent)
+          .disabled(code.isEmpty || presentation.isSubmitting)
+      }
+      Button(sent ? (wait > 0 ? "Resend code in \(wait) s" : "Resend code") : (wait > 0 ? "Send a code (\(wait) s)" : "Send a code")) { presentation.submit(.verifyEmailResend) }
+        .disabled(wait > 0 || presentation.isSubmitting)
+        .accessibilityIdentifier("verifyEmailResend")
+    }
+    .onReceive(ticker) { now = $0 }
+  }
+
+  private func submit() { presentation.submit(.verifyEmail(code: code)) }
+}
+
+/// `terms` (spec/03 §4.14): the text and/or a link, then accept or decline (decline ends the login).
+struct TermsScreen: View {
+  let presentation: ChallengePresentationContext
+  @Environment(\.openURL) private var openURL
+
+  var body: some View {
+    let params = presentation.challenge.termsParams
+    ChallengeFrame(presentation: presentation, title: "Terms and conditions", subtitle: params?.version.map { "Version \($0)" }) {
+      if let text = params?.text {
+        ScrollView { Text(text).font(.footnote).frame(maxWidth: .infinity, alignment: .leading) }
+          .frame(maxHeight: 220)
+          .accessibilityIdentifier("termsText")
+      }
+      if let url = params?.url {
+        Button("Read the full terms") { openURL(url) }.font(.footnote)
+      }
+      Button("Accept") { presentation.submit(.terms(accepted: true)) }
+        .buttonStyle(.borderedProminent)
+        .disabled(presentation.isSubmitting)
+        .accessibilityIdentifier("acceptTerms")
+      Button("Decline", role: .destructive) { presentation.submit(.terms(accepted: false)) }
+        .disabled(presentation.isSubmitting)
+        .accessibilityIdentifier("declineTerms")
     }
   }
 }

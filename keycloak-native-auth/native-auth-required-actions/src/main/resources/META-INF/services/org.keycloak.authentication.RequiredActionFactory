@@ -1,1 +1,4 @@
 io.phasetwo.keycloak.nativeauth.requiredactions.NativePasskeyRegisterRequiredActionFactory
+io.phasetwo.keycloak.nativeauth.requiredactions.NativeUpdatePasswordRequiredActionFactory
+io.phasetwo.keycloak.nativeauth.requiredactions.NativeVerifyEmailRequiredActionFactory
+io.phasetwo.keycloak.nativeauth.requiredactions.NativeTermsRequiredActionFactory

@@ -5,7 +5,8 @@ the hand-rolled login screen (the "full control" sample: it renders the server's
 itself) and, for S5/S13, `NativeLoginView` from `KeycloakNativeUI`. Also a Home screen with token
 claims, post-login passkey registration, the step-up "Transfer" call and the S8 session controls, a
 Scenarios list (S1–S8, S11, S13, S14 and the `dave` enrolment path of `spec/06 §2`) and a Diagnostics
-tab with the redacted flow log. Design: `../../spec/06-example-ios-app.md`.
+tab with the redacted flow log, plus the Phase 2b required actions (carol: update password in-band,
+grace: verify email with a code, hank: terms and conditions). Design: `../../spec/06-example-ios-app.md`.
 
 Layout: `Sources/KeycloakNativeDemoApp` is a Swift package library (SwiftUI + `DemoModel`) so it
 type-checks with `swift build` on macOS; `App/` holds the `@main` entry, `Config.plist`, entitlements;
@@ -62,13 +63,27 @@ runner has no Keycloak); CI only compiles them (`build-for-testing`).
   compose `resource-server` (`http://localhost:8091`) answers `401 insufficient_user_authentication`,
   the app steps up with the stored `auth_session`, the Login tab shows only the TOTP, and the next
   Transfer succeeds with acr 2 (the token is DPoP-bound; the API checks the proof).
-- **S7**: `carol / carol-password` → "Continue in the browser" → Safari (`ASWebAuthenticationSession`)
-  shows the realm's login with carol pre-filled, then the *Update password* page; the code returns
+- **S7**: `frank / frank-password` → "Continue in the browser" → Safari (`ASWebAuthenticationSession`)
+  shows the realm's login with frank pre-filled, then the *Update profile* page; the code returns
   to `demoapp://auth/callback` and the app exchanges it. Safari needs to reach the issuer host: on
-  the simulator `localhost:8089` works.
+  the simulator `localhost:8089` works. (carol's *Update password* is served natively since Phase 2b.)
 - **S8**: after any login, Home → **End session on the server**, then **Refresh tokens** →
   `reauthentication_required` (Keycloak answers `invalid_grant` without an `auth_session`, so the
   app starts a new login).
+
+### Phase 2b required actions on the simulator (carol, grace, hank)
+
+- **carol** (`carol / carol-password`): after the password the server asks for `update_password`
+  (`challenge_id native-update-password`); the realm's password policy arrives as hints. Enter
+  `carol-password` twice to keep the demo repeatable (the action is removed from carol afterwards;
+  `docker compose down -v` restores it).
+- **grace** (`grace / grace-password`): `verify_email` — the 6-digit code is in mailpit
+  (`http://localhost:8025`); "Resend" is rate-limited by the server (30 s).
+- **hank** (`hank / hank-password`): `terms` — Accept continues to the tokens, Decline ends the
+  login with `access_denied`.
+
+These three scenarios are covered by XCUITests (`testCarolUpdatesPasswordInBand`, `testGraceVerifiesEmail`,
+`testHankAcceptsTerms` in `UITests/DemoAppUITests.swift`).
 
 ## 2. Real passkeys (S1, S2, S11, dave): HTTPS host + Associated Domains
 

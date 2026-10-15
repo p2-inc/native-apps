@@ -39,6 +39,12 @@ public final class NativeRequestContext {
   /** Auth note: provider id of the native required action whose challenge is currently pending. */
   public static final String AUTH_NOTE_REQUIRED_ACTION = "native-auth.required-action";
 
+  /**
+   * Auth note: alias of the user's pending required action the native one serves (spec/03 §4.11);
+   * equals the provider id unless the native action substitutes for a Keycloak action.
+   */
+  public static final String AUTH_NOTE_REQUIRED_ACTION_ALIAS = "native-auth.required-action.alias";
+
   /** Client note copied from the request's optional {@code device_id} / {@code device_name}. */
   public static final String CLIENT_NOTE_DEVICE_ID = "native-auth.device_id";
 
@@ -115,8 +121,20 @@ public final class NativeRequestContext {
     return authSession.getAuthNote(AUTH_NOTE_REQUIRED_ACTION);
   }
 
+  /** Records which of the user's required actions (by alias) the pending native action serves. */
+  public static void setPendingRequiredActionAlias(AuthenticationSessionModel authSession, String alias) {
+    authSession.setAuthNote(AUTH_NOTE_REQUIRED_ACTION_ALIAS, alias);
+  }
+
+  /** @return the served alias, falling back to the provider id. */
+  public static String pendingRequiredActionAlias(AuthenticationSessionModel authSession) {
+    String alias = authSession.getAuthNote(AUTH_NOTE_REQUIRED_ACTION_ALIAS);
+    return alias == null ? pendingRequiredAction(authSession) : alias;
+  }
+
   public static void clearPendingRequiredAction(AuthenticationSessionModel authSession) {
     authSession.removeAuthNote(AUTH_NOTE_REQUIRED_ACTION);
+    authSession.removeAuthNote(AUTH_NOTE_REQUIRED_ACTION_ALIAS);
     authSession.removeAuthNote(AUTH_NOTE_PENDING);
   }
 

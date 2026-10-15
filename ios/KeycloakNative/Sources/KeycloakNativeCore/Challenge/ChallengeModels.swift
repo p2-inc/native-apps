@@ -12,6 +12,10 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
   case push
   case recoveryCode
   case select
+  /// Native required actions (spec/03 §4.12–§4.14).
+  case updatePassword
+  case verifyEmail
+  case terms
   case unknown(String)
 
   public init(wire: String) {
@@ -25,6 +29,9 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     case "push": self = .push
     case "recovery_code": self = .recoveryCode
     case "select": self = .select
+    case "update_password": self = .updatePassword
+    case "verify_email": self = .verifyEmail
+    case "terms": self = .terms
     default: self = .unknown(wire)
     }
   }
@@ -40,6 +47,9 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     case .push: "push"
     case .recoveryCode: "recovery_code"
     case .select: "select"
+    case .updatePassword: "update_password"
+    case .verifyEmail: "verify_email"
+    case .terms: "terms"
     case .unknown(let value): value
     }
   }
@@ -48,7 +58,16 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
   /// `select` are specified but arrive with the Phase 3 server work.
   public var isSupported: Bool {
     switch self {
-    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp: true
+    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp, .updatePassword, .verifyEmail, .terms: true
+    default: false
+    }
+  }
+
+  /// A required action served in-band (spec/03 §4.11): always the single entry of the set, its
+  /// `id` is the native required action's provider id.
+  public var isRequiredAction: Bool {
+    switch self {
+    case .passkeyRegistration, .updatePassword, .verifyEmail, .terms: true
     default: false
     }
   }
@@ -67,6 +86,10 @@ public struct ChallengeError: Sendable, Equatable {
     public static let expiredCode = "expired_code"
     /// `otp`: `otpResend` before `resend_allowed_at`; not a failure.
     public static let resendTooSoon = "resend_too_soon"
+    /// `update_password`: `password_confirm` differed (spec/03 §4.12).
+    public static let passwordMismatch = "password_mismatch"
+    /// `update_password`: the realm's password policy rejected the value; `message` says why.
+    public static let invalidPassword = "invalid_password"
   }
 
   public let code: String
@@ -133,6 +156,76 @@ public struct Challenge: Sendable, Identifiable, Equatable {
     type == .passkeyRegistration ? PasskeyRegistrationParams(json: params) : nil
   }
   public var otpParams: OTPParams? { type == .otp ? OTPParams(json: params) : nil }
+  public var updatePasswordParams: UpdatePasswordParams? { type == .updatePassword ? UpdatePasswordParams(json: params) : nil }
+  public var verifyEmailParams: VerifyEmailParams? { type == .verifyEmail ? VerifyEmailParams(json: params) : nil }
+  public var termsParams: TermsParams? { type == .terms ? TermsParams(json: params) : nil }
+}
+
+/// spec/03 §4.12 — the realm's password policy, for pre-validation and hints.
+public struct UpdatePasswordParams: Sendable, Equatable {
+  public let username: String?
+  /// Keycloak policy id → configured value (`length: 8`, `digits: 1`, `notUsername: true`, …).
+  public let policy: [String: JSONValue]
+
+  public init(json: JSONValue) {
+    username = json["username"]?.stringValue
+    policy = json["policy"]?.objectValue ?? [:]
+  }
+
+  public var minimumLength: Int? { policy["length"]?.intValue }
+  public var maximumLength: Int? { policy["maxLength"]?.intValue }
+
+  /// Human-readable hints in a stable order (English; apps localise with `policy` if they need to).
+  public var hints: [String] {
+    var out: [String] = []
+    if let n = policy["length"]?.intValue { out.append("At least \(n) characters") }
+    if let n = policy["maxLength"]?.intValue { out.append("At most \(n) characters") }
+    if let n = policy["digits"]?.intValue { out.append("At least \(n) digit\(n == 1 ? "" : "s")") }
+    if let n = policy["upperCase"]?.intValue { out.append("At least \(n) upper-case letter\(n == 1 ? "" : "s")") }
+    if let n = policy["lowerCase"]?.intValue { out.append("At least \(n) lower-case letter\(n == 1 ? "" : "s")") }
+    if let n = policy["specialChars"]?.intValue { out.append("At least \(n) special character\(n == 1 ? "" : "s")") }
+    if policy["notUsername"] != nil { out.append("Not your username") }
+    if policy["notEmail"] != nil { out.append("Not your email address") }
+    if policy["notContainsUsername"] != nil { out.append("Must not contain your username") }
+    if let n = policy["passwordHistory"]?.intValue { out.append("Not one of your last \(n) passwords") }
+    if let pattern = policy["regexPattern"]?.stringValue { out.append("Must match \(pattern)") }
+    return out
+  }
+}
+
+/// spec/03 §4.13 — like `OTPParams`, for the e-mail verification code of a required action.
+public struct VerifyEmailParams: Sendable, Equatable {
+  public let emailMasked: String?
+  public let digits: Int
+  public let ttl: Int?
+  public let sent: Bool
+  public let resendAllowedAt: Date?
+
+  public init(json: JSONValue) {
+    emailMasked = json["email_masked"]?.stringValue
+    digits = json["digits"]?.intValue ?? 6
+    ttl = json["ttl"]?.intValue
+    sent = json["sent"]?.boolValue ?? false
+    resendAllowedAt = json["resend_allowed_at"]?.doubleValue.map { Date(timeIntervalSince1970: $0) }
+  }
+
+  public func resendWait(at date: Date = Date()) -> TimeInterval {
+    guard let resendAllowedAt else { return 0 }
+    return max(0, resendAllowedAt.timeIntervalSince(date))
+  }
+}
+
+/// spec/03 §4.14 — terms text and/or URL to show before the user accepts.
+public struct TermsParams: Sendable, Equatable {
+  public let text: String?
+  public let url: URL?
+  public let version: String?
+
+  public init(json: JSONValue) {
+    text = json["text"]?.stringValue
+    url = json["url"]?.stringValue.flatMap(URL.init(string:))
+    version = json["version"]?.stringValue
+  }
 }
 
 /// spec/03 §4.6 — a code delivered out of band (email / SMS).
@@ -399,6 +492,14 @@ public enum ChallengeAnswer: Sendable, Equatable {
   case otp(String)
   /// `action=resend`: (re)send a code; also the first send when `OTPParams.sent` is `false`.
   case otpResend
+  /// `update_password` (spec/03 §4.12): the new password, sent as `password` + `password_confirm`.
+  case updatePassword(String, confirm: String)
+  /// `verify_email` (spec/03 §4.13): the code received by e-mail.
+  case verifyEmail(code: String)
+  /// `verify_email`: `action=resend`.
+  case verifyEmailResend
+  /// `terms` (spec/03 §4.14): `accepted=true` continues, `accepted=false` ends the login.
+  case terms(accepted: Bool)
   // EXTENSION POINT (Phase 3): push(poll|cancel), recoveryCode(String), select(challengeId:) follow
   // the server-side authenticators.
 
@@ -410,6 +511,9 @@ public enum ChallengeAnswer: Sendable, Equatable {
     case .passkey: .passkey
     case .passkeyRegistration: .passkeyRegistration
     case .otp, .otpResend: .otp
+    case .updatePassword: .updatePassword
+    case .verifyEmail, .verifyEmailResend: .verifyEmail
+    case .terms: .terms
     }
   }
 
@@ -434,6 +538,14 @@ public enum ChallengeAnswer: Sendable, Equatable {
       return [("otp", code)]
     case .otpResend:
       return [("action", "resend")]
+    case .updatePassword(let password, let confirm):
+      return [("password", password), ("password_confirm", confirm)]
+    case .verifyEmail(let code):
+      return [("code", code)]
+    case .verifyEmailResend:
+      return [("action", "resend")]
+    case .terms(let accepted):
+      return [("accepted", accepted ? "true" : "false")]
     }
   }
 }

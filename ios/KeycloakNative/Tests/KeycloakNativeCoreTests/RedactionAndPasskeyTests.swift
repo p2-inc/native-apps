@@ -7,6 +7,14 @@ import Testing
   @Test func formJsonAndHeaderRedaction() {
     let form = Redactor.redact(form: [("username", "alice"), ("password", "secret"), ("totp", "123456"), ("auth_session", "eyJ")])
     #expect(form.map(\.value) == ["alice", "***", "***", "***"])
+    // Phase 2b fields: the new password pair, the e-mail verification code, recovery codes.
+    let phase2b = Redactor.redact(form: [("password_confirm", "secret"), ("code", "123456"), ("recovery_code", "ABCD-EFGH"), ("accepted", "true")])
+    #expect(phase2b.map(\.value) == ["***", "***", "***", "true"])
+    for answer: ChallengeAnswer in [.updatePassword("s3cret", confirm: "s3cret"), .verifyEmail(code: "123456"), .terms(accepted: true)] {
+      for field in Redactor.redact(form: answer.formFields) where field.name != "accepted" {
+        #expect(field.value == "***", "\(field.name) must be masked")
+      }
+    }
     let json = Redactor.redact(json: ["authorization_code": "c", "auth_session": "s", "challenges": [["params": ["signature": "x", "rp_id": "localhost"]]], "access_token": "t"])
     #expect(json["authorization_code"]?.stringValue == "***")
     #expect(json["auth_session"]?.stringValue == "***")

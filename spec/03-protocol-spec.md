@@ -39,7 +39,7 @@ The server SHOULD also advertise `authorization_challenge_endpoint` in `/.well-k
   "code_exchange": { "redirect_uri_required": false },
   "passkey": { "rp_id": "idp.example.com", "register_options_endpoint": "…", "register_finish_endpoint": "…" },
   "push": { "enabled": true, "enroll_start_endpoint": "…", "device_api_base": "https://idp.example.com/realms/demo/push-mfa", "device_client_id": "push-device-client" },
-  "challenge_types_supported": ["username", "password", "passkey", "totp", "otp", "push", "recovery_code", "select", "redirect_to_web"],
+  "challenge_types_supported": ["username", "password", "passkey", "passkey_registration", "totp", "otp", "push", "recovery_code", "select", "update_password", "verify_email", "terms", "redirect_to_web"],
   "dpop_signing_alg_values_supported": ["ES256", "ES384", "ES512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"],
   "client_attestation": { "required": false, "methods": [] }
 }
@@ -144,7 +144,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
   "reason": "required_action:UPDATE_PASSWORD" }
 ```
 
-The server has stored a pushed authorization request (PAR, RFC 9126) for the client: the §2.1 parameters of the native flow (`scope`, PKCE `code_challenge`/`code_challenge_method`, `nonce`, `acr_values`, `ui_locales`), `redirect_uri`, a server-generated `state`, and `login_hint` = the identified username. The client MUST open the system browser (`ASWebAuthenticationSession`) on `authorization_endpoint` (§1.1) with exactly `client_id=<client_id>&request_uri=<request_uri>` and complete a normal code flow there: the user signs in again in the browser flow, completes whatever the native flow could not serve (e.g. the required action named in `reason`), and the browser is redirected to `redirect_uri` with `code` and `state`. The client MUST check `state`, then exchanges the code at the token endpoint with the **native flow's** `code_verifier` and the same `redirect_uri` (this exchange always sends `redirect_uri`, whatever `code_exchange` says, because the code was issued by the browser flow). `request_uri` is single use and expires after `expires_in` seconds (the realm's PAR request URI lifespan). `redirect_uri` is the client's `native-auth.web-fallback-redirect-uri` attribute or, when unset, its first registered redirect URI; it MUST be a registered redirect URI of the client. `reason` is informational (e.g. `required_action:<alias>`, risk decision, account locked).
+The server has stored a pushed authorization request (PAR, RFC 9126) for the client: the §2.1 parameters of the native flow (`scope`, PKCE `code_challenge`/`code_challenge_method`, `nonce`, `acr_values`, `ui_locales`), `redirect_uri`, a server-generated `state`, and `login_hint` = the identified username. The client MUST open the system browser (`ASWebAuthenticationSession`) on `authorization_endpoint` (§1.1) with exactly `client_id=<client_id>&request_uri=<request_uri>` and complete a normal code flow there: the user signs in again in the browser flow, completes whatever the native flow could not serve (e.g. the required action named in `reason`), and the browser is redirected to `redirect_uri` with `code` and `state`. The client MUST check `state`, then exchanges the code at the token endpoint with the **native flow's** `code_verifier` and the same `redirect_uri` (this exchange always sends `redirect_uri`, whatever `code_exchange` says, because the code was issued by the browser flow). `request_uri` is single use and expires after `expires_in` seconds (the realm's PAR request URI lifespan). `redirect_uri` is the client's `native-auth.web-fallback-redirect-uri` attribute or, when unset, its first registered redirect URI; it MUST be a registered redirect URI of the client. `reason` is informational (e.g. `required_action:<alias>`, risk decision, account locked). The Keycloak implementation emits it for a pending required action that has no native variant (§4.12–§4.14 list the ones that do): e.g. `UPDATE_PROFILE`, `CONFIGURE_TOTP`.
 
 The answer is only possible when the initial request carried a PKCE challenge **and** the client has a usable `redirect_uri`; otherwise the server answers `403 access_denied` with the same `reason` in `error_description`. The native authentication session is removed in both cases; the browser flow is a new login, the native `auth_session` is no longer valid.
 
@@ -250,7 +250,8 @@ The client shows "Approve the sign-in on *Alice's iPhone*" (plus the number if `
 
 ### 4.8 `recovery_code`
 
-params: `{ "remaining": 7 }` · response: `recovery_code=<string>`
+params: `{ "remaining": 7, "warning_threshold": 4 }` · response: `recovery_code=<string>`
+A code is a single-use string from the user's recovery-codes credential (Keycloak's *Recovery Authentication Codes*, `recovery-authn-codes`); the server accepts it with or without the `-` separators and case-insensitively. `remaining` is the number of unused codes **before** this attempt; `warning_threshold` is the realm's `recoveryCodesWarningThreshold` password-policy value (clients SHOULD tell the user to generate new codes once `remaining` is at or below it). Error codes on the descriptor: `missing_credential` (empty), `invalid_credential` (wrong or already used code; counted as a failure). Eligibility: offered only to an identified user who has a recovery-codes credential with at least one unused code. Enrolment of new codes is not part of this profile (the account console or `CONFIGURE_RECOVERY_AUTHN_CODES` in a browser).
 
 ### 4.9 `select` — explicit factor chooser (optional)
 
@@ -260,7 +261,39 @@ Issued only when the server prefers the client to choose before any factor-speci
 
 Not a challenge descriptor — it is the §3.4 error. Listed in `challenge_types_supported` so clients know the server may emit it.
 
-### 4.11 Extension types
+### 4.11 Required-action challenge types (common rules)
+
+Besides `passkey_registration` (§4.4), the Keycloak implementation serves three of Keycloak's built-in required actions in-band: `update_password`, `verify_email` and `terms` (08 Q7). They share the §4.4 rules: the descriptor's `id` (echoed as `challenge_id`) is the native required action's **provider id** (`native-update-password`, `native-verify-email`, `native-terms`), `required` is always `true`, the descriptor is the only entry of the set, and the authentication session is bound to the realm's *user action* timeout while one is pending. A native required action is used in two ways: assigned to the user directly under its own alias, or **substituted** for the corresponding Keycloak action (`UPDATE_PASSWORD`, `VERIFY_EMAIL`, `TERMS_AND_CONDITIONS`) when that one is pending and the native variant is registered and enabled in the realm; on success the pending Keycloak action is removed from the user, so the browser flow and the admin console keep using Keycloak's own pages. Any other pending required action (and a substituted one whose native variant cannot serve the user, e.g. `VERIFY_EMAIL` for a user without an e-mail address) ends with §3.4 `redirect_to_web`. `action=cancel` aborts the login as usual.
+
+### 4.12 `update_password` — set a new password (required action)
+
+params:
+```json
+{ "username": "carol",
+  "policy": { "length": 8, "digits": 1, "upperCase": 1, "lowerCase": 1, "specialChars": 1, "notUsername": true, "notEmail": true, "maxLength": 64, "passwordHistory": 3, "regexPattern": "^[a-z]+$" } }
+```
+`policy` lists the realm's password-policy entries by Keycloak policy id with their configured value (`true` for entries without a value); hashing-related entries (`hashAlgorithm`, `hashIterations`, `passwordBlacklist`, `forceExpiredPasswordChange`, `passwordAge`, `recoveryCodesWarningThreshold`, `maxAuthAge`) are omitted. Clients MAY pre-validate; the server always validates.
+response: `password=<new password>`, `password_confirm=<the same value>`.
+Error codes on the descriptor (none counts as a brute-force failure): `missing_credential` (`password` empty), `password_mismatch` (`password_confirm` differs), `invalid_password` (the realm's password policy rejected it; `error.message` is the policy's message in the request's locale, e.g. *Invalid password: minimum length 8.*).
+On success the password is replaced (Keycloak's `PasswordCredentialProvider`, so history/expiry policies apply) and the flow continues (next required action, else the code). Other sessions are not logged out (Keycloak's "sign out other devices" checkbox has no equivalent here).
+
+### 4.13 `verify_email` — confirm the e-mail address with a code (required action)
+
+params:
+```json
+{ "email_masked": "g***@example.com", "digits": 6, "ttl": 300, "sent": true, "resend_allowed_at": 1760000000 }
+```
+The server sends a code to the user's e-mail address through the `native-otp-sender` `email` provider (§4.6) **as soon as the challenge is issued** (a required action is always the single entry); `sent` is `false` only when delivery failed or the previous code expired / was exhausted. `ttl`, `resend_allowed_at` and the error codes follow §4.6: response `code=<digits>`, or `action=resend` to request another code. Error codes: `missing_credential`, `invalid_credential` (wrong code; after the configured number of wrong codes the code is invalidated → `expired_code` with `sent: false`), `expired_code`, `resend_too_soon`. On success the user's e-mail is marked verified (Keycloak event `VERIFY_EMAIL`) and the flow continues. Note that this differs from Keycloak's browser action, which sends a *link*; the native variant never asks the user to leave the app.
+
+### 4.14 `terms` — accept terms and conditions (required action)
+
+params:
+```json
+{ "text": "By continuing you agree …", "url": "https://example.com/terms", "version": "2026-10" }
+```
+At least one of `text` / `url` is present (they come from the native required action's configuration in the realm: `terms-text`, `terms-url`, `terms-version`; the client renders `text` and/or offers `url`). response: `accepted=true` to accept; `accepted=false` to decline, which ends the login with `403 access_denied` (`error_description` = `required_action:… declined`) exactly like declining Keycloak's own page. Any other value re-issues the challenge with `error.code = "missing_credential"`. On acceptance the user attribute `terms_and_conditions` is set to the acceptance time (the attribute Keycloak's `TERMS_AND_CONDITIONS` action uses) and the flow continues.
+
+### 4.15 Extension types
 
 Types not understood by a client MUST be ignored unless they are the only `required` challenge, in which case the client MUST surface an "unsupported authentication method, update the app or use the web" error and MAY retry with `action=cancel`. New types MUST be namespaced (`x-vendor-foo`) until added to this profile.
 

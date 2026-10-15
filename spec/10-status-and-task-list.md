@@ -171,7 +171,7 @@ Server (`keycloak-native-auth`) — **done in Phase 2 (13)** unless marked:
 - [x] Step-up (03 §5): `ChallengeFlowDriver.stepUp` accepts the post-login `auth_session`, resumes the user session, maps `acr_values` to the requested LoA, runs only what the LoA conditions need, issues a new code for the same session; `/passkey/register/*` answer a stale token with `insufficient_authorization` + `auth_session` + `max_age`; the step-up code and the post-login session are bound to the login's DPoP key (13 D1, D3)
 - [ ] Refresh-triggered re-auth from the token endpoint — **not implementable without a custom grant**; left out (13 D1)
 - [x] `RedirectToWebBuilder`: PAR `request_uri` for non-native required actions (03 §3.4), only with PKCE and a redirect URI; `RedirectToWebIT` with carol + transcript (13 D2)
-- [ ] Native variants of UPDATE_PASSWORD, VERIFY_EMAIL, TERMS as `NativeRequiredAction`s (08 Q7); new challenge types go into 03 §4 first
+- [x] Native variants of UPDATE_PASSWORD, VERIFY_EMAIL, TERMS as `NativeRequiredAction`s (08 Q7) — Phase 2b (14 D1)
 - [x] `native-otp` (`email` via the realm SMTP settings, `sms-webhook` sender) in `native-auth-otp-sender`; `action=resend` with cooldown; mailpit in compose and in the ITs (13 D4)
 - [ ] IT for the `sms-webhook` sender (host-side sink through Testcontainers' `exposeHostPorts`)
 - [x] DPoP proof verification and binding of `auth_session` / code at the challenge endpoint (13 D3; was a Phase 4 item)
@@ -199,7 +199,7 @@ Spec:
 
 ### Phase 2b — Close-out of Phase 2 (no hardware needed)
 Server:
-- [ ] Native required actions `native-update-password`, `native-verify-email`, `native-terms` as `NativeRequiredAction`s (08 Q7): new challenge types in 03 §4 first (`update_password` {params: policy hints; response: `password`,`password_confirm`}, `verify_email` {code by email, reuse `native-otp-sender`}, `terms` {text/url; response `accepted=true`}); carol's `UPDATE_PASSWORD` then runs in-band and `redirect_to_web` keeps the rest (IT: carol natively, a user with `UPDATE_PROFILE` still redirected)
+- [x] Native required actions `native-update-password`, `native-verify-email`, `native-terms` as `NativeRequiredAction`s (08 Q7): 03 §4.11–§4.14; they **substitute** for Keycloak's `UPDATE_PASSWORD` / `VERIFY_EMAIL` / `TERMS_AND_CONDITIONS` when registered and enabled (14 D1); carol runs in-band, frank (`UPDATE_PROFILE`) is still redirected (`RequiredActionsIT`, `RedirectToWebIT`)
 - [ ] `native-recovery-code` (03 §4.8) on Keycloak's recovery-codes credential; IT with a user who has codes configured
 - [ ] Username phantom challenge (03 §4.1: unknown user gets a `password` challenge that always fails generically) and `retry.remaining` from the brute-force detector
 - [ ] "Enrol on first login" for `native-passkey` (`setRequiredActions`, 04 §4) behind an authenticator config flag; optional restriction of `/passkey/register/*` to native clients (11 D5)
@@ -207,7 +207,7 @@ Server:
 - [ ] Step-up `auth_session` claim lifetime = SSO idle (08 Q11), keeping the `isSessionValid` check
 - [ ] Well-known `authorization_challenge_endpoint` override (04 §2.3, optional)
 SDK / UI / app:
-- [ ] `ChallengeAnswer` + screens for the new types (`updatePassword`, `verifyEmail`, `terms`, `recoveryCode`); `ChallengeType.isSupported` grows accordingly
+- [~] `ChallengeAnswer` + screens for the new types: `updatePassword`, `verifyEmail`, `terms` done (`Phase2bReplayTests`, default screens, demo scenarios carol/grace/hank); `recoveryCode` with slice 2
 - [ ] `KeycloakNativeUI`: `Localizable.xcstrings`, `.nativeLoginStrings(bundle:)`, VoiceOver pass, snapshot or view tests of the default screens
 - [ ] XCUITests for S4 (mailpit code via its API), S5/S13, S6 (TOTP computed in the test), S8; S7 stays manual (Safari)
 - [ ] Completion-handler / Combine variants of the async API (05 §2) if UIKit consumers need them

@@ -46,7 +46,7 @@ public enum Redactor {
 
   /// Form fields, JSON keys and header names (case-insensitive) whose values are never shown.
   public static let sensitiveKeys: Set<String> = [
-    "auth_session", "password", "totp", "otp", "recovery_code",
+    "auth_session", "password", "password_confirm", "totp", "otp", "recovery_code",
     "authorization_code", "code", "code_verifier",
     "access_token", "refresh_token", "id_token", "token", "client_secret", "registration_id",
     "request_uri",

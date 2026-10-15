@@ -15,6 +15,9 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
   case s13CustomPresenter
   case s14BruteForce
   case daveEnrolment
+  case carolUpdatePassword
+  case graceVerifyEmail
+  case hankTerms
 
   public var id: String { rawValue }
 
@@ -26,12 +29,15 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .s4EmailOtp: "S4 · Email one-time code with resend"
     case .s5DefaultUI: "S5 · Default UI with factor chooser"
     case .s6StepUp: "S6 · Step-up for a protected action"
-    case .s7RedirectToWeb: "S7 · Redirect to web (carol)"
+    case .s7RedirectToWeb: "S7 · Redirect to web (frank)"
     case .s8RefreshReauth: "S8 · Refresh forces re-authentication"
     case .s11RegisterSecondPasskey: "S11 · Register a passkey after login"
     case .s13CustomPresenter: "S13 · Default UI with a custom TOTP screen"
     case .s14BruteForce: "S14 · Brute force → access_denied"
     case .daveEnrolment: "Enrol a passkey on first login (dave)"
+    case .carolUpdatePassword: "Update password in-band (carol)"
+    case .graceVerifyEmail: "Verify email with a code (grace)"
+    case .hankTerms: "Accept terms and conditions (hank)"
     }
   }
 
@@ -50,7 +56,7 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .s6StepUp:
       "Client demo-ios-stepup. Log in (password only = acr 1), then Home → Transfer: the demo API answers 401 insufficient_user_authentication acr_values=2; the app steps up with the stored auth_session (only TOTP is asked), retries and succeeds with acr 2."
     case .s7RedirectToWeb:
-      "Client demo-ios. carol / carol-password has a pending Update Password action the native flow cannot serve: the server answers redirect_to_web with a PAR request_uri; Safari completes the login and the code comes back to the app (demoapp://auth/callback)."
+      "Client demo-ios. frank / frank-password has a pending Update Profile action with no native variant: the server answers redirect_to_web with a PAR request_uri; Safari completes the login and the code comes back to the app (demoapp://auth/callback)."
     case .s8RefreshReauth:
       "After any login: Home → “End session on the server” (revokes the refresh token), then “Refresh tokens”: the SDK reports reauthentication_required and the app starts a new login."
     case .s11RegisterSecondPasskey:
@@ -61,6 +67,12 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
       "Client demo-ios, user erin. Submits wrong passwords automatically until Keycloak locks the account (failureFactor 5, or two failures within a second); the flow ends with 403 access_denied."
     case .daveEnrolment:
       "dave / dave-password carries the native-passkey-register required action: after the password the server asks for passkey_registration in-band (challenge_id native-passkey-register). Reset with docker compose down -v."
+    case .carolUpdatePassword:
+      "carol / carol-password has Keycloak's UPDATE_PASSWORD pending; native-update-password serves it in-band (spec/03 §4.12): choose a new password (use carol-password again to keep the demo repeatable). The realm's password policy is shown as hints; a rejected password comes back as invalid_password."
+    case .graceVerifyEmail:
+      "grace / grace-password has VERIFY_EMAIL pending; native-verify-email sends a 6-digit code to g***@example.com (mailpit, http://localhost:8025) as soon as the challenge appears (spec/03 §4.13); resend has a 30 s cooldown."
+    case .hankTerms:
+      "hank / hank-password has TERMS_AND_CONDITIONS pending; native-terms shows the realm's terms text and link (spec/03 §4.14). Accept continues to the tokens; Decline ends the login with access_denied."
     }
   }
 
@@ -86,9 +98,12 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     switch self {
     case .s1UsernamePasskey, .s3PasswordTotp, .s11RegisterSecondPasskey, .s6StepUp, .s8RefreshReauth, .s5DefaultUI, .s13CustomPresenter: "alice"
     case .s4EmailOtp: "bob"
-    case .s7RedirectToWeb: "carol"
+    case .s7RedirectToWeb: "frank"
     case .s14BruteForce: "erin"
     case .daveEnrolment: "dave"
+    case .carolUpdatePassword: "carol"
+    case .graceVerifyEmail: "grace"
+    case .hankTerms: "hank"
     case .s2DiscoverablePasskey: nil
     }
   }

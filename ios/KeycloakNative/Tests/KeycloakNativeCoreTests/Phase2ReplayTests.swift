@@ -166,10 +166,10 @@ import Testing
     let (h, transport, _) = try Harness.replay([transcript.test], clientId: TranscriptReplayTests.demoIOS, seqs: [1, 2, 3, tokenExchange.seq], webPresenter: presenter)
     let flow = h.sdk.authentication().startLogin(Self.itParameters)
     var step = try await flow.start()
-    step = try await flow.respond(.username("carol"), to: try #require(step.challenges?.first(.username)))
-    step = try await flow.respond(.password("carol-password"), to: try #require(step.challenges?.first(.password)))
+    step = try await flow.respond(.username("frank"), to: try #require(step.challenges?.first(.username)))
+    step = try await flow.respond(.password("frank-password"), to: try #require(step.challenges?.first(.password)))
     guard case .redirectToWeb(let request) = step else { Issue.record("expected redirect_to_web, got \(step)"); return }
-    #expect(request.reason == "required_action:UPDATE_PASSWORD" && request.redirectUri == "demoapp://auth/callback" && request.callbackScheme == "demoapp")
+    #expect(request.reason == "required_action:UPDATE_PROFILE" && request.redirectUri == "demoapp://auth/callback" && request.callbackScheme == "demoapp")
     #expect(request.expiresIn == 60 && request.state != nil)
     let v2 = await flow.currentState
     #expect(v2 == .finished)
@@ -177,7 +177,7 @@ import Testing
     // Replace the scripted state with the real one now that we know it.
     presenter.callback = { _ in URL(string: "demoapp://auth/callback?state=\(request.state!)&code=\(recordedCode)")! }
     let credentials = try await h.sdk.webFallback().complete(request, flow: flow)
-    #expect(credentials.accessTokenClaims?["preferred_username"]?.stringValue == "carol")
+    #expect(credentials.accessTokenClaims?["preferred_username"]?.stringValue == "frank")
     #expect(presenter.opened.count == 1 && presenter.opened[0].scheme == "demoapp")
     let opened = try #require(presenter.opened.first?.url)
     #expect(opened.path.hasSuffix("/protocol/openid-connect/auth"))
