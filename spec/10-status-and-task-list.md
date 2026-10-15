@@ -1,6 +1,6 @@
 # 10 — Project status and task list
 
-**Updated:** 14 October 2026 (end of Phase 1c simulator pass + Phase 2 — step-up, redirect-to-web, OTP, UI product)
+**Updated:** 15 October 2026 (end of Phase 1c simulator pass + Phase 2 — step-up, redirect-to-web, OTP, UI product; manual testing notes in 13)
 **Authoritative for:** what exists, what is verified, what comes next. Decisions and their evidence are in `09-phase0-decisions.md` (Phase 0), `11-phase1-decisions.md` (Phase 1a), `12-phase1b-decisions.md` (Phase 1b) and `13-phase2-decisions.md` (Phase 1c + 2); the phase plan and estimates are in `08-roadmap-and-open-questions.md`.
 
 ## 1. Current state
@@ -85,13 +85,27 @@
 
 Legend: `[x]` done · `[ ]` open · `[~]` partially done. Phase numbering follows 08.
 
-**Where we are (14 Oct 2026):** Phases 0, 1a, 1b, the simulator half of 1c and Phase 2 are complete
-on `main` (13). **Next:** (1) the hardware half of 1c (a device behind a tunnel with a team: S1, S2,
-S11, dave, the cancel path); (2) the Phase 2 leftovers below (native update-password/verify-email/
-terms, recovery codes, phantom username challenge, enrol-on-first-login, SMS webhook IT, UI
-localisation); (3) Phase 3 push MFA. The shared contract is `spec/03-protocol-spec.md` plus the
-recorded transcripts (change the spec first, re-record with `mvn verify &&
-demo/scripts/update-transcripts.sh`, delete transcripts of renamed tests, then fix the SDK tests).
+**Where we are (15 Oct 2026):** Phases 0, 1a, 1b, the simulator half of 1c and Phase 2 are complete
+on `main` and pushed to `origin` (13). Everything is verified by `mvn verify` (41 ITs), `swift test`
+(80 tests, both toolchain modes), the live SDK tests against the compose stack, the curl walkthrough
+from a clean clone and two XCUITests on the iOS 27 simulator. Manual testing from Xcode hit tooling
+problems on the build Mac (13 "Post-phase notes"), not product problems.
+
+**Next, in this order:**
+1. **Phase 2b — close-out** (below): the Phase 2 leftovers that need no hardware, ordered by value:
+   native required actions for update-password / verify-email / terms (08 Q7), recovery codes,
+   phantom username challenge + `retry.remaining`, enrol-on-first-login, SMS webhook IT, UI product
+   localisation and tests, XCUITests for S4/S5/S6/S8/S13.
+2. **Phase 1c — hardware half** whenever a device and an Apple team are available (S1, S2, S11,
+   dave, the cancel path, Secure Enclave, Associated Domains behind a tunnel).
+3. **Phase 3 — push MFA** (08; Q5/Q6 answered: build the programmatic enrolment API and the APNs
+   sender in this repo and offer them upstream; device token via token exchange, not a shipped secret).
+
+Working rule (unchanged): change `spec/03` first, implement on the server, re-record with
+`mvn verify && demo/scripts/update-transcripts.sh` (delete the recordings of renamed tests in
+`demo/target/transcripts` first), then make the SDK pass the new transcripts; server and SDK can be
+worked by different agents with the transcripts as the hand-off. Each phase gets a memo
+(`spec/14-…` next) and is added to `spec/00`.
 
 ### Phase 0 — Spike ✅
 - [x] Maven multi-module skeleton; pin Keycloak 26.8.1 (Q4)
@@ -182,6 +196,22 @@ Example app — **done in Phase 2** (compiled for the simulator; S4/S6/S7 paths 
 Spec:
 - [ ] Freeze protocol v1.0-rc for the Phase 1 challenge types (`username`, `password`, `totp`, `passkey`, `passkey_registration`); conformance suite = the recorded transcripts (04 §8)
 - [ ] Spec v1.0 once Phase 2 types are implemented on both sides
+
+### Phase 2b — Close-out of Phase 2 (no hardware needed)
+Server:
+- [ ] Native required actions `native-update-password`, `native-verify-email`, `native-terms` as `NativeRequiredAction`s (08 Q7): new challenge types in 03 §4 first (`update_password` {params: policy hints; response: `password`,`password_confirm`}, `verify_email` {code by email, reuse `native-otp-sender`}, `terms` {text/url; response `accepted=true`}); carol's `UPDATE_PASSWORD` then runs in-band and `redirect_to_web` keeps the rest (IT: carol natively, a user with `UPDATE_PROFILE` still redirected)
+- [ ] `native-recovery-code` (03 §4.8) on Keycloak's recovery-codes credential; IT with a user who has codes configured
+- [ ] Username phantom challenge (03 §4.1: unknown user gets a `password` challenge that always fails generically) and `retry.remaining` from the brute-force detector
+- [ ] "Enrol on first login" for `native-passkey` (`setRequiredActions`, 04 §4) behind an authenticator config flag; optional restriction of `/passkey/register/*` to native clients (11 D5)
+- [ ] IT for the `sms-webhook` sender (host-side sink via Testcontainers `exposeHostPorts`); themed email template for the OTP (08 Q10)
+- [ ] Step-up `auth_session` claim lifetime = SSO idle (08 Q11), keeping the `isSessionValid` check
+- [ ] Well-known `authorization_challenge_endpoint` override (04 §2.3, optional)
+SDK / UI / app:
+- [ ] `ChallengeAnswer` + screens for the new types (`updatePassword`, `verifyEmail`, `terms`, `recoveryCode`); `ChallengeType.isSupported` grows accordingly
+- [ ] `KeycloakNativeUI`: `Localizable.xcstrings`, `.nativeLoginStrings(bundle:)`, VoiceOver pass, snapshot or view tests of the default screens
+- [ ] XCUITests for S4 (mailpit code via its API), S5/S13, S6 (TOTP computed in the test), S8; S7 stays manual (Safari)
+- [ ] Completion-handler / Combine variants of the async API (05 §2) if UIKit consumers need them
+- [ ] Protocol v1.0-rc freeze for all implemented types once the native required actions land (04 §8)
 
 ### Phase 3 — Push MFA
 - [ ] Integrate ba-itsys `keycloak-push-mfa-extension` (scenario A) in the demo compose

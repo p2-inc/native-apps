@@ -250,6 +250,29 @@ unit-level code only.
 | Example app on the iOS 27 simulator | `xcodebuild test … CODE_SIGN_IDENTITY="-"`: S3, relaunch/refresh/logout, DPoP `jkt`, S14 (see "Phase 1c") |
 | Example app package + UI product | `swift build` (macOS) of both packages; `xcodebuild build-for-testing` for the simulator SDK |
 
+## Post-phase notes (15 Oct 2026, manual testing session)
+
+- **Running the app from Xcode.** The project opened in Xcode while XcodeGen regenerated it (new
+  UI test target, explicit scheme, generated `Info.plist`); Xcode's cached scheme state then showed
+  the `KeycloakNativeDemo` scheme with Executable "None" and never built the app target ("Build
+  Succeeded" covered only the package libraries; no `.app` in DerivedData). The files on disk were
+  correct (target ids in the shared scheme match the pbxproj). Remedy: quit Xcode, delete
+  `~/Library/Developer/Xcode/DerivedData/KeycloakNativeDemo-*`, reopen, pick the `KeycloakNativeDemo`
+  scheme (the package product schemes `KeycloakNativeDemoApp`/`KeycloakNativeCore`/`KeycloakNativeUI`
+  have no executable). Documented in the app README; not confirmed fixed at the time of writing.
+- **This Xcode 27 install has no `Simulator.app`** (3.7 GB bundle, `Contents/Applications` holds only
+  Instruments and friends; `xcodebuild -downloadComponent` knows only `MetalToolchain`). The
+  simulator runs headless: `xcrun simctl` boot/install/launch and `io screenshot` work, the XCUITests
+  run, but there is no window to tap. A complete reinstall of Xcode is the fix; untested here.
+- **S11 on a simulator** stops at the platform sheet: the realm's RP ID is `localhost` and the
+  simulator has no iCloud Keychain, so `ASAuthorizationController` fails (`passkey_failed`) after the
+  `register/options` call. Expected; the passkey scenarios need the device + tunnel setup (app README §2).
+- **08 Q10 (email templates)**: the email sender uses `EmailSenderProvider.send` with inline
+  subject/text/HTML, not a theme template (`native-otp.ftl`); a themed template remains open.
+- **08 Q11 (step-up `auth_session` lifetime)**: the JWE `exp` is the SSO session *max* (11 D4), but
+  `stepUp` checks `AuthenticationManager.isSessionValid`, which honours the SSO *idle* timeout, so the
+  value effectively dies with the session as Q11 asked. The claim could be shortened to idle later.
+
 ## Left out (honest list)
 
 - No physical device: passkey ceremonies, Secure Enclave, Associated Domains, `excludedCredentials`
