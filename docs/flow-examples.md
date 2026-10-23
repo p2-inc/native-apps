@@ -72,7 +72,7 @@ All subflows use `basic-flow`. Per-client selections use client attribute `nativ
 | `native-otp - sms` | `channel=sms-webhook`, `digits=6`, `ttl=300`, `resend-cooldown=10`, `max-attempts=3` |
 | `native-push - number match` | `userVerification=number-match`, `loginChallengeTtlSeconds=240`, `pollIntervalSeconds=3` |
 
-All native demo clients are public, standard-flow enabled, native-enabled and require S256. No passkeys or push credentials are preseeded. Conditional second factors reflect credential availability; a passkey in the primary stage does not automatically waive a later factor. `native-alternatives` deliberately accepts password **or** TOTP, not both: it demonstrates choices, not two-factor login.
+All native demo clients are public, standard-flow enabled, native-enabled and require S256. No passkeys or push credentials are preseeded. Conditional second factors reflect credential availability; a passkey in the primary stage does not automatically waive a later factor. To waive it, add Keycloak's stock **Condition - credential** (`conditional-credential`) as REQUIRED inside the second-factor subflow with credentials `webauthn-passwordless` and "included" off: `native-passkey` records that credential type on success, as Keycloak's own passwordless authenticator does. Selecting `webauthn` (the two-factor WebAuthn type) instead never matches a native passkey login. `CredentialConditionIT` covers both the username-first and passkey-first layouts. `native-alternatives` deliberately accepts password **or** TOTP, not both: it demonstrates choices, not two-factor login.
 
 ## Shared start, continuation and token completion
 

@@ -179,23 +179,24 @@ class StepUpIT {
   @Test
   void postLoginAuthSessionDiesWithTheIdleTimeoutEvenIfTheSessionIsKeptAlive() throws Exception {
     // spec/08 Q11 (spec/14 D6): the post-login auth_session lives for the SSO *idle* timeout from
-    // the moment it was minted. Idle = 3 s; a refresh at 2 s keeps the user session alive until 5 s,
-    // but the auth_session minted at 0 s is dead at 3 s and a step-up at 4 s is invalid_session.
-    NativeAuthIT.setRealmField("ssoSessionIdleTimeout", 3);
+    // the moment it was minted. Idle = 10 s; a refresh at 5 s keeps the user session alive until
+    // 15 s, but the auth_session minted at 0 s is dead at 10 s and a step-up at 12 s is
+    // invalid_session. The ~2 s margins keep it stable on slower CI runners (3 s idle was not).
+    NativeAuthIT.setRealmField("ssoSessionIdleTimeout", 10);
     try {
       Pkce pkce = Pkce.s256();
       Response r = loginAliceLevel1(pkce);
       String postLogin = r.jsonPath().getString("auth_session");
       Response tokens = exchange(CLIENT_STEP_UP, r.jsonPath().getString("authorization_code"), pkce, null);
       assertEquals(200, tokens.statusCode(), tokens.asString());
-      Thread.sleep(2_000);
+      Thread.sleep(5_000);
       Response refreshed = NativeAuthIT.refresh(CLIENT_STEP_UP, tokens.jsonPath().getString("refresh_token"));
       assertEquals(200, refreshed.statusCode(), "the refresh keeps the user session alive: " + refreshed.asString());
-      Thread.sleep(2_000);
+      Thread.sleep(7_000);
       Response late = stepUp(CLIENT_STEP_UP, Pkce.s256(), postLogin, "acr_values", "2");
       assertEquals(400, late.statusCode(), late.asString());
       assertEquals("invalid_session", late.jsonPath().getString("error"));
-      // The session itself is still alive (refreshed at 2 s, idle until 5 s).
+      // The session itself is still alive (refreshed at 5 s, idle until 15 s).
       Response alive = NativeAuthIT.refresh(CLIENT_STEP_UP, refreshed.jsonPath().getString("refresh_token"));
       assertEquals(200, alive.statusCode(), alive.asString());
     } finally {
