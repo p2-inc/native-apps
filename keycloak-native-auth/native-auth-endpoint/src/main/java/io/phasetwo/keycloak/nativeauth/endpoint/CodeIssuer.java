@@ -123,7 +123,7 @@ final class CodeIssuer {
     // OIDCLoginProtocol.authenticated() equivalent for response_type=code.
     String redirectUriParam = NativeAuthConfig.codeRedirectUri(realm, client);
     OAuth2Code codeData =
-        new OAuth2Code(
+        ServicesCompat.newOAuth2Code(
             SecretGenerator.getInstance().generateSecureID(),
             client.getId(),
             Time.currentTime() + realm.getAccessCodeLifespan(),

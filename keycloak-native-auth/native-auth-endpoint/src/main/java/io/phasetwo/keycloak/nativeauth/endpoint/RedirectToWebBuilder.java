@@ -1,5 +1,6 @@
 package io.phasetwo.keycloak.nativeauth.endpoint;
 
+import io.phasetwo.keycloak.nativeauth.core.compat.KeycloakCompat;
 import io.phasetwo.keycloak.nativeauth.core.model.Protocol;
 import io.phasetwo.keycloak.nativeauth.core.model.RedirectToWebResponse;
 import java.util.HashMap;
@@ -72,7 +73,7 @@ final class RedirectToWebBuilder {
     }
     // ParEndpoint's own bookkeeping: creation time, issuing client, DPoP key the code must be bound to.
     params.put(ParEndpoint.PAR_CREATED_TIME, String.valueOf(Time.currentTimeMillis()));
-    params.put(ParEndpoint.PAR_CLIENT_ID, client.getClientId());
+    ServicesCompat.putParClientId(params, client.getClientId());
     String jkt = authSession.getClientNote(OIDCLoginProtocol.DPOP_JKT);
     if (jkt != null) {
       params.put(ParEndpoint.PAR_DPOP_PROOF_JKT, jkt);
@@ -81,12 +82,12 @@ final class RedirectToWebBuilder {
     String key = SecretGenerator.getInstance().generateSecureID();
     int expiresIn = realm.getParPolicy().getRequestUriLifespan();
     long storeLifespan = (long) expiresIn + SessionExpiration.getAuthSessionLifespan(realm);
-    session.singleUseObjects().put(ParEndpoint.buildCacheKey(realm.getId(), key), storeLifespan, params);
+    session.singleUseObjects().put(ServicesCompat.parCacheKey(realm.getId(), key), storeLifespan, params);
     log.debugf("Issued redirect_to_web request_uri for client %s (%s)", client.getClientId(), reason);
 
     return (RedirectToWebResponse)
         new RedirectToWebResponse()
-            .setRequestUri(ParEndpoint.REQUEST_URI_PREFIX + key)
+            .setRequestUri(KeycloakCompat.PAR_REQUEST_URI_PREFIX + key)
             .setExpiresIn((long) expiresIn)
             .setRedirectUri(redirectUri)
             .setState(state)

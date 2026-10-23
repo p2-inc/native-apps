@@ -30,7 +30,23 @@ Decisions are recorded in `../spec/09-phase0-decisions.md` (Phase 0), `../spec/1
 | `native-auth-push-apns` | yes | `apns` push notification sender for ba-itsys' `push-notification-sender` SPI: HTTP/2, token-based provider auth, no third-party client (spec/14 D10) |
 | `demo` | no | `docker-compose.yml` (Keycloak, Postgres, mailpit, a Node resource server for the step-up demo), `realm-export/demo-realm.json`, `scripts/walkthrough.sh`, `scripts/passkey-walkthrough.md`, Testcontainers integration tests |
 
-Requires **Keycloak 26.8.x** (pinned to 26.8.1 in `pom.xml`, see spec/09 Q4) and Java 21 to build.
+Builds against **Keycloak 26.8.1** (`keycloak.version` in `pom.xml`) with Java 21; the same JARs run on **Keycloak 26.4, 26.6 and 26.8** (see [Keycloak versions](#keycloak-versions)).
+
+### Keycloak versions
+
+| Keycloak | Status | How it is verified |
+|---|---|---|
+| 26.8.x | supported, build target | `mvn verify` (default image `26.8.1`), CI |
+| 26.6.x | supported | CI runs the full IT suite against a stock `26.6.4` container |
+| 26.4.x | supported | CI runs the full IT suite against a stock `26.4.5` container |
+
+The extensions compile against the newest version only. The Keycloak APIs that differ between these versions (`OAuth2Code`'s constructor, the PAR single-use key and `PAR_CLIENT_ID`, `WebAuthnPolicy.getResidentKey`, `KeycloakTrustAnchorRepository`, `AuthenticatorUtils.isUsernameTooLong`, the `kid` overload of `TokenUtil.jweDirectEncode`) are resolved once at runtime in `KeycloakCompat` (core), `ServicesCompat` (endpoint) and `WebAuthnCompat` (required actions); no other class may call them directly (spec/16). Run the ITs against another version with `mvn verify -Dkeycloak.image=quay.io/keycloak/keycloak:<version>`.
+
+Version notes:
+
+- **Attestation trust anchors.** With a server truststore, registration verifies attestation chains against it: through `KeycloakTrustAnchorRepository` on 26.8, through webauthn4j's `KeyStoreTrustAnchorRepository` over the same truststore before (what Keycloak's own `WebAuthnRegisterFactory` does there). Without a truststore every version uses `NullCertPathTrustworthinessVerifier`, which is only safe with the demo's `attestation: none`.
+- **Realm exports.** `webAuthnPolicyPasswordlessResidentKey` is 26.8-only and the 26.4/26.6 importers reject it; the demo export carries it next to `webAuthnPolicyPasswordlessRequireResidentKey: Yes`, which older versions read instead. The ITs strip it for older images; remove it by hand to import the demo realm into 26.4/26.6 (`docker compose` pins 26.8.1).
+- **Push MFA.** The ba-itsys rebuild (`push-mfa-extension-java21`) passes `PushMfaIT` on all three versions.
 
 ## Build and test
 

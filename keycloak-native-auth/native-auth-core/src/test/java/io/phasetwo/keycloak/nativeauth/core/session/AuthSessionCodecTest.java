@@ -172,4 +172,25 @@ class AuthSessionCodecTest {
     String token = codec.encode(new AuthSessionClaims().setClientId("demo-ios").setIat(1L));
     assertThrows(InvalidAuthSessionException.class, () -> codec.decode(token));
   }
+
+  /**
+   * The portable construction (26.4 has no {@code kid} overload) matches Keycloak's own {@code
+   * TokenUtil.jweDirectEncode(kid, key, null, content)}: same header, and each decrypts the other.
+   */
+  @Test
+  void portableEncryptionMatchesKeycloaksJweDirectEncode() throws Exception {
+    for (int size : new int[] {16, 24, 32}) {
+      SecretKey key = aesKey(size);
+      byte[] content = "{\"typ\":\"x\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      String ours = AuthSessionCodec.encryptDirect("kid-1", key, content);
+      String keycloaks = org.keycloak.util.TokenUtil.jweDirectEncode("kid-1", key, null, content);
+      JWEHeader a = (JWEHeader) new JWE(ours).getHeader();
+      JWEHeader b = (JWEHeader) new JWE(keycloaks).getHeader();
+      assertEquals(b.getAlgorithm(), a.getAlgorithm());
+      assertEquals(b.getEncryptionAlgorithm(), a.getEncryptionAlgorithm());
+      assertEquals(b.getKeyId(), a.getKeyId());
+      assertEquals(JWEConstants.DIRECT, a.getAlgorithm());
+      assertEquals(new String(content), new String(org.keycloak.util.TokenUtil.jweDirectVerifyAndDecode(key, null, ours)));
+    }
+  }
 }

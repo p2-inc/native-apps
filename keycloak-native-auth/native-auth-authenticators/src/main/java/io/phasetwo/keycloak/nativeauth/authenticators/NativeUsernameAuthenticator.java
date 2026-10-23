@@ -1,5 +1,6 @@
 package io.phasetwo.keycloak.nativeauth.authenticators;
 
+import io.phasetwo.keycloak.nativeauth.core.compat.KeycloakCompat;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeDescriptor;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeType;
 import io.phasetwo.keycloak.nativeauth.core.model.Protocol;
@@ -59,7 +60,7 @@ public class NativeUsernameAuthenticator extends NativeAuthenticatorBase {
   @Override
   public void action(AuthenticationFlowContext context) {
     String username = param(context, Protocol.USERNAME);
-    if (username == null || username.isEmpty() || AuthenticatorUtils.isUsernameTooLong(username)) {
+    if (username == null || username.isEmpty() || KeycloakCompat.isUsernameTooLong(username)) {
       context.getEvent().error(Errors.USER_NOT_FOUND);
       rechallenge(context, Protocol.DESC_ERR_MISSING_CREDENTIAL, "Username is required");
       return;

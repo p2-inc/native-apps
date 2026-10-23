@@ -20,9 +20,15 @@ defaults:
 
 jobs:
   build-and-test:
-    name: Build, unit tests, integration tests (Testcontainers)
+    # One build (compiled against the newest supported Keycloak, keycloak.version in the POM) is
+    # tested against a stock container of every supported minor (README "Keycloak versions").
+    name: Build, unit tests, integration tests (Testcontainers, Keycloak ${{ matrix.keycloak }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        keycloak: ["26.8.1", "26.6.4", "26.4.5"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -31,12 +37,12 @@ jobs:
           java-version: "21"
           cache: maven
       - name: Build + unit tests + integration tests
-        run: mvn -B --no-transfer-progress verify
+        run: mvn -B --no-transfer-progress verify -Dkeycloak.image=quay.io/keycloak/keycloak:${{ matrix.keycloak }}
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: test-reports-${{ matrix.keycloak }}
           path: |
             keycloak-native-auth/**/target/surefire-reports/*.txt
             keycloak-native-auth/**/target/failsafe-reports/*.txt
