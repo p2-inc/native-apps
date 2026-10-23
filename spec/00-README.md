@@ -22,6 +22,7 @@
 | 12 | `12-phase1b-decisions.md` | **Phase 1b (iOS SDK core + example app) decisions** (14 Oct 2026): transcript fixture format, DPoP token binding found on the server, RP ID rule and tunnel strategy, public API deviations from 05, what was verified on macOS only. |
 | 13 | `13-phase2-decisions.md` | **Phase 1c (simulator pass) and Phase 2 decisions** (14 Oct 2026): step-up re-entering the flow like the cookie authenticator, `redirect_to_web` as a server-stored PAR, DPoP binding of session/code/post-login session, `native-otp` with the sender SPI and the single-option send rule, SDK/UI product shape, what ran on the simulator. |
 | 14 | `14-phase2b-3-decisions.md` | **Phase 2b (close-out) and Phase 3 (push MFA) decisions** (15 Oct 2026): native required actions substituting for Keycloak's update-password / verify-email / terms, recovery codes, the username phantom challenge and `retry.remaining`, enrol-on-first-login, SMS webhook IT and themed OTP mail, UI localisation and tests, the push-MFA integration. |
+| 15 | `15-v1-additions-decisions.md` | **Additions to v1.0-rc from integrator feedback** (23 Oct 2026): optional required actions (`skippable`, `action=skip`, passkey "Not now"), custom answers, `x_*` extension parameters and their persistence, `redirect_to_web` for non-native executions, the provider-id length warning. |
 
 ## Executive summary
 

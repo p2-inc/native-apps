@@ -126,6 +126,10 @@ Do not manufacture challenge IDs, select challenges from an old set, loop over a
 | `.terms` / `termsParams` | `.terms(accepted: decision)` |
 | `.push` / `pushParams` | `.pushResend`, then `.pushPoll` at `pollInterval` while pending; display number-match number |
 | `.pushEnrollment` / `pushEnrollmentParams` | Prepare enrollment with Push module, respond with `prepared.answer`, commit locally only after server accepts |
+| any required action with `isSkippable` | `.skip(challenge.type)` declines it for this login ("Not now"); the default passkey-registration screen shows the button |
+| extension or otherwise unmodeled answer | `.custom(type: challenge.type, fields: [FormField("name", "value")])`, sent through the normal pipeline (DPoP, nonce retry, `auth_session` rotation, code exchange) |
+
+Extra request fields (spec/03 §2.3), e.g. a device or risk signal from another SDK: `LoginParameters.additionalParameters` go on the initial request, `continuationParameters` on every continuation, and `flow.respond(_:to:additionalFields:)` adds fields to one request. Use the reserved `x_` prefix; names the protocol or the answer already uses are refused with `invalid_parameter`. `x_*` values are masked in logs and the flow log; other `custom` field values are masked only when their name is in `Redactor.sensitiveKeys`.
 
 `Challenge` has `id`, `type`, `label`, `required`, `error`, `retry`, typed views, raw `params` and raw descriptor. [ChallengeModels](../ios/KeycloakNative/Sources/KeycloakNativeCore/Challenge/ChallengeModels.swift) defines these and form encoding. Unknown types remain `.unknown(String)`. Choose another supported alternative or surface unsupported-method/update guidance. `.select` is recognized but unsupported. Core does not manufacture a fallback PAR for these cases.
 

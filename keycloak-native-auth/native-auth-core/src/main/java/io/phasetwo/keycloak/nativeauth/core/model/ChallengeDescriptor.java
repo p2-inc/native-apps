@@ -7,13 +7,15 @@ import java.util.Map;
 
 /** A challenge descriptor (spec/03 §3.3). Serialised with snake_case field names. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({"type", "id", "label", "required", "retry", "error", "params"})
+@JsonPropertyOrder({"type", "id", "label", "required", "skippable", "retry", "error", "params"})
 public class ChallengeDescriptor {
 
   private ChallengeType type;
   private String id;
   private String label;
   private Boolean required;
+  /** {@code true} on a required-action descriptor the user may decline with {@code action=skip} (spec/03 §4.11). */
+  private Boolean skippable;
   private Retry retry;
   private ChallengeError error;
   private Map<String, Object> params = new LinkedHashMap<>();
@@ -57,6 +59,15 @@ public class ChallengeDescriptor {
 
   public ChallengeDescriptor setRequired(Boolean required) {
     this.required = required;
+    return this;
+  }
+
+  public Boolean getSkippable() {
+    return skippable;
+  }
+
+  public ChallengeDescriptor setSkippable(Boolean skippable) {
+    this.skippable = skippable;
     return this;
   }
 

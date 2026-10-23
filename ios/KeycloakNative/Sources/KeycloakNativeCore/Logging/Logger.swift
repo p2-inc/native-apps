@@ -59,7 +59,8 @@ public enum Redactor {
   ]
 
   public static func isSensitive(_ key: String) -> Bool {
-    sensitiveKeys.contains(key.lowercased())
+    // Extension parameters (spec/03 §2.3) carry deployment data such as device or risk signals.
+    sensitiveKeys.contains(key.lowercased()) || key.lowercased().hasPrefix("x_")
   }
 
   public static func redact(form fields: [(name: String, value: String)]) -> [(name: String, value: String)] {

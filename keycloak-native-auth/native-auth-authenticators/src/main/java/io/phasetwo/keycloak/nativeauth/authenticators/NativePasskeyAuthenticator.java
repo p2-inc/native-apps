@@ -32,6 +32,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.WebAuthnPolicy;
 import org.keycloak.models.credential.WebAuthnCredentialModel;
 import org.keycloak.models.credential.dto.WebAuthnCredentialData;
+import org.keycloak.sessions.AuthenticationSessionModel;
 import com.webauthn4j.data.AuthenticationRequest;
 import com.webauthn4j.data.client.Origin;
 import com.webauthn4j.data.client.challenge.Challenge;
@@ -103,7 +104,7 @@ public class NativePasskeyAuthenticator extends NativeAuthenticatorBase
         // spec/14 D4: the passkey is enrolled in-band once the other alternative has authenticated.
         RequiredActionProviderModel action = context.getRealm().getRequiredActionProviderByAlias(Protocol.PASSKEY_REGISTER_ACTION);
         if (action != null && action.isEnabled()) {
-          context.getAuthenticationSession().addRequiredAction(Protocol.PASSKEY_REGISTER_ACTION);
+          scheduleEnrolment(context.getAuthenticationSession(), context.getAuthenticatorConfig());
           log.debugf("native-passkey: user %s has no passkey; scheduling %s for this login", user.getUsername(), Protocol.PASSKEY_REGISTER_ACTION);
         } else {
           log.warnf("native-passkey: %s is on but required action %s is not enabled in realm %s", NativePasskeyAuthenticatorFactory.CONFIG_ENROL_ON_FIRST_LOGIN, Protocol.PASSKEY_REGISTER_ACTION, context.getRealm().getName());
@@ -113,6 +114,14 @@ public class NativePasskeyAuthenticator extends NativeAuthenticatorBase
       return;
     }
     super.authenticate(context);
+  }
+
+  /** Adds the registration to this login, as an optional offer when the execution says so. */
+  private static void scheduleEnrolment(AuthenticationSessionModel authSession, AuthenticatorConfigModel config) {
+    authSession.addRequiredAction(Protocol.PASSKEY_REGISTER_ACTION);
+    if (config != null && config.getConfig() != null && Boolean.parseBoolean(config.getConfig().get(NativePasskeyAuthenticatorFactory.CONFIG_ENROL_OPTIONAL))) {
+      authSession.setAuthNote(NativeRequestContext.AUTH_NOTE_PASSKEY_REGISTER_OPTIONAL, "true");
+    }
   }
 
   private static boolean enrolOnFirstLogin(AuthenticationFlowContext context) {
@@ -137,17 +146,20 @@ public class NativePasskeyAuthenticator extends NativeAuthenticatorBase
     if (!NativeRequestContext.isNative(context) || context.getTopLevelFlow() == null) {
       return;
     }
-    boolean flagged =
+    AuthenticatorConfigModel flagged =
         flowOrder(realm, context.getTopLevelFlow()).keySet().stream()
             .map(realm::getAuthenticationExecutionById)
-            .anyMatch(
+            .filter(
                 e ->
                     e != null
                         && !e.isAuthenticatorFlow()
                         && !e.isDisabled()
-                        && NativePasskeyAuthenticatorFactory.PROVIDER_ID.equals(e.getAuthenticator())
-                        && enrolOnFirstLogin(realm, realm.getAuthenticatorConfigById(e.getAuthenticatorConfig())));
-    if (!flagged || user.credentialManager().isConfiguredFor(WebAuthnCredentialModel.TYPE_PASSWORDLESS)) {
+                        && NativePasskeyAuthenticatorFactory.PROVIDER_ID.equals(e.getAuthenticator()))
+            .map(e -> realm.getAuthenticatorConfigById(e.getAuthenticatorConfig()))
+            .filter(c -> enrolOnFirstLogin(realm, c))
+            .findFirst()
+            .orElse(null);
+    if (flagged == null || user.credentialManager().isConfiguredFor(WebAuthnCredentialModel.TYPE_PASSWORDLESS)) {
       return;
     }
     RequiredActionProviderModel action = realm.getRequiredActionProviderByAlias(Protocol.PASSKEY_REGISTER_ACTION);
@@ -157,7 +169,7 @@ public class NativePasskeyAuthenticator extends NativeAuthenticatorBase
           NativePasskeyAuthenticatorFactory.CONFIG_ENROL_ON_FIRST_LOGIN, Protocol.PASSKEY_REGISTER_ACTION, realm.getName());
       return;
     }
-    context.getAuthenticationSession().addRequiredAction(Protocol.PASSKEY_REGISTER_ACTION);
+    scheduleEnrolment(context.getAuthenticationSession(), flagged);
     Logger.getLogger(NativePasskeyAuthenticator.class).debugf(
         "native-passkey: user %s has no passkey; scheduling %s for this login", user.getUsername(), Protocol.PASSKEY_REGISTER_ACTION);
   }

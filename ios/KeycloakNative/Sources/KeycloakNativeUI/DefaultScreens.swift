@@ -204,8 +204,14 @@ struct PasskeyRegistrationScreen: View {
   @Environment(\.nativeLoginStrings) private var l
 
   var body: some View {
-    let params = presentation.challenge.passkeyRegistrationParams
-    ChallengeFrame(presentation: presentation, title: l("Create a passkey"), subtitle: l("%@ requires a passkey for %@ before you can continue.", params?.rp.name ?? l("This service"), params?.user.name ?? l("your account"))) {
+    let challenge = presentation.challenge
+    let params = challenge.passkeyRegistrationParams
+    // spec/03 §4.11: a skippable registration is an offer ("Not now"), not a requirement.
+    let subtitle =
+      challenge.isSkippable
+      ? l("Sign in faster next time: create a passkey for %@ on this device.", params?.user.name ?? l("your account"))
+      : l("%@ requires a passkey for %@ before you can continue.", params?.rp.name ?? l("This service"), params?.user.name ?? l("your account"))
+    ChallengeFrame(presentation: presentation, title: l("Create a passkey"), subtitle: subtitle) {
       TextField(l("Passkey name (optional)"), text: $label).textFieldStyle(.roundedBorder)
       Button {
         presentation.registerPasskey(label: label.isEmpty ? nil : label)
@@ -215,6 +221,11 @@ struct PasskeyRegistrationScreen: View {
       .buttonStyle(.borderedProminent)
       .disabled(presentation.isSubmitting)
       .accessibilityIdentifier("createPasskey")
+      if challenge.isSkippable {
+        Button(l("Not now")) { presentation.submit(.skip(challenge.type)) }
+          .disabled(presentation.isSubmitting)
+          .accessibilityIdentifier("skipChallenge")
+      }
     }
   }
 }

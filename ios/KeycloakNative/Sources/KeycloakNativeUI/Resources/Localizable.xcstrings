@@ -361,6 +361,16 @@
         }
       }
     },
+    "Not now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht jetzt"
+          }
+        }
+      }
+    },
     "Open browser": {
       "localizations": {
         "de": {
@@ -537,6 +547,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anmelden"
+          }
+        }
+      }
+    },
+    "Sign in faster next time: create a passkey for %@ on this device.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim nächsten Mal schneller anmelden: Erstellen Sie auf diesem Gerät einen Passkey für %@."
           }
         }
       }

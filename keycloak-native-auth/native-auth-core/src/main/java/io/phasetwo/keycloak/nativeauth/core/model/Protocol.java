@@ -41,6 +41,14 @@ public final class Protocol {
   public static final String ACTION_POLL = "poll";
   /** {@code push_enrollment}: the device enrolled through the device API, check for the credential (spec/03 §4.15). */
   public static final String ACTION_CHECK = "check";
+  /** Declines a descriptor that carries {@code skippable: true} (spec/03 §4.11). */
+  public static final String ACTION_SKIP = "skip";
+
+  // ---- extension parameters (spec/03 §2.3) ----
+  public static final String EXTENSION_PARAM_PREFIX = "x_";
+  public static final int EXTENSION_PARAM_MAX_COUNT = 16;
+  public static final int EXTENSION_PARAM_MAX_NAME_LENGTH = 64;
+  public static final int EXTENSION_PARAM_MAX_VALUE_LENGTH = 2048;
 
   // ---- challenge-type specific continuation fields (spec/03 §4) ----
   public static final String USERNAME = "username";
@@ -124,6 +132,13 @@ public final class Protocol {
   /** Realm attribute: {@code true} restricts {@code /passkey/register/*} to tokens issued to native-enabled clients (spec/11 D5). */
   public static final String ATTR_PASSKEY_REGISTRATION_NATIVE_CLIENTS_ONLY = "native-auth.passkey-registration-native-clients-only";
   /** Realm attributes: fallback configuration of {@code native-terms} (spec/03 §4.14) when the required action has no config. */
+  /**
+   * Realm attribute: what the endpoint does when the flow reaches an execution that cannot produce a
+   * native challenge (spec/03 §3.4): {@code error} (default, {@code 500 server_error}) or {@code
+   * redirect_to_web}.
+   */
+  public static final String ATTR_NON_NATIVE_EXECUTION = "native-auth.non-native-execution";
+
   public static final String ATTR_TERMS_TEXT = "native-auth.terms-text";
   public static final String ATTR_TERMS_URL = "native-auth.terms-url";
   public static final String ATTR_TERMS_VERSION = "native-auth.terms-version";

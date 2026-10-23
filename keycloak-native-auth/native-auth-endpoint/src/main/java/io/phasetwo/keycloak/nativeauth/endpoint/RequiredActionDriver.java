@@ -1,6 +1,8 @@
 package io.phasetwo.keycloak.nativeauth.endpoint;
 
+import io.phasetwo.keycloak.nativeauth.core.spi.ChallengeEnvelope;
 import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequestContext;
+import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequiredAction;
 import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequiredActionFactory;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
@@ -37,6 +39,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 final class RequiredActionDriver {
 
   private static final Logger log = Logger.getLogger(RequiredActionDriver.class);
+  private static final String DETAIL_SKIPPED = "skipped";
 
   enum Status {
     /** The action emitted a challenge into the envelope; respond with it. */
@@ -131,6 +134,33 @@ final class RequiredActionDriver {
     return afterChallenge(authSession, factory, context, provider);
   }
 
+  /**
+   * {@code action=skip} on a descriptor the action marked skippable (spec/03 §4.11): the action's
+   * {@link NativeRequiredAction#processSkip} decides; on success the action is dropped from this
+   * login (it was scheduled on the authentication session, never stored on the user).
+   */
+  Status processSkip(AuthenticationSessionModel authSession, NativeRequiredActionFactory factory) {
+    event.event(EventType.CUSTOM_REQUIRED_ACTION).detail(Details.CUSTOM_REQUIRED_ACTION, factory.getId()).detail(DETAIL_SKIPPED, "true");
+    RequiredActionContextResult context = context(authSession, factory);
+    RequiredActionProvider provider = AuthenticationManager.createRequiredAction(context);
+    if (!(provider instanceof NativeRequiredAction nativeAction)) {
+      throw new IllegalStateException("Required action " + factory.getId() + " is not a native required action");
+    }
+    nativeAction.processSkip(context);
+    event.event(EventType.LOGIN);
+    if (context.getStatus() == RequiredActionContext.Status.SUCCESS) {
+      event.clone().event(EventType.CUSTOM_REQUIRED_ACTION).detail(Details.CUSTOM_REQUIRED_ACTION, factory.getId()).detail(DETAIL_SKIPPED, "true").success();
+      String alias = NativeRequestContext.pendingRequiredActionAlias(authSession);
+      authSession.removeRequiredAction(alias);
+      authSession.removeRequiredAction(factory.getId());
+      authSession.removeAuthNote(AuthenticationProcessor.CURRENT_AUTHENTICATION_EXECUTION);
+      AuthenticationManager.setKcActionStatus(factory.getId(), RequiredActionContext.KcActionStatus.CANCELLED, authSession);
+      NativeRequestContext.clearPendingRequiredAction(authSession);
+      return Status.SUCCESS;
+    }
+    return afterChallenge(authSession, factory, context, provider);
+  }
+
   private Status afterChallenge(
       AuthenticationSessionModel authSession,
       NativeRequiredActionFactory factory,
@@ -151,6 +181,7 @@ final class RequiredActionDriver {
         authSession.setAction(AuthenticationSessionModel.Action.REQUIRED_ACTIONS.name());
         authSession.setAuthNote(AuthenticationProcessor.CURRENT_FLOW_PATH, LoginActionsService.REQUIRED_ACTION);
         authSession.setAuthNote(AuthenticationProcessor.CURRENT_AUTHENTICATION_EXECUTION, factory.getId());
+        markSkippable(authSession, factory, context, provider);
         return Status.CHALLENGE;
       }
       case SUCCESS -> {
@@ -178,6 +209,32 @@ final class RequiredActionDriver {
         NativeRequestContext.clearPendingRequiredAction(authSession);
         return Status.FAILURE;
       }
+    }
+  }
+
+  /**
+   * Puts {@code skippable: true} on the emitted descriptor when the action allows a skip and the
+   * served alias is only scheduled on this login: a skipped action stored on the user would be
+   * returned again by {@code nextRequiredAction} (spec/03 §4.11).
+   */
+  private void markSkippable(
+      AuthenticationSessionModel authSession,
+      NativeRequiredActionFactory factory,
+      RequiredActionContextResult context,
+      RequiredActionProvider provider) {
+    String alias = NativeRequestContext.pendingRequiredActionAlias(authSession);
+    UserModel user = authSession.getAuthenticatedUser();
+    boolean storedOnUser =
+        user != null && user.getRequiredActionsStream().anyMatch(a -> a.equals(alias) || a.equals(factory.getId()));
+    boolean skippable = provider instanceof NativeRequiredAction nativeAction && !storedOnUser && nativeAction.isSkippable(context);
+    if (!skippable) {
+      authSession.removeAuthNote(NativeRequestContext.AUTH_NOTE_REQUIRED_ACTION_SKIPPABLE);
+      return;
+    }
+    authSession.setAuthNote(NativeRequestContext.AUTH_NOTE_REQUIRED_ACTION_SKIPPABLE, "true");
+    ChallengeEnvelope envelope = NativeRequestContext.envelopeIfPresent(session);
+    if (envelope != null) {
+      envelope.challenges().forEach(d -> d.setSkippable(true));
     }
   }
 
