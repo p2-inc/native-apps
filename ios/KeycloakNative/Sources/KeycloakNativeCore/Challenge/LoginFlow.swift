@@ -13,6 +13,14 @@ public struct LoginParameters: Sendable, Equatable {
   public var deviceName: String?
   /// Stable app-generated UUID.
   public var deviceId: String?
+  /// Extra fields of the initial request (spec/03 §2.3), e.g. a device or risk signal from another
+  /// on-device SDK. Use the reserved `x_` prefix so a future profile parameter cannot collide; the
+  /// Keycloak implementation keeps them for the whole login (`NativeRequestContext.extensionParameter`).
+  /// Sent in key order.
+  public var additionalParameters: [String: String]
+  /// Extra fields appended to every continuation request of the flow; per-answer fields go through
+  /// `respond(_:to:additionalFields:)`.
+  public var continuationParameters: [String: String]
 
   public init(
     scope: String? = "openid",
@@ -23,7 +31,9 @@ public struct LoginParameters: Sendable, Equatable {
     nonce: String? = nil,
     uiLocales: String? = nil,
     deviceName: String? = nil,
-    deviceId: String? = nil
+    deviceId: String? = nil,
+    additionalParameters: [String: String] = [:],
+    continuationParameters: [String: String] = [:]
   ) {
     self.scope = scope
     self.acrValues = acrValues
@@ -34,6 +44,8 @@ public struct LoginParameters: Sendable, Equatable {
     self.uiLocales = uiLocales
     self.deviceName = deviceName
     self.deviceId = deviceId
+    self.additionalParameters = additionalParameters
+    self.continuationParameters = continuationParameters
   }
 }
 
@@ -42,6 +54,9 @@ public struct LoginParameters: Sendable, Equatable {
 public protocol LoginFlow: Sendable {
   func start() async throws -> FlowStep
   func respond(_ answer: ChallengeAnswer, to challenge: Challenge) async throws -> FlowStep
+  /// Like `respond(_:to:)` with extra fields for this request only (spec/03 §2.3), appended after
+  /// `LoginParameters.continuationParameters`.
+  func respond(_ answer: ChallengeAnswer, to challenge: Challenge, additionalFields: [String: String]) async throws -> FlowStep
   /// `action=cancel`: the server invalidates the session. Safe to call at any point.
   func cancel() async
   /// The current `auth_session` (replaced on every response, spec/03 §5). Exposed for diagnostics.
@@ -130,6 +145,7 @@ public actor NativeLoginFlow: LoginFlow {
     if let v = parameters.uiLocales { fields.append(("ui_locales", v)) }
     if let v = parameters.deviceName { fields.append(("device_name", v)) }
     if let v = parameters.deviceId { fields.append(("device_id", v)) }
+    fields += try Self.extraFields(parameters.additionalParameters, after: fields)
     if let stepUpSession {
       // spec/03 §5: a §2.1 request plus the post-login auth_session = step-up / re-authentication.
       fields.append(("auth_session", stepUpSession))
@@ -144,6 +160,10 @@ public actor NativeLoginFlow: LoginFlow {
   }
 
   public func respond(_ answer: ChallengeAnswer, to challenge: Challenge) async throws -> FlowStep {
+    try await respond(answer, to: challenge, additionalFields: [:])
+  }
+
+  public func respond(_ answer: ChallengeAnswer, to challenge: Challenge, additionalFields: [String: String]) async throws -> FlowStep {
     guard state == .awaitingAnswer, let session, let client else {
       throw NativeAuthError(code: NativeAuthError.Code.flowState, description: "No challenge is pending (state: \(state))")
     }
@@ -153,11 +173,20 @@ public actor NativeLoginFlow: LoginFlow {
     guard answer.challengeType == challenge.type else {
       throw NativeAuthError(code: NativeAuthError.Code.unsupportedChallenge, description: "A \(answer.challengeType) answer cannot be sent for a \(challenge.type) challenge")
     }
-    let fields: [(name: String, value: String)] = [
+    if case .skip = answer, !challenge.isSkippable {
+      throw NativeAuthError(code: NativeAuthError.Code.flowState, description: "Challenge \(challenge.type) is not skippable")
+    }
+    var fields: [(name: String, value: String)] = [
       ("auth_session", session),
       ("challenge_type", challenge.type.wire),
       ("challenge_id", challenge.id),
-    ] + answer.formFields
+    ]
+    if let name = answer.formFields.map(\.name).first(where: Self.continuationFieldNames.contains) {
+      throw NativeAuthError(code: NativeAuthError.Code.invalidParameter, description: "An answer may not set '\(name)'")
+    }
+    fields += answer.formFields
+    fields += try Self.extraFields(parameters.continuationParameters, after: fields)
+    fields += try Self.extraFields(additionalFields, after: fields)
     do {
       return try await handle(client.post(fields))
     } catch let error as NativeAuthError {
@@ -181,6 +210,25 @@ public actor NativeLoginFlow: LoginFlow {
   }
 
   // MARK: -
+
+  /// Names the SDK itself sends on some request (spec/03 §2.1, §2.2); callers may not override them.
+  static let reservedFieldNames: Set<String> = [
+    "client_id", "response_type", "scope", "code_challenge", "code_challenge_method", "acr_values", "login_hint",
+    "prompt", "max_age", "nonce", "ui_locales", "device_name", "device_id", "auth_session", "challenge_type",
+    "challenge_id", "action",
+  ]
+
+  /// The fields every continuation request starts with; an answer never sets them.
+  static let continuationFieldNames: Set<String> = ["auth_session", "challenge_type", "challenge_id"]
+
+  /// `extra` in key order, refusing names that are reserved or already in `existing`.
+  static func extraFields(_ extra: [String: String], after existing: [(name: String, value: String)]) throws -> [(name: String, value: String)] {
+    let taken = Set(existing.map(\.name))
+    for name in extra.keys where name.isEmpty || reservedFieldNames.contains(name) || taken.contains(name) {
+      throw NativeAuthError(code: NativeAuthError.Code.invalidParameter, description: "Extra field '\(name)' is empty, reserved or already set by the request")
+    }
+    return extra.sorted { $0.key < $1.key }.map { (name: $0.key, value: $0.value) }
+  }
 
   private func handle(_ outcome: ChallengeOutcome) async throws -> FlowStep {
     switch outcome {

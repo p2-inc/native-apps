@@ -64,6 +64,7 @@ The server SHOULD also advertise `authorization_challenge_endpoint` in `/.well-k
 | `acr_values`, `max_age`, `login_hint`, `prompt`, `nonce`, `ui_locales` | opt | Standard OIDC semantics. `acr_values` drives step-up. `login_hint` pre-fills the `username` challenge. |
 | `auth_session` | opt | A **post-login** value (§3.1, §5) when the client wants to step up or re-authenticate inside an existing user session; the other §2.1 parameters are sent as for a fresh login (a new PKCE pair, `acr_values`, `max_age`, `prompt`, `scope`). Sending an **in-flow** value here is a §2.2 continuation instead. |
 | `device_name`, `device_id` | opt | Free-text label + stable app-generated UUID; used in events and push prompts. |
+| `x_*` | opt | Extension parameters (§2.3). |
 
 Optional headers: `DPoP: <proof>` (see §8). If present on the first request, the server binds `auth_session` and the eventual authorization code to the key (FiPA §9.5.1/9.6.1) and rejects later requests of the same session that present a different key or no key (`invalid_session`); an unverifiable proof is `invalid_dpop_proof`.
 
@@ -75,9 +76,14 @@ Optional headers: `DPoP: <proof>` (see §8). If present on the first request, th
 | `challenge_type` | yes | The `type` of the challenge being answered. |
 | `challenge_id` | yes | The `id` of the challenge being answered (opaque; it is the Keycloak execution id). |
 | *type-specific fields* | | See §4. |
-| `action` | opt | `cancel` aborts the session (server responds `invalid_session`); `resend` for `otp`; `select` for choosing among alternatives without answering. |
+| `action` | opt | `cancel` aborts the session (server responds `invalid_session`); `resend` for `otp`; `select` for choosing among alternatives without answering; `skip` declines a descriptor that carries `skippable: true` (§3.3, §4.11) — on any other descriptor it is `invalid_request` and the session stays valid. |
+| `x_*` | opt | Extension parameters (§2.3). |
 
 Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests unless the server returned a new session; if sent they MUST match.
+
+### 2.3 Extension parameters
+
+Parameter names beginning with `x_` are reserved for deployments (for example a device or risk signal produced by another on-device SDK); this profile will never define one. Servers MUST accept them on initial and continuation requests and MUST NOT give them a meaning of their own. A request MAY carry at most 16 of them, each name at most 64 and each value at most 2048 characters; a request beyond these limits is `invalid_request`. In the Keycloak implementation an initial-request (and step-up) value is stored as the client note `client_request_param_<name>` — the convention Keycloak's authorization endpoint uses for extra parameters — so every authenticator and required action of the login can read it (`NativeRequestContext.extensionParameter`); a continuation value is an ordinary form parameter of the request it arrives with, visible to the execution being answered. Extension values are never logged or written to events by the server.
 
 ---
 
@@ -127,6 +133,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
   "id": "4f2e…",            // execution id, echo as challenge_id
   "label": "Sign in with a passkey",
   "required": true,          // false when it is one of several alternatives
+  "skippable": true,         // optional; only on a required-action descriptor the user may decline for this login (§4.11)
   "retry": { "remaining": 3 },      // optional; on the descriptor that just failed: attempts left before the account is locked (realm brute-force protection)
   "error": { "code": "invalid_credential", "message": "…" },  // optional; the previous attempt failed
   "params": { …type-specific… }
@@ -144,7 +151,7 @@ Clients MUST NOT send `client_id`/`scope`/PKCE again on continuation requests un
   "reason": "required_action:UPDATE_PASSWORD" }
 ```
 
-The server has stored a pushed authorization request (PAR, RFC 9126) for the client: the §2.1 parameters of the native flow (`scope`, PKCE `code_challenge`/`code_challenge_method`, `nonce`, `acr_values`, `ui_locales`), `redirect_uri`, a server-generated `state`, and `login_hint` = the identified username. The client MUST open the system browser (`ASWebAuthenticationSession`) on `authorization_endpoint` (§1.1) with exactly `client_id=<client_id>&request_uri=<request_uri>` and complete a normal code flow there: the user signs in again in the browser flow, completes whatever the native flow could not serve (e.g. the required action named in `reason`), and the browser is redirected to `redirect_uri` with `code` and `state`. The client MUST check `state`, then exchanges the code at the token endpoint with the **native flow's** `code_verifier` and the same `redirect_uri` (this exchange always sends `redirect_uri`, whatever `code_exchange` says, because the code was issued by the browser flow). `request_uri` is single use and expires after `expires_in` seconds (the realm's PAR request URI lifespan). `redirect_uri` is the client's `native-auth.web-fallback-redirect-uri` attribute or, when unset, its first registered redirect URI; it MUST be a registered redirect URI of the client. `reason` is informational (e.g. `required_action:<alias>`, risk decision, account locked). The Keycloak implementation emits it for a pending required action that has no native variant (§4.12–§4.14 list the ones that do): e.g. `UPDATE_PROFILE`, `CONFIGURE_TOTP`.
+The server has stored a pushed authorization request (PAR, RFC 9126) for the client: the §2.1 parameters of the native flow (`scope`, PKCE `code_challenge`/`code_challenge_method`, `nonce`, `acr_values`, `ui_locales`), `redirect_uri`, a server-generated `state`, and `login_hint` = the identified username. The client MUST open the system browser (`ASWebAuthenticationSession`) on `authorization_endpoint` (§1.1) with exactly `client_id=<client_id>&request_uri=<request_uri>` and complete a normal code flow there: the user signs in again in the browser flow, completes whatever the native flow could not serve (e.g. the required action named in `reason`), and the browser is redirected to `redirect_uri` with `code` and `state`. The client MUST check `state`, then exchanges the code at the token endpoint with the **native flow's** `code_verifier` and the same `redirect_uri` (this exchange always sends `redirect_uri`, whatever `code_exchange` says, because the code was issued by the browser flow). `request_uri` is single use and expires after `expires_in` seconds (the realm's PAR request URI lifespan). `redirect_uri` is the client's `native-auth.web-fallback-redirect-uri` attribute or, when unset, its first registered redirect URI; it MUST be a registered redirect URI of the client. `reason` is informational (e.g. `required_action:<alias>`, risk decision, account locked). The Keycloak implementation emits it for a pending required action that has no native variant (§4.12–§4.14 list the ones that do): e.g. `UPDATE_PROFILE`, `CONFIGURE_TOTP`. It also emits it, with `reason` = `execution:<provider id>`, when the flow reaches an execution that cannot produce a native challenge (a browser form authenticator) and the realm attribute `native-auth.non-native-execution` is `redirect_to_web`; with the default `error` that case is `500 server_error` (a flow configuration error, logged with the offending execution).
 
 The answer is only possible when the initial request carried a PKCE challenge **and** the client has a usable `redirect_uri`; otherwise the server answers `403 access_denied` with the same `reason` in `error_description`. The native authentication session is removed in both cases; the browser flow is a new login, the native `auth_session` is no longer valid.
 
@@ -219,7 +226,7 @@ Used when the flow requires passkey enrolment (`webauthn-register`-style require
 ```
 response: `credential_id`, `client_data_json`, `attestation_object`, `transports` (comma-separated), `label` (optional user-visible name).
 The same payloads are used by the standalone `/native-auth/passkey/register/*` endpoints (§6).
-The descriptor's `id` (echoed as `challenge_id`) is the required action's provider id (`native-passkey-register`), not an execution id (11 D1); `required` is always `true`. `authenticator_selection` MAY also carry `require_resident_key: true`. Error codes: `missing_credential`, `invalid_attestation` (attestation did not parse/verify, policy violation, duplicate credential; a fresh `challenge` is issued with the re-challenge).
+The descriptor's `id` (echoed as `challenge_id`) is the required action's provider id (`native-passkey-register`), not an execution id (11 D1); `required` is always `true`. `authenticator_selection` MAY also carry `require_resident_key: true`. Error codes: `missing_credential`, `invalid_attestation` (attestation did not parse/verify, policy violation, duplicate credential; a fresh `challenge` is issued with the re-challenge). When `native-passkey` scheduled the action through *enrol on first login* and its execution config `enrol-optional` is on, the descriptor carries `skippable: true` ("Create a passkey" / "Not now", §4.11).
 
 ### 4.5 `totp` — authenticator-app code
 
@@ -264,6 +271,8 @@ Not a challenge descriptor — it is the §3.4 error. Listed in `challenge_types
 ### 4.11 Required-action challenge types (common rules)
 
 Besides `passkey_registration` (§4.4), the Keycloak implementation serves three of Keycloak's built-in required actions in-band: `update_password`, `verify_email` and `terms` (08 Q7). They share the §4.4 rules: the descriptor's `id` (echoed as `challenge_id`) is the native required action's **provider id** (`native-update-password`, `native-verify-email`, `native-terms`), `required` is always `true`, the descriptor is the only entry of the set, and the authentication session is bound to the realm's *user action* timeout while one is pending. A native required action is used in two ways: assigned to the user directly under its own alias, or **substituted** for the corresponding Keycloak action (`UPDATE_PASSWORD`, `VERIFY_EMAIL`, `TERMS_AND_CONDITIONS`) when that one is pending and the native variant is registered and enabled in the realm; on success the pending Keycloak action is removed from the user, so the browser flow and the admin console keep using Keycloak's own pages. Any other pending required action (and a substituted one whose native variant cannot serve the user, e.g. `VERIFY_EMAIL` for a user without an e-mail address) ends with §3.4 `redirect_to_web`. `action=cancel` aborts the login as usual.
+
+**Optional actions.** A descriptor with `skippable: true` may be declined with `action=skip` (no other fields): the action is not completed, it is dropped from this login only, and the server answers like any other success — the next required action, or `200` with the code. The next login offers it again unless the server decided otherwise. The Keycloak implementation marks a descriptor skippable only when the action was scheduled for this login rather than stored on the user (an admin-assigned action cannot be skipped), and only when the action allows it: today `passkey_registration` scheduled by `native-passkey`'s *enrol on first login* with *enrolment optional* on (§4.4). A skip is recorded as a `CUSTOM_REQUIRED_ACTION` event with detail `skipped=true`. Extension required actions opt in through `NativeRequiredAction.isSkippable` / `processSkip`.
 
 ### 4.12 `update_password` — set a new password (required action)
 
@@ -380,7 +389,7 @@ Requests MAY carry `OAuth-Client-Attestation` and `OAuth-Client-Attestation-PoP`
 
 ### 10.1 v1.0-rc freeze (15 October 2026, 04 §8, 14 D8)
 
-The following is frozen as **v1.0-rc**: §1.1 metadata (except the `push` block), §2, §3.1–§3.5, §4.1–§4.6, §4.8, §4.10–§4.14, §5, §6 and §8. Changes to these sections before v1.0 are limited to additive optional fields and clarifications; a field rename or a changed status code would be a 2.x. Still **draft** in this document: §4.7 `push`, §7 (the push device API), §1.1's `push` block and `/push/enroll/start` (Phase 3), §4.9 `select` (unimplemented, optional) and §9 attestation (Phase 4). The conformance suite for the frozen parts is the recorded transcript set `keycloak-native-auth/demo/transcripts/` (one file per integration test, 12 D1): a server is conformant when the same integration tests pass against it, a client when it replays the transcripts as the iOS SDK does.
+The following is frozen as **v1.0-rc**: §1.1 metadata (except the `push` block), §2, §3.1–§3.5, §4.1–§4.6, §4.8, §4.10–§4.14, §5, §6 and §8. Changes to these sections before v1.0 are limited to additive optional fields and clarifications; a field rename or a changed status code would be a 2.x. Added since the freeze (all additive): `action=skip` and the descriptor field `skippable` (§2.2, §3.3, §4.11), `x_*` extension parameters (§2.3), and `reason: execution:<id>` for `redirect_to_web` (§3.4). Still **draft** in this document: §4.7 `push`, §7 (the push device API), §1.1's `push` block and `/push/enroll/start` (Phase 3), §4.9 `select` (unimplemented, optional) and §9 attestation (Phase 4). The conformance suite for the frozen parts is the recorded transcript set `keycloak-native-auth/demo/transcripts/` (one file per integration test, 12 D1): a server is conformant when the same integration tests pass against it, a client when it replays the transcripts as the iOS SDK does.
 
 ## 11. Example end-to-end transcript (curl)
 

@@ -97,6 +97,7 @@ final class ChallengeFlowDriver {
     try {
       // An invalid proof fails before anything else; a missing one is fine (spec/03 §8).
       String jkt = DPoPProofChecker.thumbprint(session);
+      checkExtensionParameters(form);
       String authSessionParam = form.getFirst(Protocol.AUTH_SESSION);
       if (authSessionParam == null || authSessionParam.isBlank()) {
         return start(form, jkt);
@@ -161,6 +162,13 @@ final class ChallengeFlowDriver {
     }
     copyNote(form, Protocol.DEVICE_ID, authSession, NativeRequestContext.CLIENT_NOTE_DEVICE_ID);
     copyNote(form, Protocol.DEVICE_NAME, authSession, NativeRequestContext.CLIENT_NOTE_DEVICE_NAME);
+    // spec/03 §2.3: initial-request extension parameters live for the whole login.
+    form.forEach(
+        (name, values) -> {
+          if (name.startsWith(Protocol.EXTENSION_PARAM_PREFIX) && values != null && !values.isEmpty() && values.get(0) != null) {
+            authSession.setClientNote(NativeRequestContext.CLIENT_NOTE_REQUEST_PARAM_PREFIX + name, values.get(0));
+          }
+        });
     NativeRequestContext.markNative(authSession, Protocol.VERSION);
     authSession.setAuthNote(AuthenticationProcessor.CURRENT_FLOW_PATH, LoginActionsService.AUTHENTICATE_PATH);
     if (jkt != null) {
@@ -359,8 +367,12 @@ final class ChallengeFlowDriver {
     // Like AuthenticationProcessor.checkClientSession(): every valid request refreshes the timeout.
     authSession.getParentSession().setTimestamp(Time.currentTime());
 
+    boolean skip = Protocol.ACTION_SKIP.equals(form.getFirst(Protocol.ACTION));
+    if (skip && !(inRequiredAction && NativeRequestContext.isPendingRequiredActionSkippable(authSession))) {
+      throw invalidRequest("action=skip is only valid on a descriptor with skippable: true", authSession);
+    }
     if (inRequiredAction) {
-      return continueRequiredAction(authSession, challengeId, event);
+      return continueRequiredAction(authSession, challengeId, event, skip);
     }
     AuthenticationExecutionModel execution = realm.getAuthenticationExecutionById(challengeId);
     if (execution == null) {
@@ -397,11 +409,26 @@ final class ChallengeFlowDriver {
     if (!NativeRequestContext.isMarker(processorResponse) || envelope == null || envelope.isEmpty()) {
       // spec/08 R8: a non-native execution (form authenticator, required action page...) in the flow.
       String execution = authSession.getAuthNote(AuthenticationProcessor.CURRENT_AUTHENTICATION_EXECUTION);
+      AuthenticationExecutionModel model = execution == null ? null : realm.getAuthenticationExecutionById(execution);
+      String providerId = model == null ? execution : model.getAuthenticator();
+      if (NativeAuthConfig.nonNativeExecutionRedirectsToWeb(realm)) {
+        // spec/03 §3.4: hand the login to the browser flow instead of failing it.
+        String reason = "execution:" + providerId;
+        log.warnf("Native flow '%s' reached non-native execution %s (%s); answering redirect_to_web", NativeAuthConfig.flowAlias(realm, authSession.getClient()), execution, providerId);
+        RedirectToWebResponse redirect = RedirectToWebBuilder.tryBuild(session, realm, authSession, reason);
+        sessions.removeAuthenticationSession(realm, authSession, false);
+        if (redirect != null) {
+          return Responses.json(Response.Status.FORBIDDEN, redirect);
+        }
+        throw new NativeAuthException(Response.Status.FORBIDDEN, Protocol.ERR_ACCESS_DENIED, reason + " cannot be completed in the native flow");
+      }
       log.errorf(
-          "Native flow '%s' produced a non-native response at execution %s (HTTP %d); check the flow configuration",
+          "Native flow '%s' produced a non-native response at execution %s (%s, HTTP %d); check the flow configuration or set the realm attribute %s=redirect_to_web",
           NativeAuthConfig.flowAlias(realm, authSession.getClient()),
           execution,
-          processorResponse.getStatus());
+          providerId,
+          processorResponse.getStatus(),
+          Protocol.ATTR_NON_NATIVE_EXECUTION);
       sessions.removeAuthenticationSession(realm, authSession, false);
       throw new NativeAuthException(
           Response.Status.INTERNAL_SERVER_ERROR,
@@ -483,7 +510,7 @@ final class ChallengeFlowDriver {
   }
 
   /** Continuation addressed to the pending native required action (challenge_id = provider id). */
-  private Response continueRequiredAction(AuthenticationSessionModel authSession, String challengeId, EventBuilder event) {
+  private Response continueRequiredAction(AuthenticationSessionModel authSession, String challengeId, EventBuilder event, boolean skip) {
     String pending = NativeRequestContext.pendingRequiredAction(authSession);
     NativeRequiredActionFactory factory = RequiredActionDriver.nativeFactory(session, pending);
     if (factory == null || !pending.equals(challengeId)) {
@@ -492,7 +519,8 @@ final class ChallengeFlowDriver {
     RequiredActionDriver actions = new RequiredActionDriver(session, realm, request, event);
     String alias = NativeRequestContext.pendingRequiredActionAlias(authSession); // cleared by the driver on failure
     try {
-      return switch (actions.processAction(authSession, factory)) {
+      RequiredActionDriver.Status status = skip ? actions.processSkip(authSession, factory) : actions.processAction(authSession, factory);
+      return switch (status) {
         case CHALLENGE -> challengeResponse(authSession, NativeRequestContext.markerResponse());
         case SUCCESS -> complete(authSession, event);
         case FAILURE -> requiredActionFailed(authSession, event, alias, actions.lastFailureMessage());
@@ -655,6 +683,26 @@ final class ChallengeFlowDriver {
           Response.Status.BAD_REQUEST,
           Protocol.ERR_INVALID_REQUEST,
           "client requires code_challenge_method=" + required);
+    }
+  }
+
+  /** spec/03 §2.3: {@code x_*} parameters are opaque to the server but bounded. */
+  private static void checkExtensionParameters(MultivaluedMap<String, String> form) {
+    int count = 0;
+    for (Map.Entry<String, List<String>> e : form.entrySet()) {
+      String name = e.getKey();
+      if (!name.startsWith(Protocol.EXTENSION_PARAM_PREFIX)) continue;
+      count++;
+      boolean tooLong =
+          name.length() > Protocol.EXTENSION_PARAM_MAX_NAME_LENGTH
+              || e.getValue().stream().anyMatch(v -> v != null && v.length() > Protocol.EXTENSION_PARAM_MAX_VALUE_LENGTH);
+      if (count > Protocol.EXTENSION_PARAM_MAX_COUNT || tooLong) {
+        throw new NativeAuthException(
+            Response.Status.BAD_REQUEST,
+            Protocol.ERR_INVALID_REQUEST,
+            "at most " + Protocol.EXTENSION_PARAM_MAX_COUNT + " x_ parameters, names up to " + Protocol.EXTENSION_PARAM_MAX_NAME_LENGTH
+                + " and values up to " + Protocol.EXTENSION_PARAM_MAX_VALUE_LENGTH + " characters");
+      }
     }
   }
 

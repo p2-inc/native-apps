@@ -28,6 +28,8 @@ public struct NativeAuthError: Error, CustomStringConvertible {
     public static let metadataUnavailable = "metadata_unavailable"
     public static let unsupportedChallenge = "unsupported_challenge"
     public static let flowState = "flow_state"
+    /// A caller-supplied extra field or parameter repeats a name the protocol or the answer uses.
+    public static let invalidParameter = "invalid_parameter"
     public static let passkeyCancelled = "passkey_cancelled"
     public static let passkeyFailed = "passkey_failed"
     public static let passkeyUnavailable = "passkey_unavailable"

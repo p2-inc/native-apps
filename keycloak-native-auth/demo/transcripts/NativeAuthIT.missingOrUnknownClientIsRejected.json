@@ -1,8 +1,8 @@
 {
   "test": "NativeAuthIT.missingOrUnknownClientIsRejected",
-  "recorded_at": "2026-10-15T12:06:53.918365Z",
+  "recorded_at": "2026-10-23T17:10:17.123017Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:56477",
+  "base_url": "http://localhost:65234",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",

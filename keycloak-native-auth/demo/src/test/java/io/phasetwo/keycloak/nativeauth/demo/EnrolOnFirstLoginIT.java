@@ -3,6 +3,8 @@ package io.phasetwo.keycloak.nativeauth.demo;
 import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.adminRealmUrl;
 import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.adminToken;
 import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.baseUrl;
+import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.challenge;
+import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.params;
 import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.CLIENT;
 import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.answer;
 import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.assertChallenge;
@@ -16,7 +18,9 @@ import static io.phasetwo.keycloak.nativeauth.demo.PasskeyIT.origin;
 import static io.phasetwo.keycloak.nativeauth.demo.PasskeyIT.registerOptions;
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.restassured.path.json.JsonPath;
@@ -54,9 +58,13 @@ class EnrolOnFirstLoginIT {
   }
 
   static String setEnrolOnFirstLogin(String executionId, boolean enabled) {
+    return setEnrolOnFirstLogin(executionId, enabled, false);
+  }
+
+  static String setEnrolOnFirstLogin(String executionId, boolean enabled, boolean optional) {
     Response r =
         given().auth().oauth2(adminToken()).contentType("application/json")
-            .body("{\"alias\":\"native-passkey enrol-on-first-login\",\"config\":{\"enrol-on-first-login\":\"" + enabled + "\"}}")
+            .body("{\"alias\":\"native-passkey enrol-on-first-login\",\"config\":{\"enrol-on-first-login\":\"" + enabled + "\",\"enrol-optional\":\"" + optional + "\"}}")
             .post(adminRealmUrl() + "/authentication/executions/" + executionId + "/config");
     assertEquals(201, r.statusCode(), r.asString());
     String location = r.getHeader("Location");
@@ -109,6 +117,72 @@ class EnrolOnFirstLoginIT {
     } finally {
       deleteConfig(configId);
       deletePasskeys("bob");
+    }
+  }
+
+  /** Username + password up to the passkey_registration challenge for bob. */
+  static Response bobUpToRegistration(Pkce pkce) {
+    Response r = start(CLIENT, pkce);
+    r = answer(r, "username", "username", "bob");
+    r = answer(r, "password", "password", "bob-password");
+    assertChallenge(r, "passkey_registration");
+    return r;
+  }
+
+  @Test
+  void bobMayDeclineAnOptionalEnrolmentAndIsOfferedItAgainAtTheNextLogin() {
+    String configId = setEnrolOnFirstLogin(passkeyExecutionId(), true, true);
+    try {
+      Pkce pkce = Pkce.s256();
+      Response r = bobUpToRegistration(pkce);
+      assertEquals(true, r.jsonPath().getBoolean("challenges[0].skippable"), r.asString());
+
+      // spec/03 §4.11: "Not now" completes the login without a passkey.
+      r = answer(r, "passkey_registration", "action", "skip");
+      assertEquals(200, r.statusCode(), r.asString());
+      assertNotNull(r.jsonPath().getString("auth_session"));
+      assertEquals(200, exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null).statusCode());
+      assertFalse(credentials("bob").stream().anyMatch(c -> "webauthn-passwordless".equals(c.get("type"))));
+      assertFalse(Admin.user("bob").getList("requiredActions").contains("native-passkey-register"));
+
+      // The next login offers it again.
+      r = bobUpToRegistration(Pkce.s256());
+      assertEquals(true, r.jsonPath().getBoolean("challenges[0].skippable"), r.asString());
+    } finally {
+      deleteConfig(configId);
+      deletePasskeys("bob");
+    }
+  }
+
+  @Test
+  void aMandatoryEnrolmentIsNotSkippableAndRefusesSkip() {
+    String configId = setEnrolOnFirstLogin(passkeyExecutionId(), true, false);
+    try {
+      Response r = bobUpToRegistration(Pkce.s256());
+      assertNull(r.jsonPath().get("challenges[0].skippable"), r.asString());
+      Response refused = answer(r, "passkey_registration", "action", "skip");
+      assertEquals(400, refused.statusCode(), refused.asString());
+      assertEquals("invalid_request", refused.jsonPath().getString("error"));
+      // The session is still valid and still waiting for the registration.
+      assertNotNull(refused.jsonPath().getString("auth_session"));
+      Response cancelled = challenge(params("auth_session", refused.jsonPath().getString("auth_session"), "challenge_type", "passkey_registration", "challenge_id", "native-passkey-register", "action", "cancel"));
+      assertEquals("invalid_session", cancelled.jsonPath().getString("error"), cancelled.asString());
+    } finally {
+      deleteConfig(configId);
+    }
+  }
+
+  @Test
+  void anEnrolmentStoredOnTheUserIsNeverSkippable() {
+    String configId = setEnrolOnFirstLogin(passkeyExecutionId(), true, true);
+    Admin.updateUser("bob", "{\"requiredActions\": [\"native-passkey-register\"]}");
+    try {
+      Response r = bobUpToRegistration(Pkce.s256());
+      assertNull(r.jsonPath().get("challenges[0].skippable"), r.asString());
+      assertEquals(400, answer(r, "passkey_registration", "action", "skip").statusCode());
+    } finally {
+      Admin.updateUser("bob", "{\"requiredActions\": []}");
+      deleteConfig(configId);
     }
   }
 

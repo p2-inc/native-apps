@@ -60,6 +60,19 @@ public class NativePasskeyRegisterRequiredAction implements NativeRequiredAction
   @Override
   public void evaluateTriggers(RequiredActionContext context) {}
 
+  /** Optional when {@code native-passkey} scheduled it with {@code enrol-optional} (spec/03 §4.4). */
+  @Override
+  public boolean isSkippable(RequiredActionContext context) {
+    return "true".equals(context.getAuthenticationSession().getAuthNote(NativeRequestContext.AUTH_NOTE_PASSKEY_REGISTER_OPTIONAL));
+  }
+
+  /** "Not now": nothing to record, the next login offers the enrolment again. */
+  @Override
+  public void processSkip(RequiredActionContext context) {
+    context.getAuthenticationSession().removeAuthNote(AUTH_NOTE_CHALLENGE);
+    context.success();
+  }
+
   @Override
   public void requiredActionChallenge(RequiredActionContext context) {
     if (!NativeRequestContext.isNative(context.getAuthenticationSession())) {

@@ -103,6 +103,11 @@ public final class NativeAuthConfig {
    * Maximum age (seconds) of the authentication behind an access token presented to the passkey
    * registration endpoints (spec/07 §5); 0 disables the check.
    */
+  /** Realm attribute {@code native-auth.non-native-execution} (spec/03 §3.4); default {@code error}. */
+  public static boolean nonNativeExecutionRedirectsToWeb(RealmModel realm) {
+    return "redirect_to_web".equals(realm.getAttribute(Protocol.ATTR_NON_NATIVE_EXECUTION));
+  }
+
   public static int passkeyRegistrationMaxAge(RealmModel realm) {
     String value = realm.getAttribute(Protocol.ATTR_PASSKEY_REGISTRATION_MAX_AGE);
     if (value == null || value.isBlank()) return Protocol.DEFAULT_PASSKEY_REGISTRATION_MAX_AGE;
