@@ -38,7 +38,7 @@ The custom challenge endpoint is inspired by the FiPA draft identified in metada
 
 ## Practical quick start
 
-Prerequisites: Java 21 target, Maven, Docker with Compose, `curl`, `jq`, `openssl`; for the app, macOS, Xcode with Swift 6 and an installed iOS 17+ simulator. The server is pinned to **Keycloak 26.8.1** and push MFA **2.3.7** in the [parent POM](../keycloak-native-auth/pom.xml). The [Swift package](../ios/KeycloakNative/Package.swift) declares iOS 17/macOS 14 minimums, Swift 6, and no library package dependencies. Other Keycloak releases are not established compatibility targets.
+Prerequisites: Java 21 target, Maven, Docker with Compose, `curl`, `jq`, `openssl`; for the app, macOS, Xcode with Swift 6 and an installed iOS 17+ simulator. The server is pinned to **Keycloak 26.8.1** and push MFA **2.3.7** in the [parent POM](../keycloak-native-auth/pom.xml). The [Swift package](../Package.swift) (root manifest, sources under `ios/KeycloakNative/`) declares iOS 17/macOS 14 minimums, Swift 6, and no library package dependencies. Other Keycloak releases are not established compatibility targets.
 
 From the repository root:
 

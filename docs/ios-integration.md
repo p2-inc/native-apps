@@ -4,15 +4,15 @@
 
 ## Installation and configuration
 
-The [package manifest](../ios/KeycloakNative/Package.swift) requires Swift tools 6.0 / Swift language mode 6, iOS 17+ or macOS 14+. Library products have no third-party package dependencies; platform frameworks include AuthenticationServices, CryptoKit, Security and SwiftUI. Repository verification uses Xcode 27 / Swift 6.4; the sample XcodeGen file's `xcodeVersion:16.0` is project metadata, not evidence that Xcode 16 was tested.
+The [package manifest](../Package.swift) (at the repository root; sources under `ios/KeycloakNative/`) requires Swift tools 6.0 / Swift language mode 6, iOS 17+ or macOS 14+. Library products have no third-party package dependencies; platform frameworks include AuthenticationServices, CryptoKit, Security and SwiftUI. Repository verification uses Xcode 27 / Swift 6.4; the sample XcodeGen file's `xcodeVersion:16.0` is project metadata, not evidence that Xcode 16 was tested.
 
-In Xcode add the **local package** at `ios/KeycloakNative` and link `KeycloakNativeCore`. Add `KeycloakNativeUI` for SwiftUI screens; it depends on Core and Push. Add `KeycloakNativePush` for explicit device enrollment/approval operations. No released remote package URL/version is established here. In another local package, use the correct relative filesystem path:
+Because the manifest is at the repository root, SwiftPM can consume the repository by URL: in Xcode add the package by the repository URL (or the local checkout's root folder) and link `KeycloakNativeCore`. Add `KeycloakNativeUI` for SwiftUI screens; it depends on Core and Push. Add `KeycloakNativePush` for explicit device enrollment/approval operations. The package identity is the repository name, `native-apps`:
 
 ```swift
-.package(path: "../KeycloakNative")
+.package(url: "<repository URL>", exact: "<version>")   // or .package(path: "<path to the checkout root>")
 ```
 
-and `.product(name: "KeycloakNativeCore", package: "KeycloakNative")` in target dependencies (see the [sample manifest](../ios/KeycloakNativeDemo/Package.swift)).
+and `.product(name: "KeycloakNativeCore", package: "native-apps")` in target dependencies (see the [sample manifest](../ios/KeycloakNativeDemo/Package.swift)). No release tag exists yet; until one does, pin a revision (`revision: "<commit>"`). SwiftPM resolves only plain semantic-version tags (`1.0.0`, not `ios-1.0.0`), so releases of this repository share one version line.
 
 Configure a public Keycloak client using the [server setup](README.md#practical-quick-start). Use the **issuer URL including `/realms/<realm>`**, not the challenge endpoint; client ID is separate. PKCE S256 must be required on the client. Register a callback such as `demoapp://auth/callback` for browser fallback; native success itself does not redirect. Use HTTPS outside the local demo. Keep one SDK instance per issuer/client so credentials, DPoP key, metadata cache and refresh coordination remain consistent.
 

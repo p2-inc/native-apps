@@ -6,3 +6,5 @@ target/
 *~
 .DS_Store
 keycloak-native-auth/demo/providers/
+.build/
+.swiftpm/
