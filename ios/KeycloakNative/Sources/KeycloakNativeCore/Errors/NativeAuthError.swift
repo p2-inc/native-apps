@@ -35,6 +35,8 @@ public struct NativeAuthError: Error, CustomStringConvertible {
     public static let credentialsNotFound = "credentials_not_found"
     public static let reauthenticationRequired = "reauthentication_required"
     public static let keychainError = "keychain_error"
+    /// An access-controlled Keychain item needed user authentication that was cancelled or failed.
+    public static let keychainAuthenticationFailed = "keychain_authentication_failed"
     public static let dpopKeyError = "dpop_key_error"
     /// `WebFallback`: the user closed the browser (not a flow failure, the app may retry).
     public static let webFallbackCancelled = "web_fallback_cancelled"

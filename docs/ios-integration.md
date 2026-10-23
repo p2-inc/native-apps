@@ -165,6 +165,27 @@ let registered = try await kc.passkeys().registerNewPasskey(
 
 Stale authentication needs step-up and a fresh registration attempt; the SDK does not automatically replay registration after the new login. [Passkey setup](sample-app.md#real-passkeys) is required even though the package compiles on a Mac/simulator.
 
+### Biometry-protected credentials
+
+To keep tokens device-only and readable only after Face ID / Touch ID, give the credentials their own store; the DPoP key reference and push enrolment stay in the default store, which the SDK reads on every signed request without user interaction:
+
+```swift
+import LocalAuthentication
+
+let context = LAContext()
+context.localizedReason = "Unlock your account"
+context.touchIDAuthenticationAllowableReuseDuration = 60   // one prompt covers reads for a minute
+
+var options = KeycloakNative.Options()
+options.credentialsStore = KeychainStore(
+  service: "com.example.app.credentials",
+  accessible: kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+  accessControl: .biometryCurrentSet,
+  authenticationContext: { context })
+```
+
+Every `CredentialsManager` read (including the one before a refresh) then needs user authentication; returning the same evaluated `LAContext` avoids a prompt per read. A cancelled or failed authentication surfaces as `keychain_authentication_failed`; `.biometryCurrentSet` items become unreadable when the enrolled biometry changes, so treat that like signed-out credentials and log in again. Writes replace the item (an update of a protected item would itself need authentication). Any other `SecureStore` implementation can be passed the same way.
+
 ## Push integration
 
 Import `KeycloakNativePush`; use the same SDK instance/key as the stored native login:
