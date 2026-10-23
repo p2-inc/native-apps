@@ -3,7 +3,11 @@ package io.phasetwo.keycloak.nativeauth.demo;
 import static io.restassured.RestAssured.given;
 
 import io.restassured.response.Response;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -34,11 +38,53 @@ final class KeycloakContainerSupport {
 
   private KeycloakContainerSupport() {}
 
+  /**
+   * Realm-export fields newer than the image's Keycloak version, which its importer rejects: the
+   * export is written for the newest supported version (README "Keycloak versions").
+   */
+  static final Map<String, String> FIELDS_SINCE = Map.of("webAuthnPolicyPasswordlessResidentKey", "26.8");
+
+  /** The export as is, or a copy without the fields the image's version does not know. */
+  static File realmExportFor(String image, File export) {
+    String version = image.substring(image.lastIndexOf(':') + 1);
+    try {
+      ObjectNode realm = (ObjectNode) new ObjectMapper().readTree(export);
+      boolean changed = false;
+      for (Map.Entry<String, String> field : FIELDS_SINCE.entrySet()) {
+        if (olderThan(version, field.getValue()) && realm.remove(field.getKey()) != null) changed = true;
+      }
+      if (!changed) return export;
+      File copy = File.createTempFile("demo-realm-" + version + "-", ".json");
+      copy.deleteOnExit();
+      new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(copy, realm);
+      return copy;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /** {@code 26.4.5} vs {@code 26.8}: numeric comparison of the dotted parts; non-numeric tags are newest. */
+  static boolean olderThan(String version, String since) {
+    String[] v = version.split("[.-]");
+    String[] s = since.split("\\.");
+    for (int i = 0; i < s.length; i++) {
+      int a;
+      try {
+        a = i < v.length ? Integer.parseInt(v[i]) : 0;
+      } catch (NumberFormatException e) {
+        return false;
+      }
+      int b = Integer.parseInt(s[i]);
+      if (a != b) return a < b;
+    }
+    return false;
+  }
+
   static synchronized String baseUrl() {
     if (container == null) {
       String image = System.getProperty("keycloak.image", "quay.io/keycloak/keycloak:26.8.1");
       File providers = new File(System.getProperty("providers.dir", "target/providers"));
-      File realmExport = new File(System.getProperty("realm.export", "realm-export/demo-realm.json"));
+      File realmExport = realmExportFor(image, new File(System.getProperty("realm.export", "realm-export/demo-realm.json")));
       File[] jars = providers.listFiles((dir, name) -> name.endsWith(".jar"));
       if (jars == null || jars.length == 0) {
         throw new IllegalStateException(

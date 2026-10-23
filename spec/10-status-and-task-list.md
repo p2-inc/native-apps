@@ -224,7 +224,8 @@ SDK / UI / app:
 - [ ] Attestation-based client auth + `client_attestation_required`
 - [ ] Rate limiting (`slow_down`), `NativeRiskEvaluator` SPI hook
 - [ ] Custom event types, metrics (04 §9)
-- [ ] CI matrix: last two 26.x minors + nightly (allowed to fail); spotless
+- [x] CI matrix: one build against 26.8.1, ITs on stock 26.8.1 / 26.6.4 / 26.4.5 (spec/16)
+- [ ] CI: Keycloak nightly (allowed to fail); spotless
 - [ ] Security review against 07 §10; load test; docs; Maven Central / SwiftPM release
 
 ### v1.0-rc additions from integrator feedback (15)

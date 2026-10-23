@@ -8,7 +8,10 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import javax.crypto.SecretKey;
 import org.keycloak.jose.jwe.JWE;
+import org.keycloak.jose.jwe.JWEConstants;
 import org.keycloak.jose.jwe.JWEException;
+import org.keycloak.jose.jwe.JWEHeader;
+import org.keycloak.jose.jwe.JWEKeyStorage;
 import org.keycloak.util.TokenUtil;
 
 /**
@@ -16,10 +19,11 @@ import org.keycloak.util.TokenUtil;
  *
  * <p>Algorithm: {@code alg=dir}, {@code enc=A128GCM|A192GCM|A256GCM} depending on the AES key size
  * (Keycloak's realm {@code aes-generated} key is 128-bit by default, 256-bit when the provider is
- * configured with {@code secretSize=32}). This reuses {@link TokenUtil#jweDirectEncode}, i.e. exactly
- * the construction Keycloak itself uses for the {@code KC_RESTART} cookie, so no new crypto code is
- * introduced. The JWE header carries the {@code kid} so key rotation keeps old sessions decryptable
- * while the previous key is still present (passive).
+ * configured with {@code secretSize=32}). This is the construction of Keycloak's own
+ * {@code TokenUtil.jweDirectEncode(kid, key, null, content)} (26.6+), built here from the {@link JWE}
+ * primitives every supported Keycloak version has (26.4 lacks the {@code kid} overload), so the
+ * output is identical and no new crypto code is introduced. The JWE header carries the {@code kid}
+ * so key rotation keeps old sessions decryptable while the previous key is still present (passive).
  */
 public final class AuthSessionCodec {
 
@@ -33,7 +37,7 @@ public final class AuthSessionCodec {
     AuthSessionKeys.ActiveKey active = keys.activeKey();
     try {
       byte[] content = NativeAuthJson.writeBytes(claims);
-      return TokenUtil.jweDirectEncode(active.kid(), active.key(), null, content);
+      return encryptDirect(active.kid(), active.key(), content);
     } catch (JWEException e) {
       throw new IllegalStateException("Unable to encrypt auth_session", e);
     }
@@ -79,6 +83,20 @@ public final class AuthSessionCodec {
       throw new InvalidAuthSessionException("auth_session expired");
     }
     return claims;
+  }
+
+  /** {@code alg=dir}, AES-GCM by key size, {@code kid} in the header. */
+  static String encryptDirect(String kid, SecretKey key, byte[] content) throws JWEException {
+    String enc =
+        switch (key.getEncoded().length) {
+          case 16 -> JWEConstants.A128GCM;
+          case 24 -> JWEConstants.A192GCM;
+          case 32 -> JWEConstants.A256GCM;
+          default -> throw new IllegalArgumentException("auth_session key must be 128, 192 or 256 bits");
+        };
+    JWE jwe = new JWE().header(new JWEHeader(JWEConstants.DIRECT, enc, null, kid)).content(content);
+    jwe.getKeyStorage().setCEKKey(key, JWEKeyStorage.KeyUse.ENCRYPTION);
+    return jwe.encodeJwe();
   }
 
   /**

@@ -52,7 +52,6 @@ import com.webauthn4j.verifier.attestation.trustworthiness.certpath.CertPathTrus
 import com.webauthn4j.verifier.attestation.trustworthiness.certpath.DefaultCertPathTrustworthinessVerifier;
 import com.webauthn4j.verifier.attestation.trustworthiness.certpath.NullCertPathTrustworthinessVerifier;
 import com.webauthn4j.verifier.attestation.trustworthiness.self.DefaultSelfAttestationTrustworthinessVerifier;
-import org.keycloak.authentication.requiredactions.KeycloakTrustAnchorRepository;
 
 /**
  * Verifies a WebAuthn attestation against the realm's Passwordless policy and stores the resulting
@@ -162,7 +161,7 @@ public final class PasskeyRegistrationVerifier {
     CertPathTrustworthinessVerifier certPath =
         truststore == null || truststore.getTruststore() == null
             ? new NullCertPathTrustworthinessVerifier()
-            : new DefaultCertPathTrustworthinessVerifier(new KeycloakTrustAnchorRepository(session));
+            : new DefaultCertPathTrustworthinessVerifier(WebAuthnCompat.trustAnchors(session, truststore.getTruststore()));
 
     return new WebAuthnRegistrationManager(verifiers, certPath, selfAttestation, Collections.emptyList(), new ObjectConverter());
   }

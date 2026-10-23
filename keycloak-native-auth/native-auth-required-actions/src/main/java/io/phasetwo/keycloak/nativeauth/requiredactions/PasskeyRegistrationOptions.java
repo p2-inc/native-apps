@@ -82,7 +82,7 @@ public final class PasskeyRegistrationOptions {
     Map<String, Object> selection = new LinkedHashMap<>();
     String attachment = policy.getAuthenticatorAttachment();
     if (specified(attachment)) selection.put("authenticator_attachment", attachment);
-    String residentKey = policy.getResidentKey();
+    String residentKey = WebAuthnCompat.residentKey(policy);
     if (specified(residentKey)) selection.put("resident_key", residentKey);
     if (Constants.WEBAUTHN_POLICY_OPTION_YES.equals(policy.getRequireResidentKey())) {
       selection.put("require_resident_key", true);
