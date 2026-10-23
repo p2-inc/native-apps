@@ -14,13 +14,13 @@
 | `keycloak-native-auth/push-mfa-extension-java21` | Upstream 2.3.7 published-source rebuild for Java 21 |
 | `keycloak-native-auth/native-auth-push`, `native-auth-push-apns` | Native bridge/enrollment and HTTP/2 APNs sender |
 | `keycloak-native-auth/demo` | Realm export, Compose stack, walkthrough, resource-server example, integration tests/transcripts |
-| `ios/KeycloakNative` | Swift Core, UI and Push package products and Swift Testing suites |
+| `Package.swift`, `ios/KeycloakNative` | Swift package manifest (repository root) and the Core, UI and Push sources and Swift Testing suites |
 | `ios/KeycloakNativeDemo` | Swift package sample model/views, generated Xcode application and XCUITests |
 | `spec/` | Original protocol/design documents and historical decisions/plans |
 
 The [parent POM](../keycloak-native-auth/pom.xml) pins Keycloak **26.8.1**, Java release **21**, push MFA **2.3.7**, JUnit **6.1.3**, Testcontainers **2.0.5**, REST Assured **6.1.0**. Keycloak server private SPIs/services are compile dependencies; binary compatibility across other versions is not promised. Test realm/container version and production provider build must match. Compose adds Postgres 17 Alpine, mailpit v1.27 and Node 22 Alpine. Resource server uses Node built-ins without npm dependencies.
 
-Swift tools/language mode 6, iOS 17+ / macOS 14+ are declared in the [manifest](../ios/KeycloakNative/Package.swift). The demo also targets iOS 17+. Xcode 27 / Swift 6.4 is the toolchain verified here. No Android SDK/build/sample exists; planned Android parity does not imply current Android APIs.
+Swift tools/language mode 6, iOS 17+ / macOS 14+ are declared in the [manifest](../Package.swift). The demo also targets iOS 17+. Xcode 27 / Swift 6.4 is the toolchain verified here. No Android SDK/build/sample exists; planned Android parity does not imply current Android APIs.
 
 ## Build, deploy and run
 
@@ -42,11 +42,11 @@ docker compose logs --tail=200 keycloak
 docker compose down
 ```
 
-Compose mounts `target/providers` read-only into `/opt/keycloak/providers` and `realm-export` into `/opt/keycloak/data/import`. Server must be restarted/rebuilt as appropriate after replacing JARs; mounted files alone do not reload Java classes. Ensure the container user can read files (CI uses `chmod -R a+rX target/providers realm-export`). Existing persisted realm imports are not overwritten. `docker compose down -v` is a destructive disposable-demo reset, not a routine update procedure.
+Keycloak only loads JARs at the top level of `/opt/keycloak/providers`; JARs in subdirectories are ignored, so mount or copy the files themselves, not a folder that contains them. Compose mounts `target/providers` read-only into `/opt/keycloak/providers` and `realm-export` into `/opt/keycloak/data/import`. Server must be restarted/rebuilt as appropriate after replacing JARs; mounted files alone do not reload Java classes. Ensure the container user can read files (CI uses `chmod -R a+rX target/providers realm-export`). Existing persisted realm imports are not overwritten. `docker compose down -v` is a destructive disposable-demo reset, not a routine update procedure.
 
 Native flow selection is by realm/client attributes, independent of browser flow. The export sets browser flow `browser-push` and native alias `native`. For an existing realm, reproduce [exported executions and configs](flow-examples.md#concrete-exported-flows), enable native required actions (keep defaults if importing a full `requiredActions` list), configure the public client and S256, and register a fallback URI. Check [metadata](protocol-and-flows.md#discovery-and-starting) after deployment. Realm SMTP is required for email OTP and verification. SMS needs an explicitly configured webhook and allowed phone user attribute; compose intentionally has no SMS service.
 
-SDK (from `ios/KeycloakNative`):
+SDK (from the repository root, where the manifest is):
 
 ```bash
 swift build
@@ -88,7 +88,7 @@ Swift tests cover parsing, form fields, transcript replay, PKCE/JOSE, DPoP, reda
 KEYCLOAK_NATIVE_LIVE_BASE=http://localhost:8089 swift test
 ```
 
-Run from `ios/KeycloakNative` against a disposable, correctly initialized stack. Mailpit/resource defaults are `http://localhost:8025` and `http://localhost:8091`; override `KEYCLOAK_NATIVE_LIVE_MAILPIT` / `KEYCLOAK_NATIVE_LIVE_RESOURCE`. Tests modify users, required actions and enrollments; use fresh/reset demo data when needed. Live suites are disabled unless base variable is set.
+Run from the repository root against a disposable, correctly initialized stack. Mailpit/resource defaults are `http://localhost:8025` and `http://localhost:8091`; override `KEYCLOAK_NATIVE_LIVE_MAILPIT` / `KEYCLOAK_NATIVE_LIVE_RESOURCE`. Tests modify users, required actions and enrollments; use fresh/reset demo data when needed. Live suites are disabled unless base variable is set.
 
 [XCUITests](../ios/KeycloakNativeDemo/UITests) drive actual app input, restoration, refresh/logout, required actions, email OTP, default/custom UI, step-up, lockout and push maintenance. Push tests depend on enrollment/setup order. They need the stack on 8089; do not run against production accounts. S7 system-browser fallback and real passkey ceremonies remain manual sample checks. [CI workflow](../.github/workflows/ci.yml) defines Java verify, compose walkthrough, SDK tests, sample package build and simulator `build-for-testing`; it compiles rather than runs XCUITests. Local verification here does not prove GitHub CI was run.
 
@@ -109,7 +109,8 @@ Diagnostics in the sample uses `FlowObserver` plus debug OSLog, showing redacted
 | --- | --- | --- |
 | Native metadata 404; providers absent | Correct issuer/realm/path? JARs in `demo/target/providers`? Startup/provider/service-registration errors? | Package the full reactor; install all providers; restart server. Do not infer native support from standard well-known document alone. |
 | 401 `invalid_client` or 400 initial request | Client enabled/public/native-enabled/standard-flow? `response_type=code`, S256 fields? | Match exported client attributes and PKCE settings. Client secret is not required or accepted as a substitute for native enablement. |
-| 500 flow not configured / HTML execution | Realm/client `native-auth.flow-alias`, exact alias and provider IDs; debug log names offending execution | Restore exported native flow layout; use native factors, not HTML form factors. Changing browser binding alone does not select native flow. |
+| 500 flow not configured / HTML execution | Realm/client `native-auth.flow-alias`, exact alias and provider IDs; the error log names the offending execution and provider id | Restore exported native flow layout; use native factors, not HTML form factors, or set `native-auth.non-native-execution=redirect_to_web` to send such logins to the browser. Changing browser binding alone does not select native flow. |
+| 500 when adding a custom authenticator to a flow | Provider id longer than 36 characters (startup warning `Native provider id ... varchar(36)`) | Shorten the id; Keycloak stores provider ids in `varchar(36)`. |
 | Only password, no passkey/second factor | User's actual stored credentials, chosen flow/client, conditional eligibility | Register needed credential or use the intended client. No passkey is in fresh export. Conditional bob/password-only behavior is expected. |
 | Unsupported challenge UI | `ChallengeType.isSupported`, metadata vs flow offers, SDK version, raw descriptor | Offer another supported alternative or update server/SDK/UI together; unsupported execution is not an automatic browser handoff. |
 | Network error / ATS / wrong issuer | Simulator vs device hostname; 8089 app vs 8080 Compose default; discovery URLs and proxy host/protocol; certificate | Match server port/config. Device needs reachable HTTPS host; configure trusted proxy/public issuer consistently. Do not ship broad ATS exceptions. |

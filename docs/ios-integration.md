@@ -4,15 +4,15 @@
 
 ## Installation and configuration
 
-The [package manifest](../ios/KeycloakNative/Package.swift) requires Swift tools 6.0 / Swift language mode 6, iOS 17+ or macOS 14+. Library products have no third-party package dependencies; platform frameworks include AuthenticationServices, CryptoKit, Security and SwiftUI. Repository verification uses Xcode 27 / Swift 6.4; the sample XcodeGen file's `xcodeVersion:16.0` is project metadata, not evidence that Xcode 16 was tested.
+The [package manifest](../Package.swift) (at the repository root; sources under `ios/KeycloakNative/`) requires Swift tools 6.0 / Swift language mode 6, iOS 17+ or macOS 14+. Library products have no third-party package dependencies; platform frameworks include AuthenticationServices, CryptoKit, Security and SwiftUI. Repository verification uses Xcode 27 / Swift 6.4; the sample XcodeGen file's `xcodeVersion:16.0` is project metadata, not evidence that Xcode 16 was tested.
 
-In Xcode add the **local package** at `ios/KeycloakNative` and link `KeycloakNativeCore`. Add `KeycloakNativeUI` for SwiftUI screens; it depends on Core and Push. Add `KeycloakNativePush` for explicit device enrollment/approval operations. No released remote package URL/version is established here. In another local package, use the correct relative filesystem path:
+Because the manifest is at the repository root, SwiftPM can consume the repository by URL: in Xcode add the package by the repository URL (or the local checkout's root folder) and link `KeycloakNativeCore`. Add `KeycloakNativeUI` for SwiftUI screens; it depends on Core and Push. Add `KeycloakNativePush` for explicit device enrollment/approval operations. The package identity is the repository name, `native-apps`:
 
 ```swift
-.package(path: "../KeycloakNative")
+.package(url: "<repository URL>", exact: "<version>")   // or .package(path: "<path to the checkout root>")
 ```
 
-and `.product(name: "KeycloakNativeCore", package: "KeycloakNative")` in target dependencies (see the [sample manifest](../ios/KeycloakNativeDemo/Package.swift)).
+and `.product(name: "KeycloakNativeCore", package: "native-apps")` in target dependencies (see the [sample manifest](../ios/KeycloakNativeDemo/Package.swift)). No release tag exists yet; until one does, pin a revision (`revision: "<commit>"`). SwiftPM resolves only plain semantic-version tags (`1.0.0`, not `ios-1.0.0`), so releases of this repository share one version line.
 
 Configure a public Keycloak client using the [server setup](README.md#practical-quick-start). Use the **issuer URL including `/realms/<realm>`**, not the challenge endpoint; client ID is separate. PKCE S256 must be required on the client. Register a callback such as `demoapp://auth/callback` for browser fallback; native success itself does not redirect. Use HTTPS outside the local demo. Keep one SDK instance per issuer/client so credentials, DPoP key, metadata cache and refresh coordination remain consistent.
 
@@ -126,6 +126,10 @@ Do not manufacture challenge IDs, select challenges from an old set, loop over a
 | `.terms` / `termsParams` | `.terms(accepted: decision)` |
 | `.push` / `pushParams` | `.pushResend`, then `.pushPoll` at `pollInterval` while pending; display number-match number |
 | `.pushEnrollment` / `pushEnrollmentParams` | Prepare enrollment with Push module, respond with `prepared.answer`, commit locally only after server accepts |
+| any required action with `isSkippable` | `.skip(challenge.type)` declines it for this login ("Not now"); the default passkey-registration screen shows the button |
+| extension or otherwise unmodeled answer | `.custom(type: challenge.type, fields: [FormField("name", "value")])`, sent through the normal pipeline (DPoP, nonce retry, `auth_session` rotation, code exchange) |
+
+Extra request fields (spec/03 §2.3), e.g. a device or risk signal from another SDK: `LoginParameters.additionalParameters` go on the initial request, `continuationParameters` on every continuation, and `flow.respond(_:to:additionalFields:)` adds fields to one request. Use the reserved `x_` prefix; names the protocol or the answer already uses are refused with `invalid_parameter`. `x_*` values are masked in logs and the flow log; other `custom` field values are masked only when their name is in `Redactor.sensitiveKeys`.
 
 `Challenge` has `id`, `type`, `label`, `required`, `error`, `retry`, typed views, raw `params` and raw descriptor. [ChallengeModels](../ios/KeycloakNative/Sources/KeycloakNativeCore/Challenge/ChallengeModels.swift) defines these and form encoding. Unknown types remain `.unknown(String)`. Choose another supported alternative or surface unsupported-method/update guidance. `.select` is recognized but unsupported. Core does not manufacture a fallback PAR for these cases.
 
@@ -164,6 +168,27 @@ let registered = try await kc.passkeys().registerNewPasskey(
 ```
 
 Stale authentication needs step-up and a fresh registration attempt; the SDK does not automatically replay registration after the new login. [Passkey setup](sample-app.md#real-passkeys) is required even though the package compiles on a Mac/simulator.
+
+### Biometry-protected credentials
+
+To keep tokens device-only and readable only after Face ID / Touch ID, give the credentials their own store; the DPoP key reference and push enrolment stay in the default store, which the SDK reads on every signed request without user interaction:
+
+```swift
+import LocalAuthentication
+
+let context = LAContext()
+context.localizedReason = "Unlock your account"
+context.touchIDAuthenticationAllowableReuseDuration = 60   // one prompt covers reads for a minute
+
+var options = KeycloakNative.Options()
+options.credentialsStore = KeychainStore(
+  service: "com.example.app.credentials",
+  accessible: kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+  accessControl: .biometryCurrentSet,
+  authenticationContext: { context })
+```
+
+Every `CredentialsManager` read (including the one before a refresh) then needs user authentication; returning the same evaluated `LAContext` avoids a prompt per read. A cancelled or failed authentication surfaces as `keychain_authentication_failed`; `.biometryCurrentSet` items become unreadable when the enrolled biometry changes, so treat that like signed-out credentials and log in again. Writes replace the item (an update of a protected item would itself need authentication). Any other `SecureStore` implementation can be passed the same way.
 
 ## Push integration
 

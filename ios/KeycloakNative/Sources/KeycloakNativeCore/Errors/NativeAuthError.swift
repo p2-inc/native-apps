@@ -28,6 +28,8 @@ public struct NativeAuthError: Error, CustomStringConvertible {
     public static let metadataUnavailable = "metadata_unavailable"
     public static let unsupportedChallenge = "unsupported_challenge"
     public static let flowState = "flow_state"
+    /// A caller-supplied extra field or parameter repeats a name the protocol or the answer uses.
+    public static let invalidParameter = "invalid_parameter"
     public static let passkeyCancelled = "passkey_cancelled"
     public static let passkeyFailed = "passkey_failed"
     public static let passkeyUnavailable = "passkey_unavailable"
@@ -35,6 +37,8 @@ public struct NativeAuthError: Error, CustomStringConvertible {
     public static let credentialsNotFound = "credentials_not_found"
     public static let reauthenticationRequired = "reauthentication_required"
     public static let keychainError = "keychain_error"
+    /// An access-controlled Keychain item needed user authentication that was cancelled or failed.
+    public static let keychainAuthenticationFailed = "keychain_authentication_failed"
     public static let dpopKeyError = "dpop_key_error"
     /// `WebFallback`: the user closed the browser (not a flow failure, the app may retry).
     public static let webFallbackCancelled = "web_fallback_cancelled"

@@ -122,18 +122,22 @@ public struct Challenge: Sendable, Identifiable, Equatable {
   public let required: Bool
   public let error: ChallengeError?
   public let retry: RetryInfo?
+  /// `skippable` (spec/03 §3.3, §4.11): the user may decline this required action for this login
+  /// with `ChallengeAnswer.skip`.
+  public let isSkippable: Bool
   /// The raw `params` object (never nil; empty object when absent).
   public let params: JSONValue
   /// The whole descriptor as received.
   public let raw: JSONValue
 
-  public init(id: String, type: ChallengeType, label: String? = nil, required: Bool = true, error: ChallengeError? = nil, retry: RetryInfo? = nil, params: JSONValue = .object([:])) {
+  public init(id: String, type: ChallengeType, label: String? = nil, required: Bool = true, error: ChallengeError? = nil, retry: RetryInfo? = nil, isSkippable: Bool = false, params: JSONValue = .object([:])) {
     self.id = id
     self.type = type
     self.label = label
     self.required = required
     self.error = error
     self.retry = retry
+    self.isSkippable = isSkippable
     self.params = params
     self.raw = .object(["type": .string(type.wire), "id": .string(id), "params": params])
   }
@@ -151,6 +155,7 @@ public struct Challenge: Sendable, Identifiable, Equatable {
       self.error = nil
     }
     self.retry = json["retry"].map { RetryInfo(remaining: $0["remaining"]?.intValue) }
+    self.isSkippable = json["skippable"]?.boolValue ?? false
     self.params = json["params"] ?? .object([:])
     self.raw = json
   }
@@ -568,6 +573,17 @@ extension FlowStep {
   }
 }
 
+/// One form field of a request, in send order.
+public struct FormField: Sendable, Hashable {
+  public let name: String
+  public let value: String
+
+  public init(_ name: String, _ value: String) {
+    self.name = name
+    self.value = value
+  }
+}
+
 /// The client's answer to one challenge (spec/03 §4 continuation parameters).
 public enum ChallengeAnswer: Sendable, Equatable {
   case username(String)
@@ -599,6 +615,15 @@ public enum ChallengeAnswer: Sendable, Equatable {
   case pushEnrollment(token: String)
   /// `push_enrollment`: `action=check` — the device enrolled through `/push-mfa/enroll/complete`.
   case pushEnrollmentCheck
+  /// `action=skip` (spec/03 §4.11): decline a required action whose challenge `isSkippable`
+  /// ("Not now"); pass the challenge's type. The flow continues like after any answer.
+  case skip(ChallengeType)
+  /// Any other answer, e.g. for an extension challenge type (spec/03 §4.16) or an action this SDK
+  /// has no case for. Sent through the normal pipeline (DPoP proof, `use_dpop_nonce` retry,
+  /// `auth_session` rotation, code exchange). `fields` must not repeat `auth_session`,
+  /// `challenge_type` or `challenge_id`. Values are masked in logs and the flow log only when the
+  /// name is in `Redactor.sensitiveKeys` or starts with `x_`.
+  case custom(type: ChallengeType, fields: [FormField])
   // EXTENSION POINT: select(challengeId:) (spec/03 §4.9) follows a server-side authenticator.
 
   public var challengeType: ChallengeType {
@@ -615,6 +640,8 @@ public enum ChallengeAnswer: Sendable, Equatable {
     case .recoveryCode: .recoveryCode
     case .pushResend, .pushPoll: .push
     case .pushEnrollment, .pushEnrollmentCheck: .pushEnrollment
+    case .skip(let type): type
+    case .custom(let type, _): type
     }
   }
 
@@ -657,6 +684,10 @@ public enum ChallengeAnswer: Sendable, Equatable {
       return [("token", token)]
     case .pushEnrollmentCheck:
       return [("action", "check")]
+    case .skip:
+      return [("action", "skip")]
+    case .custom(_, let fields):
+      return fields.map { (name: $0.name, value: $0.value) }
     }
   }
 }

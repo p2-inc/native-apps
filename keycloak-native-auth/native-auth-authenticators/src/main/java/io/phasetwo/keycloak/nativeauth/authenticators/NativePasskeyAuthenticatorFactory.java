@@ -22,6 +22,13 @@ public class NativePasskeyAuthenticatorFactory extends AbstractNativeAuthenticat
    */
   public static final String CONFIG_ENROL_ON_FIRST_LOGIN = "enrol-on-first-login";
 
+  /**
+   * Execution config: with {@link #CONFIG_ENROL_ON_FIRST_LOGIN}, the scheduled registration is an
+   * offer the user may decline ("Not now", {@code action=skip}); the next login offers it again
+   * (spec/03 §4.4, §4.11).
+   */
+  public static final String CONFIG_ENROL_OPTIONAL = "enrol-optional";
+
   private static final List<ProviderConfigProperty> CONFIG;
 
   static {
@@ -31,7 +38,13 @@ public class NativePasskeyAuthenticatorFactory extends AbstractNativeAuthenticat
     p.setHelpText("Add the native-passkey-register required action to a native login of a user who has no passkey yet (the realm must have that action enabled). Only for an ALTERNATIVE execution next to another factor.");
     p.setType(ProviderConfigProperty.BOOLEAN_TYPE);
     p.setDefaultValue("false");
-    CONFIG = List.of(p);
+    ProviderConfigProperty optional = new ProviderConfigProperty();
+    optional.setName(CONFIG_ENROL_OPTIONAL);
+    optional.setLabel("Enrolment optional");
+    optional.setHelpText("With 'Enrol on first login': the user may decline the passkey enrolment for this login ('Not now'); it is offered again at the next login.");
+    optional.setType(ProviderConfigProperty.BOOLEAN_TYPE);
+    optional.setDefaultValue("false");
+    CONFIG = List.of(p, optional);
   }
 
   @Override

@@ -1,8 +1,8 @@
 {
   "test": "OtpIT.aliceChoosesBetweenTotpAndEmailAndTheCodeIsOnlySentOnRequest",
-  "recorded_at": "2026-10-15T12:06:36.727317Z",
+  "recorded_at": "2026-10-23T17:09:57.616977Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:56477",
+  "base_url": "http://localhost:65234",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -28,7 +28,7 @@
           "client_id": "demo-ios-otp",
           "response_type": "code",
           "scope": "openid profile",
-          "code_challenge": "zNN42Yt8QH77C8ws1h2HaRcVsGbdJQEeyPs6_6j5ckY",
+          "code_challenge": "q7ON6KwSIhWCNiWxeiG9w9waqi7HECoAgDQJqHcnLMk",
           "code_challenge_method": "S256",
           "device_name": "NativeAuthIT"
         }
@@ -43,13 +43,13 @@
         "json": {
           "error": "insufficient_authorization",
           "error_description": "Authentication required",
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDEzNDZlNGItMTRmNS00Nzk4LWE5OGMtNWNiOGIwYWM3MWZiIn0..UvVmk9TK6rHT4ZWm.eLC_FhRgoslva75Qx1ma9TR3KBQEpBu_sVfoHdZgwE0mRLYyszeqp8NFqU-7Pt22Wa_Zi-I0VpsQhr9aynKLtB9KHCxEh7llm7k4oWBsIle_zMQrVIVvLzJdXUwKMcOjOHY5HWWaYTzNtkjlk8OGNfeEXkbIVWR9TLlOyfvkzwPR6JW0tmk1mXB82keXGZJD_YsVWww.y057ERdb8mmfJUgmmGCj8A",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMDkwOGUwNjgtMTI0Ny00MTI5LTkwODEtM2ZmZTFjNzI3MWNkIn0..vs8mBMlu1nBXr0Td.9_va99OIex13dDoC2Fc5YGGTF4I4t7ZK3GwidKd5iXh-0cWvWJfvQWnz8YiqO1REc-RUrwAHxvI7obkohGaQVeyhYe6awrFyHj3JfrmPScnBC62mlRE5YKHYVj_8z71SP3Zq45rf9X-oarMWwDe-WbQyqKqDpUkiowdxD6W9CJmWr0WuSgsT29RwUPFKgvlWpzxxL-U.zZs_ToaX_u6XkYgWSrN8ig",
           "protocol_version": "1",
           "expires_in": 1800,
           "challenges": [
             {
               "type": "username",
-              "id": "9be1b138-4f48-42d1-9e4b-623e26226827",
+              "id": "c8d77f60-d2c6-48cf-9b2d-354dea2b622a",
               "label": "Username",
               "required": true,
               "params": {
@@ -73,9 +73,9 @@
           "Accept": "application/json"
         },
         "form": {
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDEzNDZlNGItMTRmNS00Nzk4LWE5OGMtNWNiOGIwYWM3MWZiIn0..UvVmk9TK6rHT4ZWm.eLC_FhRgoslva75Qx1ma9TR3KBQEpBu_sVfoHdZgwE0mRLYyszeqp8NFqU-7Pt22Wa_Zi-I0VpsQhr9aynKLtB9KHCxEh7llm7k4oWBsIle_zMQrVIVvLzJdXUwKMcOjOHY5HWWaYTzNtkjlk8OGNfeEXkbIVWR9TLlOyfvkzwPR6JW0tmk1mXB82keXGZJD_YsVWww.y057ERdb8mmfJUgmmGCj8A",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMDkwOGUwNjgtMTI0Ny00MTI5LTkwODEtM2ZmZTFjNzI3MWNkIn0..vs8mBMlu1nBXr0Td.9_va99OIex13dDoC2Fc5YGGTF4I4t7ZK3GwidKd5iXh-0cWvWJfvQWnz8YiqO1REc-RUrwAHxvI7obkohGaQVeyhYe6awrFyHj3JfrmPScnBC62mlRE5YKHYVj_8z71SP3Zq45rf9X-oarMWwDe-WbQyqKqDpUkiowdxD6W9CJmWr0WuSgsT29RwUPFKgvlWpzxxL-U.zZs_ToaX_u6XkYgWSrN8ig",
           "challenge_type": "username",
-          "challenge_id": "9be1b138-4f48-42d1-9e4b-623e26226827",
+          "challenge_id": "c8d77f60-d2c6-48cf-9b2d-354dea2b622a",
           "username": "alice"
         }
       },
@@ -89,13 +89,13 @@
         "json": {
           "error": "insufficient_authorization",
           "error_description": "Authentication required",
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDEzNDZlNGItMTRmNS00Nzk4LWE5OGMtNWNiOGIwYWM3MWZiIn0..vOphYj2gOGSajKGH.r2VAQIoEvdeB1ShNTpgTjM34nqrS-Yr2KzOZ78S474JxwuzD4HKxfkVT-d0HDhmG5tKunNTftAIp54qU0N58GD1bPH1g0ka4LJBjxPN7audtDjbz2kabMGeyijrDRLQGzjEX-QHeNO-L-UpXHYlzoqq5n-PUDCT_XQPYi87TPoBrK-4sB-zL_RuWVjg3Q0WLn6sAU40.9klksvNS8YeOiEal_DrgeA",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMDkwOGUwNjgtMTI0Ny00MTI5LTkwODEtM2ZmZTFjNzI3MWNkIn0..XJyBvNgHL7bI9N4J.Xx_5FnETZXzzW6halMDuUA22Z2RcF8H4qv-36f5FdjerFZ9MHdJCGeDz40e_BIUPTjbfUEYfpapYnVqb_9SJjW63dj93e1_wSwnIfO6slQh7ZKcwa9qUoOTukPdsonGLay6P9F8NDiDNWOTkGle67aflrYzH6mE3wnhBPL9PgSvFf2WKB81UPFsduAnjpnxx3bVvu3Y.hY9BHud5Ib7ztYk98_7g_A",
           "protocol_version": "1",
           "expires_in": 1800,
           "challenges": [
             {
               "type": "password",
-              "id": "90405c10-dc89-4ce8-ade1-42dd0b9c96e1",
+              "id": "cdce10d5-b43a-4fd6-aba9-fed6a75c14b7",
               "label": "Password",
               "required": true,
               "params": {
@@ -121,9 +121,9 @@
           "Accept": "application/json"
         },
         "form": {
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDEzNDZlNGItMTRmNS00Nzk4LWE5OGMtNWNiOGIwYWM3MWZiIn0..vOphYj2gOGSajKGH.r2VAQIoEvdeB1ShNTpgTjM34nqrS-Yr2KzOZ78S474JxwuzD4HKxfkVT-d0HDhmG5tKunNTftAIp54qU0N58GD1bPH1g0ka4LJBjxPN7audtDjbz2kabMGeyijrDRLQGzjEX-QHeNO-L-UpXHYlzoqq5n-PUDCT_XQPYi87TPoBrK-4sB-zL_RuWVjg3Q0WLn6sAU40.9klksvNS8YeOiEal_DrgeA",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMDkwOGUwNjgtMTI0Ny00MTI5LTkwODEtM2ZmZTFjNzI3MWNkIn0..XJyBvNgHL7bI9N4J.Xx_5FnETZXzzW6halMDuUA22Z2RcF8H4qv-36f5FdjerFZ9MHdJCGeDz40e_BIUPTjbfUEYfpapYnVqb_9SJjW63dj93e1_wSwnIfO6slQh7ZKcwa9qUoOTukPdsonGLay6P9F8NDiDNWOTkGle67aflrYzH6mE3wnhBPL9PgSvFf2WKB81UPFsduAnjpnxx3bVvu3Y.hY9BHud5Ib7ztYk98_7g_A",
           "challenge_type": "password",
-          "challenge_id": "90405c10-dc89-4ce8-ade1-42dd0b9c96e1",
+          "challenge_id": "cdce10d5-b43a-4fd6-aba9-fed6a75c14b7",
           "password": "***"
         }
       },
@@ -137,13 +137,13 @@
         "json": {
           "error": "insufficient_authorization",
           "error_description": "Authentication required",
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDEzNDZlNGItMTRmNS00Nzk4LWE5OGMtNWNiOGIwYWM3MWZiIn0..qV7nI3OiEM9f4qkA.4dw7iYqkw-mQoxPtklmLZFlFKa4tq7pm6dqzEGCixzBoal-AF-G0ShgjjxmqXyhh3WPRd2aXtWTLF3E62hocPbw-cVxEikJ1cRX3Hk4wYTjUXoyOGx6bHFR86Z-op_aR1ehPBvwc5Vlf7_Ozs8VSNEjAKK-U2qoMlXebsLQrpP6DiY8YJdk6bVB1TlCGYhPTL55nf3c.X-GnVKGm1EcNBqD51V0ooQ",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMDkwOGUwNjgtMTI0Ny00MTI5LTkwODEtM2ZmZTFjNzI3MWNkIn0..mO0SA3gCKHu8TLjk.GR7CeNexGujL0uCUIo4d8wZ4_o9hLTreO0f9cd4xu5zb_ZLaZkd0XD2xCJLdrQjuHZ4HeSmeaM8MVj83LJN-3MI_IhesM-RpVKH39x3fEK9Tr0cMoQm0bBcUwcZSHMLALsWJRNU2LlJYXvc4TKbWvpLxg8XbX4GstwoHkinARm00AarGVNgK70mvFnUBUZT061SB0Ak.MYoc0VqJ73whlsXyxu79Gg",
           "protocol_version": "1",
           "expires_in": 1800,
           "challenges": [
             {
               "type": "totp",
-              "id": "3be79d6e-c070-4aef-ba17-db7110e163e7",
+              "id": "ca460878-720d-44d1-b1e4-2a2b2c3c576d",
               "label": "Authenticator app code",
               "required": false,
               "params": {
@@ -155,7 +155,7 @@
                 ],
                 "credentials": [
                   {
-                    "id": "0309bf8b-a3e4-40b2-a765-153b38a6c88b",
+                    "id": "372218bd-6757-4528-a984-686bdda5d20e",
                     "label": "Phone"
                   }
                 ]
@@ -163,7 +163,7 @@
             },
             {
               "type": "otp",
-              "id": "510f06fb-2cf5-418c-a121-87722c7a68af",
+              "id": "b96dc927-78bf-424c-a420-8703fac6eb91",
               "label": "One-time code by email",
               "required": false,
               "params": {
@@ -193,9 +193,9 @@
           "Accept": "application/json"
         },
         "form": {
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDEzNDZlNGItMTRmNS00Nzk4LWE5OGMtNWNiOGIwYWM3MWZiIn0..qV7nI3OiEM9f4qkA.4dw7iYqkw-mQoxPtklmLZFlFKa4tq7pm6dqzEGCixzBoal-AF-G0ShgjjxmqXyhh3WPRd2aXtWTLF3E62hocPbw-cVxEikJ1cRX3Hk4wYTjUXoyOGx6bHFR86Z-op_aR1ehPBvwc5Vlf7_Ozs8VSNEjAKK-U2qoMlXebsLQrpP6DiY8YJdk6bVB1TlCGYhPTL55nf3c.X-GnVKGm1EcNBqD51V0ooQ",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMDkwOGUwNjgtMTI0Ny00MTI5LTkwODEtM2ZmZTFjNzI3MWNkIn0..mO0SA3gCKHu8TLjk.GR7CeNexGujL0uCUIo4d8wZ4_o9hLTreO0f9cd4xu5zb_ZLaZkd0XD2xCJLdrQjuHZ4HeSmeaM8MVj83LJN-3MI_IhesM-RpVKH39x3fEK9Tr0cMoQm0bBcUwcZSHMLALsWJRNU2LlJYXvc4TKbWvpLxg8XbX4GstwoHkinARm00AarGVNgK70mvFnUBUZT061SB0Ak.MYoc0VqJ73whlsXyxu79Gg",
           "challenge_type": "otp",
-          "challenge_id": "510f06fb-2cf5-418c-a121-87722c7a68af",
+          "challenge_id": "b96dc927-78bf-424c-a420-8703fac6eb91",
           "action": "resend"
         }
       },
@@ -209,13 +209,13 @@
         "json": {
           "error": "insufficient_authorization",
           "error_description": "Authentication required",
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDEzNDZlNGItMTRmNS00Nzk4LWE5OGMtNWNiOGIwYWM3MWZiIn0..F1bF8jBGTViWGcip.U_nBx4jjrCAwmyYHmig_ETuayhEoKscYgTS1SMD2gI0dOLhTE81FNThoWDx4dYq0BXeJNtYxe-ixscxDcHeejdY52aq_SunGmjhdT3FysVQ1vqNYmjR7KWiHKfszNI8qCpQA4Mmq5uo8bHs0Y19iicYliWZKuonB75DFtNT1ow8vCSqumoiZWD_V-P5ZFFwyJ5krjug.ppz-psVVaaFZdJ1-elJktQ",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMDkwOGUwNjgtMTI0Ny00MTI5LTkwODEtM2ZmZTFjNzI3MWNkIn0..RHF7t1NeBKlLZdYE.xYUf-jsqAbHmUr3XQh3yH5VyB6Y3wJjfgicV2FWFvOuViG7UBOwGKm3QlWlvgKFCC2mJpzpbfi21-ptxK-iAJjj4mE9Q_ZIu_s7UPQ8Qa6FBdFteAO_MDpJq48yJHRDnvDEIsnMqCf7ZnPR_RobleV6An3LHu7X3OoaltdVvdxHM3WBvOdKzS-uAFLYlx-D96Nh8FNI.soDActkwP_lP0dtvFFgTpw",
           "protocol_version": "1",
           "expires_in": 1800,
           "challenges": [
             {
               "type": "totp",
-              "id": "3be79d6e-c070-4aef-ba17-db7110e163e7",
+              "id": "ca460878-720d-44d1-b1e4-2a2b2c3c576d",
               "label": "Authenticator app code",
               "required": false,
               "params": {
@@ -227,7 +227,7 @@
                 ],
                 "credentials": [
                   {
-                    "id": "0309bf8b-a3e4-40b2-a765-153b38a6c88b",
+                    "id": "372218bd-6757-4528-a984-686bdda5d20e",
                     "label": "Phone"
                   }
                 ]
@@ -235,7 +235,7 @@
             },
             {
               "type": "otp",
-              "id": "510f06fb-2cf5-418c-a121-87722c7a68af",
+              "id": "b96dc927-78bf-424c-a420-8703fac6eb91",
               "label": "One-time code by email",
               "required": false,
               "params": {
@@ -244,7 +244,7 @@
                 "ttl": 300,
                 "sent": true,
                 "destination_masked": "a***@example.com",
-                "resend_allowed_at": 1792066006
+                "resend_allowed_at": 1792775407
               }
             }
           ],
@@ -266,9 +266,9 @@
           "Accept": "application/json"
         },
         "form": {
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDEzNDZlNGItMTRmNS00Nzk4LWE5OGMtNWNiOGIwYWM3MWZiIn0..F1bF8jBGTViWGcip.U_nBx4jjrCAwmyYHmig_ETuayhEoKscYgTS1SMD2gI0dOLhTE81FNThoWDx4dYq0BXeJNtYxe-ixscxDcHeejdY52aq_SunGmjhdT3FysVQ1vqNYmjR7KWiHKfszNI8qCpQA4Mmq5uo8bHs0Y19iicYliWZKuonB75DFtNT1ow8vCSqumoiZWD_V-P5ZFFwyJ5krjug.ppz-psVVaaFZdJ1-elJktQ",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMDkwOGUwNjgtMTI0Ny00MTI5LTkwODEtM2ZmZTFjNzI3MWNkIn0..RHF7t1NeBKlLZdYE.xYUf-jsqAbHmUr3XQh3yH5VyB6Y3wJjfgicV2FWFvOuViG7UBOwGKm3QlWlvgKFCC2mJpzpbfi21-ptxK-iAJjj4mE9Q_ZIu_s7UPQ8Qa6FBdFteAO_MDpJq48yJHRDnvDEIsnMqCf7ZnPR_RobleV6An3LHu7X3OoaltdVvdxHM3WBvOdKzS-uAFLYlx-D96Nh8FNI.soDActkwP_lP0dtvFFgTpw",
           "challenge_type": "otp",
-          "challenge_id": "510f06fb-2cf5-418c-a121-87722c7a68af",
+          "challenge_id": "b96dc927-78bf-424c-a420-8703fac6eb91",
           "otp": "***"
         }
       },
@@ -280,8 +280,8 @@
           "Pragma": "no-cache"
         },
         "json": {
-          "authorization_code": "f38deb32-546f-dea4-c698-63a2204998a5.cfKCQrrHCYgNL7BRzc3EU244.d5b9479e-86ff-451f-8baf-167ae025d5bc",
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDEzNDZlNGItMTRmNS00Nzk4LWE5OGMtNWNiOGIwYWM3MWZiIn0..9ajLy03iwPklosR0.a7jwwq-VMaAD28_9kK_wXj57wgCelAq26k0C5wWUGiM-RihHSnXev-xzn41eGnLpyMbxjZ7fCcVDUz2AO3WvQNmzhaxQGycNZWPGDtJZU18epiuicIBu87O-dYxUNTPk0cXGl3-OdZu64NMjj7D6EKCBaHS9R6ZdhuTvzuK_ARDk014EqFIzF_p8LUcCkgY.RXQmehY1f5u2NUpWrUFdrA"
+          "authorization_code": "f48df809-0bee-1553-adad-f843f4609649.zQget2581-ud7-GuitkANm0R.c3b2538d-df77-47c0-b445-9a570e476825",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMDkwOGUwNjgtMTI0Ny00MTI5LTkwODEtM2ZmZTFjNzI3MWNkIn0..SmUIw-CTkIMMUC1N.mJcIwNmTn2jFzlQDXHjGEdlx_4wVgO1KUqa59HrkmU8TsqZWaSEDZLnUoQqoXo7noTbLClgw1eFwW0BjCPS7gin1EyAugRgDfsyiMSd9etp91mItyRk-NBOBf8twqmEWjLU9yNn5HhGeGPbriicg0nl2HQ0_VjucXz83gJIQ7zyMVvSkBofrMNLwWDmK7RE.V7EF4NXalKuiXO1DiwDZlQ"
         }
       }
     }

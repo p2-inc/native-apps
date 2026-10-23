@@ -6,11 +6,13 @@ on:
     paths:
       - "keycloak-native-auth/**"
       - "ios/**"
+      - "Package.swift"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "keycloak-native-auth/**"
       - "ios/**"
+      - "Package.swift"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
 
@@ -85,7 +87,8 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        working-directory: ios/KeycloakNative
+        # The Swift package manifest is at the repository root (sources under ios/KeycloakNative).
+        working-directory: .
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain

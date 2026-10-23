@@ -190,6 +190,8 @@ Demo realm contents:
 | realm | WebAuthn Passwordless policy (`webAuthnPolicyPasswordless*`) | RP ID, algorithms, user verification, resident key, attestation, extra origins, create timeout: drives both the `passkey` and `passkey_registration` descriptors | Keycloak defaults |
 | authenticator `native-username` | `reveal-user-not-found` | `true` → error code `invalid_user` at the username step, otherwise the phantom password challenge (spec/03 §4.1) | `false` |
 | authenticator `native-passkey` | `enrol-on-first-login` | `true` → a native login of a user without a passkey continues with the other alternative and then asks for `passkey_registration` in-band (`native-passkey-register` must be enabled; ALTERNATIVE executions only) | `false` |
+| authenticator `native-passkey` | `enrol-optional` | with `enrol-on-first-login`: the `passkey_registration` descriptor carries `skippable: true` and the user may decline it for this login with `action=skip` ("Not now"); the next login offers it again (spec/03 §4.11) | `false` |
+| realm | `native-auth.non-native-execution` | `error` → a flow execution that renders a page (a browser form authenticator) ends the request with `500 server_error`; `redirect_to_web` → `403 redirect_to_web` with `reason: execution:<provider id>` (spec/03 §3.4; needs PKCE and a redirect URI, else `access_denied`) | `error` |
 | realm | `native-auth.passkey-registration-native-clients-only` | `true` → `/passkey/register/*` answer `403 access_denied` for tokens issued to clients without `native-auth.enabled` | `false` |
 | required action `native-verify-email` (config) | `digits`, `ttl`, `resend-cooldown`, `max-attempts` | code length, lifetime (s), seconds between sends, wrong codes before the code is invalidated; delivery uses the `email` native-otp-sender | 6, 300, 30, 5 |
 | required action `native-terms` (config) / realm | `terms-text`, `terms-url`, `terms-version` / `native-auth.terms-text`, `native-auth.terms-url`, `native-auth.terms-version` | what the `terms` challenge shows; the realm attributes are the fallback (importable) | a generic sentence |
@@ -250,7 +252,18 @@ algorithms the challenge endpoint verifies).
 
 - Only native-aware authenticators (and condition authenticators) may be used in the native flow.
   If a form-based execution produces a page, the endpoint answers `500 server_error` and logs the
-  offending execution id (spec/08 R8).
+  offending execution id and provider id (spec/08 R8); with the realm attribute
+  `native-auth.non-native-execution=redirect_to_web` it hands the login to the browser instead.
+- A native required action may let the user decline it for the current login (`skippable: true`,
+  `action=skip`): only when it was scheduled for the login rather than stored on the user, and only
+  when the action allows it (`NativeRequiredAction.isSkippable` / `processSkip`; today
+  `native-passkey-register` with `enrol-optional`).
+- Initial-request `x_*` extension parameters (spec/03 §2.3) are available to every authenticator
+  and required action of the login through `NativeRequestContext.extensionParameter(authSession,
+  name)`; continuation values are plain form parameters of their request.
+- Custom provider ids must be at most 36 characters: Keycloak stores them in `varchar(36)` columns
+  and an over-long id only fails when it is added to a flow (500). The endpoint logs a warning at
+  startup for any native provider whose id is longer.
 - Executions that are ALTERNATIVE siblings (directly or through sub-flows) are offered together in
   one `challenges[]` set; the client answers whichever it prefers by `challenge_id`.
 - Native required actions pending after the flow are served in-band as another challenge:

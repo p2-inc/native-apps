@@ -228,5 +228,14 @@ SDK / UI / app:
 - [ ] CI: Keycloak nightly (allowed to fail); spotless
 - [ ] Security review against 07 §10; load test; docs; Maven Central / SwiftPM release
 
+### v1.0-rc additions from integrator feedback (15)
+- [x] Optional required actions: `skippable` + `action=skip`, `NativeRequiredAction.isSkippable` / `processSkip`, `native-passkey` `enrol-optional`, SDK `.skip` + "Not now" (15 D1)
+- [x] SDK `ChallengeAnswer.custom(type:fields:)` (15 D2)
+- [x] `x_*` extension parameters: limits, client-note persistence, `NativeRequestContext.extensionParameter`, SDK `additionalParameters` / `continuationParameters` / `respond(_:to:additionalFields:)` (15 D3)
+- [x] `native-auth.non-native-execution=redirect_to_web`, provider-id length warning, providers-directory note (15 D4)
+- [ ] `KeychainStore` access control (`SecAccessControl`, `LAContext`)
+- [ ] Root-level `Package.swift` and semver tags (after the distribution / licensing decision)
+- [ ] Keycloak 26.4 / 26.6 compatibility (`KeycloakCompat`, attestation trust anchors from the truststore) and a CI version matrix
+
 ### Phase 5 — Android (post-v1)
 - [ ] Kotlin port per 08

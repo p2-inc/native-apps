@@ -3,6 +3,7 @@ package io.phasetwo.keycloak.nativeauth.core.spi;
 import io.phasetwo.keycloak.nativeauth.core.json.NativeAuthJson;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeDescriptor;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeType;
+import io.phasetwo.keycloak.nativeauth.core.model.Protocol;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
@@ -44,6 +45,40 @@ public final class NativeRequestContext {
    * equals the provider id unless the native action substitutes for a Keycloak action.
    */
   public static final String AUTH_NOTE_REQUIRED_ACTION_ALIAS = "native-auth.required-action.alias";
+
+  /**
+   * Auth note: the pending native required action marked its descriptor {@code skippable}
+   * (spec/03 §4.11); {@code action=skip} is accepted only while it is set.
+   */
+  public static final String AUTH_NOTE_REQUIRED_ACTION_SKIPPABLE = "native-auth.required-action.skippable";
+
+  /**
+   * Client-note prefix for initial-request extension parameters (spec/03 §2.3); the same convention
+   * Keycloak's authorization endpoint uses for additional request parameters.
+   */
+  public static final String CLIENT_NOTE_REQUEST_PARAM_PREFIX = "client_request_param_";
+
+  /**
+   * The value of the extension parameter {@code name} (it must start with {@code x_}) the client sent
+   * on the initial request of this login or step-up, or {@code null}. Values sent on a continuation
+   * request are ordinary form parameters of that request instead.
+   */
+  public static String extensionParameter(AuthenticationSessionModel authSession, String name) {
+    if (name == null || !name.startsWith(Protocol.EXTENSION_PARAM_PREFIX)) {
+      throw new IllegalArgumentException("extension parameters start with " + Protocol.EXTENSION_PARAM_PREFIX + ": " + name);
+    }
+    return authSession.getClientNote(CLIENT_NOTE_REQUEST_PARAM_PREFIX + name);
+  }
+
+  /**
+   * Auth note set by {@code native-passkey} when it schedules {@code native-passkey-register} for this
+   * login with {@code enrol-optional} on: the registration may be declined (spec/03 §4.4, §4.11).
+   */
+  public static final String AUTH_NOTE_PASSKEY_REGISTER_OPTIONAL = "native-auth.passkey-register.optional";
+
+  public static boolean isPendingRequiredActionSkippable(AuthenticationSessionModel authSession) {
+    return "true".equals(authSession.getAuthNote(AUTH_NOTE_REQUIRED_ACTION_SKIPPABLE));
+  }
 
   /** Client note copied from the request's optional {@code device_id} / {@code device_name}. */
   public static final String CLIENT_NOTE_DEVICE_ID = "native-auth.device_id";
@@ -148,6 +183,7 @@ public final class NativeRequestContext {
   public static void clearPendingRequiredAction(AuthenticationSessionModel authSession) {
     authSession.removeAuthNote(AUTH_NOTE_REQUIRED_ACTION);
     authSession.removeAuthNote(AUTH_NOTE_REQUIRED_ACTION_ALIAS);
+    authSession.removeAuthNote(AUTH_NOTE_REQUIRED_ACTION_SKIPPABLE);
     authSession.removeAuthNote(AUTH_NOTE_PENDING);
   }
 
