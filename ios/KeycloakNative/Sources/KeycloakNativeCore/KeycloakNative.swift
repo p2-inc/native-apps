@@ -15,6 +15,10 @@ public final class KeycloakNative: Sendable {
     public var flowObserver: (any FlowObserver)? = nil
     /// Overrides the Keychain (tests, previews).
     public var secureStore: (any SecureStore)? = nil
+    /// Store for the credentials only (tokens), e.g. a `KeychainStore` with `accessControl:
+    /// .biometryCurrentSet`; defaults to `secureStore`. The DPoP key reference and push enrolment
+    /// stay in `secureStore`, which the SDK reads without user interaction.
+    public var credentialsStore: (any SecureStore)? = nil
     public var keychainService = "io.phasetwo.keycloak.native"
     public var keychainAccessGroup: String? = nil
     /// Overrides the platform passkey bridge (tests).
@@ -63,7 +67,7 @@ public final class KeycloakNative: Sendable {
     self.passkeyPlatform = options.passkeyPlatform ?? ASAuthorizationPasskeyPlatform(anchor: options.presentationAnchor)
     self.webPresenter = options.webPresenter ?? ASWebAuthenticationSessionPresenter(anchor: options.presentationAnchor, prefersEphemeralSession: options.ephemeralWebSession)
     let tokens = Tokens(clientId: clientId, issuer: self.issuer, metadata: metadataClient, transport: transport, dpop: dpopSigner, logger: options.logger)
-    self.credentialsManagerInstance = CredentialsManager(store: store, key: "\(scope)|credentials", tokens: tokens, logger: options.logger)
+    self.credentialsManagerInstance = CredentialsManager(store: options.credentialsStore ?? store, key: "\(scope)|credentials", tokens: tokens, logger: options.logger)
   }
 
   public func authentication() -> Authentication { Authentication(core: self) }
