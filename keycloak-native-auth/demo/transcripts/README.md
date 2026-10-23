@@ -3,7 +3,7 @@
 One JSON file per integration test method, written by `TranscriptRecorder` (in
 `src/test/java/.../TranscriptRecorder.java`) during `mvn verify` and copied here by
 `scripts/update-transcripts.sh`. They are the contract fixtures of the iOS SDK
-(`ios/KeycloakNative`, `Tests/KeycloakNativeCoreTests/TranscriptReplayTests.swift` replays them
+(`ios/KeycloakNative/Tests/KeycloakNativeCoreTests/TranscriptReplayTests.swift`, run with `swift test` at the repository root, replays them
 through a mock transport), and a readable record of what the server does (spec/03).
 
 Format:

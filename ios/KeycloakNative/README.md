@@ -78,6 +78,9 @@ the registration endpoints carries `authSession` and `maxAge`: hand it to
 
 ## Build and test
 
+The package manifest is at the repository root (`../../Package.swift`) so SwiftPM can consume the
+repository by URL; run these from there:
+
 ```bash
 swift build
 swift test          # Core: replays keycloak-native-auth/demo/transcripts/*.json through a mock transport

@@ -18,6 +18,6 @@ Quick start:
 cd keycloak-native-auth
 mvn verify                                  # needs Docker
 mvn -DskipTests -DskipITs package && cd demo && docker compose up --wait && ./scripts/walkthrough.sh
-cd ../../ios/KeycloakNative && swift test     # SDK contract tests (see its README for a CLT-only Mac)
-cd ../KeycloakNativeDemo && xcodebuild test -scheme KeycloakNativeDemo -destination 'platform=iOS Simulator,name=iPhone 18 Pro' CODE_SIGN_IDENTITY="-"   # app smoke tests against the compose stack
+cd ../.. && swift test                      # SDK contract tests; the manifest is at the repo root (see ios/KeycloakNative/README.md for a CLT-only Mac)
+cd ios/KeycloakNativeDemo && xcodebuild test -scheme KeycloakNativeDemo -destination 'platform=iOS Simulator,name=iPhone 18 Pro' CODE_SIGN_IDENTITY="-"   # app smoke tests against the compose stack
 ```
