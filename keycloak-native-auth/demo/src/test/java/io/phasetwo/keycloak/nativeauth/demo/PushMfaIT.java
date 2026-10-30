@@ -129,6 +129,10 @@ class PushMfaIT {
 
   /** The device-signed enrolment JWT ba-itsys expects at /push-mfa/enroll/complete (spec/03 §7). */
   static String enrolmentJwt(DPoPProofs key, JsonPath enrollment, String credentialId, String deviceId, String providerType, String providerId, String label) {
+    return enrolmentJwt(key, enrollment, credentialId, deviceId, "ios", providerType, providerId, label);
+  }
+
+  static String enrolmentJwt(DPoPProofs key, JsonPath enrollment, String credentialId, String deviceId, String deviceType, String providerType, String providerId, String label) {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("sub", enrollment.getString("sub"));
     payload.put("enrollmentId", enrollment.getString("enrollmentId"));
@@ -137,7 +141,7 @@ class PushMfaIT {
     payload.put("cnf", Map.of("jwk", jwkMap(key)));
     payload.put("credentialId", credentialId);
     payload.put("deviceId", deviceId);
-    payload.put("deviceType", "ios");
+    payload.put("deviceType", deviceType);
     payload.put("deviceLabel", label);
     payload.put("pushProviderType", providerType);
     if (providerId != null) payload.put("pushProviderId", providerId);

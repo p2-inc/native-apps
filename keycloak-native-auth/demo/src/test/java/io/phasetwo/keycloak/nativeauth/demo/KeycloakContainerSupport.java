@@ -30,6 +30,7 @@ final class KeycloakContainerSupport {
   private static GenericContainer<?> mailpit;
   private static SmsSink smsSink;
   private static ApnsSink apnsSink;
+  private static FcmSink fcmSink;
   private static String baseUrl;
   private static String mailpitUrl;
 
@@ -108,7 +109,9 @@ final class KeycloakContainerSupport {
       smsSink = sink;
       ApnsSink apns = ApnsSink.start();
       apnsSink = apns;
-      org.testcontainers.Testcontainers.exposeHostPorts(sink.port(), apns.port());
+      FcmSink fcm = FcmSink.start();
+      fcmSink = fcm;
+      org.testcontainers.Testcontainers.exposeHostPorts(sink.port(), apns.port(), fcm.port());
 
       GenericContainer<?> kc =
           new GenericContainer<>(image)
@@ -122,6 +125,11 @@ final class KeycloakContainerSupport {
               .withEnv("KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__KEY_ID", ApnsSink.KEY_ID)
               .withEnv("KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__KEY", apns.providerKeyPem())
               .withEnv("KC_SPI_PUSH_NOTIFICATION_SENDER__APNS__TOPIC", ApnsSink.TOPIC)
+              // ba-itsys' fcm sender (spec/17 §6 A3): the send URL and the service account's token_uri
+              // both point at the in-JVM sink; the service-account file carries a test RSA key.
+              .withEnv("KC_SPI_PUSH_NOTIFICATION_SENDER__FCM__GOOGLE_FCM_URL", fcm.sendUrl())
+              .withEnv("GOOGLE_APPLICATION_CREDENTIALS", FcmSink.CREDENTIALS_PATH)
+              .withCopyFileToContainer(MountableFile.forHostPath(fcm.serviceAccountFile().getAbsolutePath(), 0644), FcmSink.CREDENTIALS_PATH)
               .withEnv("KC_LOG_LEVEL", "info,io.phasetwo.keycloak.nativeauth:debug,de.arbeitsagentur.keycloak.push:debug")
               .withEnv("KC_BOOTSTRAP_ADMIN_USERNAME", ADMIN)
               .withEnv("KC_BOOTSTRAP_ADMIN_PASSWORD", ADMIN_PASSWORD)
@@ -165,6 +173,12 @@ final class KeycloakContainerSupport {
   static ApnsSink apnsSink() {
     baseUrl();
     return apnsSink;
+  }
+
+  /** The fake FCM the {@code fcm} sender posts to (started with the container). */
+  static FcmSink fcmSink() {
+    baseUrl();
+    return fcmSink;
   }
 
   /** The host-side webhook the {@code sms-webhook} sender posts to (started with the container). */

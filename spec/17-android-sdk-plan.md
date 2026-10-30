@@ -13,7 +13,7 @@ The protocol is platform-neutral and the iOS SDK proves the client shape, so the
 | Wire protocol (03 §1–§6, §8) | frozen v1.0-rc + additive 15 | none for the login flow |
 | Conformance fixtures | `keycloak-native-auth/demo/transcripts/*.json`: plain JSON (method, path, headers, form, body), masked secrets | none; a Kotlin harness reads them as the Swift one does |
 | Passkeys (server) | `native-passkey` / `native-passkey-register` verify through Keycloak's `WebAuthnCredentialProvider`, which applies the Passwordless policy's extra origins; **`AndroidOriginIT`**: a passkey with origin `android:apk-key-hash:<…>` registers and signs in once that origin is an extra origin, and is refused without it (§6 A1, done) | operator setup only: extra origins + `assetlinks.json` |
-| Push MFA (server) | ba-itsys ships an `fcm` sender (URL and service-account `token_uri` configurable) | not installed or tested in the demo; no FCM transcript; 03 §7 examples say `ios` / `apns` only |
+| Push MFA (server) | ba-itsys' `fcm` sender is installed with the push extension and tested against a fake FCM (`FcmPushIT`, §6 A3) | real delivery needs a Firebase project and a device |
 | Push device API (03 §7) | draft; the `android` / `fcm` values and the FCM message shape are written down (§6 A2) | none |
 | iOS on hardware | simulator only | a device pass (passkeys, Secure Enclave, real APNs) is still open; see §7 |
 
@@ -76,9 +76,9 @@ while (true) {
 ## 6. Order of work
 
 **A. Server and spec (before or alongside the SDK; no Android tooling needed)**
-1. ✅ `AndroidOriginIT`: a passkey registered and used with origin `android:apk-key-hash:<test hash>` in the policy's extra origins; refused without it. Found on the way: a realm update applies the Passwordless policy only when it carries `webAuthnPolicyPasswordlessRpEntityName` and then rebuilds the whole policy from the request, so an update with only `webAuthnPolicyPasswordlessExtraOrigins` returns `204` and changes nothing (the admin console always sends the whole policy; scripts and Terraform must too). To do: the operator setup in `docs/`.
+1. ✅ `AndroidOriginIT`: a passkey registered and used with origin `android:apk-key-hash:<test hash>` in the policy's extra origins; refused without it. Found on the way: a realm update applies the Passwordless policy only when it carries `webAuthnPolicyPasswordlessRpEntityName` and then rebuilds the whole policy from the request, so an update with only `webAuthnPolicyPasswordlessExtraOrigins` returns `204` and changes nothing (the admin console always sends the whole policy; scripts and Terraform must too). The operator setup is in `keycloak-native-auth/README.md` (Passwordless policy row) and `docs/development-and-troubleshooting.md`.
 2. ✅ Spec 03 §7: the `android` / `fcm` values, the FCM message shape (`notification` + `data.token`; data reaches a backgrounded app only on tap, so the client also reads `/login/pending` on resume) and `onNewToken`; §4.3/§4.4: the Android origin and Digital Asset Links next to the iOS rule. Additive.
-3. Demo + IT for the `fcm` sender with a fake FCM endpoint and a fake service account whose `token_uri` points at the sink (as `ApnsSink`); record the push transcripts for `fcm`.
+3. ✅ `FcmPushIT` with `FcmSink`, a fake FCM whose service account's `token_uri` and send URL point at the sink (as `ApnsSink`): enrolment as `android` / `fcm`, the RS256 JWT-bearer token grant, the HTTP v1 message (`notification` + `data.token`), approval with number match, and a refreshed registration token; transcripts recorded. Configuration names confirmed: `--spi-push-notification-sender--fcm--google-fcm-url` and `GOOGLE_APPLICATION_CREDENTIALS` (README).
 
 **B. `core` (JVM; buildable here with a JDK)**
 4. Gradle skeleton under `android/`, `core` module, the transcript harness.
