@@ -23,6 +23,8 @@
 | 13 | `13-phase2-decisions.md` | **Phase 1c (simulator pass) and Phase 2 decisions** (14 Oct 2026): step-up re-entering the flow like the cookie authenticator, `redirect_to_web` as a server-stored PAR, DPoP binding of session/code/post-login session, `native-otp` with the sender SPI and the single-option send rule, SDK/UI product shape, what ran on the simulator. |
 | 14 | `14-phase2b-3-decisions.md` | **Phase 2b (close-out) and Phase 3 (push MFA) decisions** (15 Oct 2026): native required actions substituting for Keycloak's update-password / verify-email / terms, recovery codes, the username phantom challenge and `retry.remaining`, enrol-on-first-login, SMS webhook IT and themed OTP mail, UI localisation and tests, the push-MFA integration. |
 | 15 | `15-v1-additions-decisions.md` | **Additions to v1.0-rc from integrator feedback** (23 Oct 2026): optional required actions (`skippable`, `action=skip`, passkey "Not now"), custom answers, `x_*` extension parameters and their persistence, `redirect_to_web` for non-native executions, the provider-id length warning. |
+| 16 | `16-keycloak-version-support.md` | **Keycloak version support** (23 Oct 2026): one build against 26.8.1 runs on stock 26.4, 26.6 and 26.8; the API differences handled at runtime (`KeycloakCompat`, `ServicesCompat`, `WebAuthnCompat`), the CI matrix; supersedes the 26.8 floor of 08 Q4 / 09 Q4. |
+| 17 | `17-android-sdk-plan.md` | **Android SDK plan** (23 Oct 2026): readiness, modules (a plain-JVM `core` replaying the shared transcripts, then `android`, `push`, `ui`, `demo`), platform mapping, API sketch, testing, order of work, open questions. |
 
 ## Executive summary
 

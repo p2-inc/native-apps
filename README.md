@@ -21,3 +21,21 @@ mvn -DskipTests -DskipITs package && cd demo && docker compose up --wait && ./sc
 cd ../.. && swift test                      # SDK contract tests; the manifest is at the repo root (see ios/KeycloakNative/README.md for a CLT-only Mac)
 cd ios/KeycloakNativeDemo && xcodebuild test -scheme KeycloakNativeDemo -destination 'platform=iOS Simulator,name=iPhone 18 Pro' CODE_SIGN_IDENTITY="-"   # app smoke tests against the compose stack
 ```
+
+## Releases
+
+One version line covers the server extensions and both SDKs, because SwiftPM reads versions from plain tags on this repository. Releases are tags without a prefix (`0.1.0`, not `v0.1.0`) with a GitHub release marked as a pre-release while the version is below 1.0. Below 1.0 any release may change the protocol or the API ([semantic versioning](https://semver.org/#spec-item-4)); consumers pin exact versions.
+
+To cut a release from `main`: `gh release create <version> --target main --prerelease --generate-notes`, then open a PR that sets the Maven version (`mvn -f keycloak-native-auth versions:set -DnewVersion=<next>-SNAPSHOT -DgenerateBackupPoms=false`). The Maven modules are not published to a repository yet; their version only says which release the code leads to.
+
+## License
+
+The SDKs and the protocol are under the [Apache License 2.0](LICENSE), so apps can bundle them freely; the Keycloak extensions are under the [Elastic License 2.0](keycloak-native-auth/COPYING) (ELv2), like Phase Two's other extensions.
+
+| Path | License |
+|---|---|
+| `Package.swift`, `ios/`, the Android SDK (`android/`, planned), `spec/`, `docs/` | Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)) |
+| `keycloak-native-auth/` | ELv2 ([COPYING](keycloak-native-auth/COPYING)) |
+| `keycloak-native-auth/demo/transcripts/` | Apache-2.0 ([LICENSE](keycloak-native-auth/demo/transcripts/LICENSE)): the recorded exchanges are the conformance fixtures for any client |
+
+Copyright 2026 Phase Two, Inc.

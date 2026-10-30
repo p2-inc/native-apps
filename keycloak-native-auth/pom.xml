@@ -12,6 +12,13 @@
   <name>Keycloak Native Auth (parent)</name>
   <description>Browserless native authentication for Keycloak: FiPA-style authorization challenge endpoint plus native-aware authenticators.</description>
 
+  <licenses>
+    <license>
+      <name>Elastic License v2</name>
+      <url>https://www.elastic.co/licensing/elastic-license</url>
+    </license>
+  </licenses>
+
   <modules>
     <module>native-auth-core</module>
     <module>native-auth-authenticators</module>
