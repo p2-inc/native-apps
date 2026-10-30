@@ -30,4 +30,12 @@ To cut a release from `main`: `gh release create <version> --target main --prere
 
 ## License
 
-[Elastic License 2.0](COPYING) (ELv2), the license of Phase Two's Keycloak extensions.
+The SDKs and the protocol are under the [Apache License 2.0](LICENSE), so apps can bundle them freely; the Keycloak extensions are under the [Elastic License 2.0](keycloak-native-auth/COPYING) (ELv2), like Phase Two's other extensions.
+
+| Path | License |
+|---|---|
+| `Package.swift`, `ios/`, the Android SDK (`android/`, planned), `spec/`, `docs/` | Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)) |
+| `keycloak-native-auth/` | ELv2 ([COPYING](keycloak-native-auth/COPYING)) |
+| `keycloak-native-auth/demo/transcripts/` | Apache-2.0 ([LICENSE](keycloak-native-auth/demo/transcripts/LICENSE)): the recorded exchanges are the conformance fixtures for any client |
+
+Copyright 2026 Phase Two, Inc.

@@ -42,3 +42,5 @@ Format:
 Refresh after a server change: `mvn verify && scripts/update-transcripts.sh`, then run the SDK tests.
 The script copies everything under `target/transcripts/`, so delete the recordings of renamed or
 removed tests there first (they are not cleaned by `mvn verify`).
+
+License: Apache-2.0 ([LICENSE](LICENSE)), unlike the rest of `keycloak-native-auth/` (ELv2), so any client implementation can use them as conformance fixtures.

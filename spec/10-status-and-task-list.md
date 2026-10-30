@@ -235,7 +235,7 @@ SDK / UI / app:
 - [x] `native-auth.non-native-execution=redirect_to_web`, provider-id length warning, providers-directory note (15 D4)
 - [x] `KeychainStore` access control (`SecAccessControl`, `LAContext`) and `Options.credentialsStore`, so the DPoP key reference is not gated by biometry (#6)
 - [x] Root-level `Package.swift`, package identity `native-apps` (#5)
-- [x] License: ELv2 (`COPYING`), the same as the Phase Two extensions; first pre-release tag `0.0.1` (README "Releases"). Public distribution (a separate SDK repository, Maven Central, a permissive SDK license) is still open
+- [x] Licenses: Apache-2.0 for the SDKs, `spec/`, `docs/` and the transcripts (`LICENSE`, `NOTICE`); ELv2 for `keycloak-native-auth/` (`keycloak-native-auth/COPYING`), like the other Phase Two extensions (README "License"). First pre-release tag `0.0.1` (README "Releases"). Public distribution (a separate SDK repository, Maven Central) is still open
 - [x] Keycloak 26.4 / 26.6 compatibility (`KeycloakCompat`, attestation trust anchors from the truststore) and a CI version matrix (#7, 16)
 
 ### Phase 5 — Android (post-v1)
