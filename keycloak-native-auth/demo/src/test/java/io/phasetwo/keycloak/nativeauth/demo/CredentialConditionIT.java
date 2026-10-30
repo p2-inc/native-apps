@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import io.restassured.response.Response;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +45,11 @@ class CredentialConditionIT {
     copyFlowWithPasskeySkipsSecondFactor("native-passkey-first", "native-passkey-first-cc");
     createClient(CLIENT_ALLOW_LIST, "native-cc");
     createClient(CLIENT_PASSKEY_FIRST, "native-passkey-first-cc");
+  }
+
+  @AfterAll
+  static void restore() {
+    PasskeyIT.forgetAlicePasskey();
   }
 
   // ---------------------------------------------------------------------------------------------
