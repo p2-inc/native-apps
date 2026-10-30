@@ -88,7 +88,7 @@ while (true) {
 
 ## 7. Open questions
 
-- **Distribution:** Maven Central coordinates and license text follow the same decision as the SwiftPM release (15): the repository is private and the extensions are ELv2.
+- **Distribution:** private for now, under the repository's ELv2 license and its version line (`0.0.x` pre-releases, README "Releases"). The demo app depends on the library modules as Gradle project dependencies, so nothing is published for our own testing. Testers outside the repository get the artifacts from GitHub Packages (the org's private Maven repository; each consumer needs a GitHub token with `read:packages`). Maven Central, like a public SwiftPM release, waits for the public-distribution decision, and needs the sources the Central rules require to be published with the binaries.
 - **Repository layout:** `android/` next to `ios/` in this repository (one version line, shared transcripts) is assumed; a separate repository would need the transcripts published as an artifact.
 - **Minimum API level:** passkeys through Credential Manager need Google Play services; `minSdk 28` is assumed and to be confirmed against target customers' fleets.
 - **iOS device pass first?** Nothing seen on the simulator suggests a wire change, but a real-device surprise (passkey transports, Secure Enclave key behaviour, APNs) would be cheaper to absorb before a second SDK depends on the same contract. Recommended: run the iOS hardware checklist (10, Phase 1c) before Android step C.

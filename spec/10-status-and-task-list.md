@@ -233,9 +233,10 @@ SDK / UI / app:
 - [x] SDK `ChallengeAnswer.custom(type:fields:)` (15 D2)
 - [x] `x_*` extension parameters: limits, client-note persistence, `NativeRequestContext.extensionParameter`, SDK `additionalParameters` / `continuationParameters` / `respond(_:to:additionalFields:)` (15 D3)
 - [x] `native-auth.non-native-execution=redirect_to_web`, provider-id length warning, providers-directory note (15 D4)
-- [ ] `KeychainStore` access control (`SecAccessControl`, `LAContext`)
-- [ ] Root-level `Package.swift` and semver tags (after the distribution / licensing decision)
-- [ ] Keycloak 26.4 / 26.6 compatibility (`KeycloakCompat`, attestation trust anchors from the truststore) and a CI version matrix
+- [x] `KeychainStore` access control (`SecAccessControl`, `LAContext`) and `Options.credentialsStore`, so the DPoP key reference is not gated by biometry (#6)
+- [x] Root-level `Package.swift`, package identity `native-apps` (#5)
+- [x] License: ELv2 (`COPYING`), the same as the Phase Two extensions; first pre-release tag `0.0.1` (README "Releases"). Public distribution (a separate SDK repository, Maven Central, a permissive SDK license) is still open
+- [x] Keycloak 26.4 / 26.6 compatibility (`KeycloakCompat`, attestation trust anchors from the truststore) and a CI version matrix (#7, 16)
 
 ### Phase 5 — Android (post-v1)
-- [ ] Kotlin port per 08
+- [ ] Kotlin port: plan and order of work in 17; step A1 (`AndroidOriginIT`) done (#8)
