@@ -24,7 +24,7 @@ cd ios/KeycloakNativeDemo && xcodebuild test -scheme KeycloakNativeDemo -destina
 
 ## Releases
 
-One version line covers the server extensions and both SDKs, because SwiftPM reads versions from plain tags on this repository. Releases are tags without a prefix (`0.0.1`, not `v0.0.1`) with a GitHub release marked as a pre-release while the version is below 1.0. Below 1.0 any release may change the protocol or the API ([semantic versioning](https://semver.org/#spec-item-4)); consumers pin exact versions.
+One version line covers the server extensions and both SDKs, because SwiftPM reads versions from plain tags on this repository. Releases are tags without a prefix (`0.1.0`, not `v0.1.0`) with a GitHub release marked as a pre-release while the version is below 1.0. Below 1.0 any release may change the protocol or the API ([semantic versioning](https://semver.org/#spec-item-4)); consumers pin exact versions.
 
 To cut a release from `main`: `gh release create <version> --target main --prerelease --generate-notes`, then open a PR that sets the Maven version (`mvn -f keycloak-native-auth versions:set -DnewVersion=<next>-SNAPSHOT -DgenerateBackupPoms=false`). The Maven modules are not published to a repository yet; their version only says which release the code leads to.
 
