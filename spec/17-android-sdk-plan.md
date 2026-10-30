@@ -14,7 +14,7 @@ The protocol is platform-neutral and the iOS SDK proves the client shape, so the
 | Conformance fixtures | `keycloak-native-auth/demo/transcripts/*.json`: plain JSON (method, path, headers, form, body), masked secrets | none; a Kotlin harness reads them as the Swift one does |
 | Passkeys (server) | `native-passkey` / `native-passkey-register` verify through Keycloak's `WebAuthnCredentialProvider`, which applies the Passwordless policy's extra origins; **`AndroidOriginIT`**: a passkey with origin `android:apk-key-hash:<…>` registers and signs in once that origin is an extra origin, and is refused without it (§6 A1, done) | operator setup only: extra origins + `assetlinks.json` |
 | Push MFA (server) | ba-itsys ships an `fcm` sender (URL and service-account `token_uri` configurable) | not installed or tested in the demo; no FCM transcript; 03 §7 examples say `ios` / `apns` only |
-| Push device API (03 §7) | draft | `deviceType: "android"`, `pushProviderType: "fcm"`, `pushProviderId` = FCM registration token to be written down |
+| Push device API (03 §7) | draft; the `android` / `fcm` values and the FCM message shape are written down (§6 A2) | none |
 | iOS on hardware | simulator only | a device pass (passkeys, Secure Enclave, real APNs) is still open; see §7 |
 
 ## 2. Modules
@@ -77,7 +77,7 @@ while (true) {
 
 **A. Server and spec (before or alongside the SDK; no Android tooling needed)**
 1. ✅ `AndroidOriginIT`: a passkey registered and used with origin `android:apk-key-hash:<test hash>` in the policy's extra origins; refused without it. Found on the way: a realm update applies the Passwordless policy only when it carries `webAuthnPolicyPasswordlessRpEntityName` and then rebuilds the whole policy from the request, so an update with only `webAuthnPolicyPasswordlessExtraOrigins` returns `204` and changes nothing (the admin console always sends the whole policy; scripts and Terraform must too). To do: the operator setup in `docs/`.
-2. Spec 03 §7: the `android` / `fcm` values; §4.3/§4.4: the Android origin and Digital Asset Links next to the iOS rule. Additive.
+2. ✅ Spec 03 §7: the `android` / `fcm` values, the FCM message shape (`notification` + `data.token`; data reaches a backgrounded app only on tap, so the client also reads `/login/pending` on resume) and `onNewToken`; §4.3/§4.4: the Android origin and Digital Asset Links next to the iOS rule. Additive.
 3. Demo + IT for the `fcm` sender with a fake FCM endpoint and a fake service account whose `token_uri` points at the sink (as `ApnsSink`); record the push transcripts for `fcm`.
 
 **B. `core` (JVM; buildable here with a JDK)**
