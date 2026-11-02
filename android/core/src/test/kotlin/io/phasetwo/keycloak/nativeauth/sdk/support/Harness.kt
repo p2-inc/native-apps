@@ -177,8 +177,8 @@ class MockWebPresenter(@Volatile var callback: (URI) -> URI) : WebAuthentication
   private val openedUrls = mutableListOf<Pair<URI, String>>()
   val opened: List<Pair<URI, String>> @Synchronized get() = openedUrls.toList()
 
-  override suspend fun authenticate(url: URI, callbackScheme: String): URI {
-    synchronized(this) { openedUrls += url to callbackScheme }
+  override suspend fun authenticate(url: URI, redirectUri: URI): URI {
+    synchronized(this) { openedUrls += url to redirectUri.scheme }
     return callback(url)
   }
 }

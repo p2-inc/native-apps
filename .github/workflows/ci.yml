@@ -105,7 +105,7 @@ jobs:
         run: xcodebuild -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build-for-testing | tail -n 20
 
   android-core:
-    name: Android SDK core (Kotlin/JVM, transcript replay)
+    name: Android SDK (core transcript replay, android module build)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -121,6 +121,9 @@ jobs:
           cache: gradle
       - name: Build + tests (transcript replay from keycloak-native-auth/demo/transcripts)
         run: ./gradlew --no-daemon --console=plain :core:build
+      # The runner image has the Android SDK with its licenses accepted; AGP downloads a missing platform.
+      - name: Android module (library + instrumentation test APKs; the tests themselves need an emulator)
+        run: ./gradlew --no-daemon --console=plain :android:assembleRelease :android:assembleDebugAndroidTest
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
