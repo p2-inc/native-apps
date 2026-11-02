@@ -23,7 +23,8 @@ tasks.withType<JavaCompile>().configureEach {
 
 dependencies {
   api(libs.coroutines.core)
-  implementation(libs.serialization.json)
+  // Public API types: JsonElement (challenge params, raw bodies) and the coroutine types.
+  api(libs.serialization.json)
 
   testImplementation(platform(libs.junit.bom))
   testImplementation(libs.junit.jupiter)

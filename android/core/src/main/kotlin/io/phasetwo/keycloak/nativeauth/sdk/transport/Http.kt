@@ -1,9 +1,13 @@
 package io.phasetwo.keycloak.nativeauth.sdk.transport
 
+import io.phasetwo.keycloak.nativeauth.sdk.json.get
+import io.phasetwo.keycloak.nativeauth.sdk.json.parseJsonOrNull
+import io.phasetwo.keycloak.nativeauth.sdk.json.stringValue
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import kotlinx.serialization.json.JsonElement
 
 /** One HTTP request as the SDK builds it. [headers] are sent verbatim; [body] is already encoded. */
 public class HttpRequest(
@@ -39,6 +43,20 @@ public class HttpResponse(
   public fun header(name: String): String? = headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
 
   public val bodyText: String get() = String(body, StandardCharsets.UTF_8)
+
+  /** The body parsed as JSON; `null` when it is empty or not JSON. */
+  public val json: JsonElement? get() = parseJsonOrNull(body)
+
+  /**
+   * RFC 9449 §8: the server wants a fresh nonce in the proof (`400`/`401 use_dpop_nonce` with a
+   * `DPoP-Nonce` header). Modules outside core retry the request with it.
+   */
+  public val dpopNonceChallenge: String?
+    get() {
+      if (statusCode != 400 && statusCode != 401) return null
+      if (json["error"].stringValue != "use_dpop_nonce") return null
+      return header("DPoP-Nonce")
+    }
 
   override fun toString(): String = "HTTP $statusCode (${body.size} bytes)"
 }
