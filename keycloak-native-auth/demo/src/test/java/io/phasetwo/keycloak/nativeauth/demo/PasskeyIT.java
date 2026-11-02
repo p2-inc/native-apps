@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +54,11 @@ class PasskeyIT {
     baseUrl();
     // Register alice's passkey up front (own transcript) so no test's transcript depends on order.
     TranscriptRecorder.scenario("PasskeyIT.setupAlicePasskey", PasskeyIT::alicePasskey);
+  }
+
+  @AfterAll
+  static void restore() {
+    forgetAlicePasskey();
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -110,6 +116,16 @@ class PasskeyIT {
       alicePasskey = authenticator;
     }
     return alicePasskey;
+  }
+
+  /**
+   * Deletes alice's passkeys and forgets the shared authenticator. Every class that registers it calls
+   * this when done: the IT classes run in file-system order, and a passkey left behind would add a
+   * {@code passkey} alternative to alice's challenge sets in later classes and their transcripts.
+   */
+  static synchronized void forgetAlicePasskey() {
+    EnrolOnFirstLoginIT.deletePasskeys("alice");
+    alicePasskey = null;
   }
 
   static List<Map<String, Object>> credentials(String username) {
