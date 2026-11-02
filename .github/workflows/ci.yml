@@ -6,12 +6,14 @@ on:
     paths:
       - "keycloak-native-auth/**"
       - "ios/**"
+      - "android/**"
       - "Package.swift"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "keycloak-native-auth/**"
       - "ios/**"
+      - "android/**"
       - "Package.swift"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
@@ -101,3 +103,27 @@ jobs:
       - name: "Example app + XCUITests compile for the iOS simulator (not run: they need the compose stack)"
         working-directory: ios/KeycloakNativeDemo
         run: xcodebuild -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build-for-testing | tail -n 20
+
+  android-core:
+    name: Android SDK core (Kotlin/JVM, transcript replay)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Build + tests (transcript replay from keycloak-native-auth/demo/transcripts)
+        run: ./gradlew --no-daemon --console=plain :core:build
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-core-test-reports
+          path: android/core/build/reports/tests/

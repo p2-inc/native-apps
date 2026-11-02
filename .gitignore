@@ -8,3 +8,7 @@ target/
 keycloak-native-auth/demo/providers/
 .build/
 .swiftpm/
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/local.properties
