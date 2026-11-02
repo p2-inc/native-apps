@@ -1,5 +1,9 @@
 package io.phasetwo.keycloak.nativeauth.sdk.logging
 
+import io.phasetwo.keycloak.nativeauth.sdk.json.parseJsonOrNull
+import io.phasetwo.keycloak.nativeauth.sdk.json.serialized
+import io.phasetwo.keycloak.nativeauth.sdk.transport.HttpRequest
+import io.phasetwo.keycloak.nativeauth.sdk.transport.HttpResponse
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -46,5 +50,23 @@ public object Redactor {
     is JsonObject -> JsonObject(json.mapValues { (key, value) -> if (isSensitive(key)) JsonPrimitive(MASK) else redactJson(value) })
     is JsonArray -> JsonArray(json.map(::redactJson))
     else -> json
+  }
+
+  /** A one-line, redacted description of a request for debug logs. */
+  public fun describe(request: HttpRequest): String {
+    val line = StringBuilder("${request.method} ${request.url}")
+    val fields = request.formFields
+    val json = request.body?.let(::parseJsonOrNull)
+    if (fields != null) {
+      line.append(" form=").append(redactForm(fields).joinToString("&") { (name, value) -> "$name=$value" })
+    } else if (json != null) {
+      line.append(" json=").append(redactJson(json).serialized())
+    }
+    return line.toString()
+  }
+
+  public fun describe(response: HttpResponse): String {
+    val json = response.json ?: return "HTTP ${response.statusCode} (${response.body.size} bytes)"
+    return "HTTP ${response.statusCode} " + redactJson(json).serialized()
   }
 }

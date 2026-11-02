@@ -29,7 +29,7 @@ Gradle (Kotlin DSL), Kotlin 2.x, coroutines. Maven group `io.phasetwo.keycloak.n
 | `ui` | Android library | `core`, `push`, Jetpack Compose | `NativeLoginScreen` and one default composable per challenge type, chooser, per-type overrides, string resources (en, de) |
 | `demo` | Android app | all | the iOS demo's scenarios (06) where the platform allows |
 
-`core` is plain JVM so the transcript replay, the state machine and DPoP/PKCE run as ordinary JUnit tests on any JDK: no emulator, no Android SDK. It mirrors `KeycloakNativeCore` type for type (Swift enum ↔ Kotlin sealed interface) so a fix in one SDK maps to the other.
+`core` is plain JVM so the transcript replay, the state machine and DPoP/PKCE run as ordinary JUnit tests on any JDK: no emulator, no Android SDK. It mirrors `KeycloakNativeCore` type for type (Swift enum ↔ Kotlin sealed class, actor ↔ `Mutex` or short locks, `async` ↔ `suspend`) so a fix in one SDK maps to the other.
 
 ## 3. Platform mapping
 
@@ -49,22 +49,26 @@ Gradle (Kotlin DSL), Kotlin 2.x, coroutines. Maven group `io.phasetwo.keycloak.n
 
 ```kotlin
 val kc = KeycloakNative.configure(
-  issuer = "https://idp.example.com/realms/demo",
+  issuer = URI("https://idp.example.com/realms/demo"),
   clientId = "demo-android",
-  options = KeycloakNative.Options(platform = AndroidPlatform(context)),
+  // The android module will offer one call that fills in its platform pieces.
+  options = KeycloakNative.Options(secureStore = …, hardwareKeys = …, passkeyPlatform = …, webPresenter = …),
 )
 val flow = kc.authentication().startLogin(LoginParameters(scope = "openid profile"))
 var step = flow.start()
-while (true) {
-  step = when (step) {
-    is FlowStep.Challenges -> flow.respond(answerFor(step.challenges.first()), step.challenges.first())
-    is FlowStep.Authorized -> break
-    is FlowStep.RedirectToWeb -> kc.webFallback().complete(step.request, flow)
-  }
+while (step is FlowStep.Challenges) {
+  val challenge = step.challenges.first()
+  step = flow.respond(answerFor(challenge), challenge)
 }
+val credentials = when (step) {
+  is FlowStep.Authorized -> step.credentials
+  is FlowStep.RedirectToWeb -> kc.webFallback().complete(step.request, flow)
+  is FlowStep.Challenges -> error("unreachable")
+}
+kc.credentialsManager().store(credentials)
 ```
 
-`ChallengeAnswer` is a sealed interface with the iOS cases (`Username`, `Password`, `Totp`, `Passkey`, `PasskeyRegistration`, `Otp`, `OtpResend`, `UpdatePassword`, `VerifyEmail`, `VerifyEmailResend`, `Terms`, `RecoveryCode`, `PushResend`, `PushPoll`, `PushEnrollment`, `PushEnrollmentCheck`, `Skip`, `Custom`). Error codes are the iOS `NativeAuthError.Code` strings, so apps and support docs share one list.
+`ChallengeAnswer` is a sealed class with the iOS cases (`Username`, `Password`, `Totp`, `Passkey`, `PasskeyRegistration`, `Otp`, `OtpResend`, `UpdatePassword`, `VerifyEmail`, `VerifyEmailResend`, `Terms`, `RecoveryCode`, `PushResend`, `PushPoll`, `PushEnrollment`, `PushEnrollmentCheck`, `Skip`, `Custom`). Error codes are the iOS `NativeAuthError.Code` strings, so apps and support docs share one list.
 
 ## 5. Testing
 
@@ -82,7 +86,7 @@ while (true) {
 
 **B. `core` (JVM; buildable here with a JDK)**
 4. ✅ Gradle skeleton under `android/` (wrapper 9.8.2, Kotlin 2.4, JDK 21 toolchain, Java 17 bytecode for Android), `core` module with the transport types and the redactor, the transcript harness (`Transcript`, `MockTransport` with the iOS matching rules). Its tests replay every committed transcript as recorded and check the matching rules reject what the iOS harness rejects; CI job `android-core`.
-5. Port the state machine, answers, metadata, PKCE, DPoP proofs (software key in tests), tokens, credentials, redaction; Kotlin twins of the Swift replay suites until all pass.
+5. ✅ The state machine, answers, metadata, PKCE, DPoP proofs, tokens, `CredentialsManager`, passkey models and the §6 registration client, `WebFallback`, the flow observer and an `HttpURLConnection` transport, ported from `KeycloakNativeCore`. Kotlin twins of the Swift unit and replay suites pass (`TranscriptReplay`, `Phase2Replay`, `Phase2bReplay`, `ProtocolAdditionsReplay`, parsing, JOSE/DPoP, credentials, redaction); a single changed request field fails 40 of them. Where the platforms differ: `SecureStore` functions suspend (a Keystore store may wait for `BiometricPrompt`); hardware keys plug in through `HardwareDPoPKeys` (`DPoPMode.HARDWARE` / `AUTOMATIC`), the analogue of the Secure Enclave key; without a configured `PasskeyPlatform` passkeys fail with `passkey_unavailable`. Left for later modules: the push replay suite (`Phase3ReplayTests`, needs `push`) and the live-server tests (an instrumentation suite, §5).
 
 **C. `android`, then `push`, then `ui`, then `demo`** (need the Android SDK and, for passkeys and push, a device or emulator with Google Play services).
 
@@ -91,4 +95,5 @@ while (true) {
 - **Distribution:** private for now, under Apache-2.0 like the iOS SDK (README "License") and on the repository's version line (`0.x` pre-releases, README "Releases"). No Maven server: the demo app depends on the library modules as Gradle project dependencies, and each release attaches a zip of a file-based Maven repository (`./gradlew publishAllPublicationsToReleaseRepository` into a build directory: the `.jar` / `.aar` files with their POMs) to the GitHub release. A tester unzips it and adds `maven { url = uri("<unzipped folder>") }` to `settings.gradle.kts`; unlike bare `.aar` files in `libs/`, the POMs bring the transitive dependencies (AndroidX Credentials, Browser, Firebase Messaging, coroutines) along. GitHub Packages or Maven Central replace the zip when distribution goes wider; the Gradle publication stays the same.
 - **Repository layout:** `android/` next to `ios/` in this repository (one version line, shared transcripts) is assumed; a separate repository would need the transcripts published as an artifact.
 - **Minimum API level:** passkeys through Credential Manager need Google Play services; `minSdk 28` is assumed and to be confirmed against target customers' fleets.
+- **Push credentials are per Keycloak deployment, not per realm or app.** The ba-itsys senders read their APNs key and the FCM service account from server configuration (`--spi-push-notification-sender--…`, `GOOGLE_APPLICATION_CREDENTIALS`), so one Keycloak sends every push with one APNs key and one Firebase project. That is fine for a customer's own deployment, but on a shared hosted cluster each customer's app has its own APNs topic and Firebase project, so a sender would need to take its credentials from the realm or the client. That is a change to the sender (or our own sender beside ba-itsys') before hosted customers can use push.
 - **iOS device pass first?** Nothing seen on the simulator suggests a wire change, but a real-device surprise (passkey transports, Secure Enclave key behaviour, APNs) would be cheaper to absorb before a second SDK depends on the same contract. Recommended: run the iOS hardware checklist (10, Phase 1c) before Android step C.
