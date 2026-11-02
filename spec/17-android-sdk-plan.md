@@ -19,7 +19,7 @@ The protocol is platform-neutral and the iOS SDK proves the client shape, so the
 
 ## 2. Modules
 
-Gradle (Kotlin DSL), Kotlin 2.x, coroutines. Group `io.phasetwo.keycloak.native`, artifacts on Maven Central once distribution is decided (same question as SwiftPM tags, 15).
+Gradle (Kotlin DSL), Kotlin 2.x, coroutines. Maven group `io.phasetwo.keycloak.nativeauth` (artifacts `keycloak-native-<module>`), Kotlin packages `io.phasetwo.keycloak.nativeauth.sdk.*`: `native` is a reserved word in Java, so it cannot be a package name that Java callers import. Distribution: see §7.
 
 | Module | Kind | Depends on | Content |
 |---|---|---|---|
@@ -81,7 +81,7 @@ while (true) {
 3. ✅ `FcmPushIT` with `FcmSink`, a fake FCM whose service account's `token_uri` and send URL point at the sink (as `ApnsSink`): enrolment as `android` / `fcm`, the RS256 JWT-bearer token grant, the HTTP v1 message (`notification` + `data.token`), approval with number match, and a refreshed registration token; transcripts recorded. Configuration names confirmed: `--spi-push-notification-sender--fcm--google-fcm-url` and `GOOGLE_APPLICATION_CREDENTIALS` (README).
 
 **B. `core` (JVM; buildable here with a JDK)**
-4. Gradle skeleton under `android/`, `core` module, the transcript harness.
+4. ✅ Gradle skeleton under `android/` (wrapper 9.8.2, Kotlin 2.4, JDK 21 toolchain, Java 17 bytecode for Android), `core` module with the transport types and the redactor, the transcript harness (`Transcript`, `MockTransport` with the iOS matching rules). Its tests replay every committed transcript as recorded and check the matching rules reject what the iOS harness rejects; CI job `android-core`.
 5. Port the state machine, answers, metadata, PKCE, DPoP proofs (software key in tests), tokens, credentials, redaction; Kotlin twins of the Swift replay suites until all pass.
 
 **C. `android`, then `push`, then `ui`, then `demo`** (need the Android SDK and, for passkeys and push, a device or emulator with Google Play services).
