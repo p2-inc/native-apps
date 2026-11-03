@@ -15,9 +15,13 @@ import java.net.URI
  * The platform half of the browser fallback (spec/03 §3.4): open [url] in the browser and hand back
  * the callback URL. The `android` module provides one over Auth Tab / Custom Tabs; tests inject a
  * mock. The user closing the browser must surface as `web_fallback_cancelled`.
+ *
+ * [redirectUri] is the request's `redirect_uri`, always with a scheme. Where iOS only needs the
+ * callback scheme, Android's Auth Tab needs the host and path too when the redirect is an `https` App
+ * Link.
  */
 public fun interface WebAuthenticationPresenter {
-  public suspend fun authenticate(url: URI, callbackScheme: String): URI
+  public suspend fun authenticate(url: URI, redirectUri: URI): URI
 }
 
 /**
@@ -50,13 +54,13 @@ public class WebFallback internal constructor(
   public suspend fun complete(request: RedirectToWebRequest, flow: NativeLoginFlow): Credentials = complete(request, flow.pkce.verifier)
 
   public suspend fun complete(request: RedirectToWebRequest, codeVerifier: String): Credentials {
-    val scheme = request.callbackScheme
+    val redirectUri = request.callbackScheme?.let { URI(request.redirectUri) }
       ?: throw NativeAuthError(NativeAuthError.Code.INVALID_RESPONSE, errorDescription = "redirect_uri '${request.redirectUri}' has no scheme", details = request.raw)
     val presenter = presenter
       ?: throw NativeAuthError(NativeAuthError.Code.WEB_FALLBACK_FAILED, errorDescription = "No WebAuthenticationPresenter is configured")
     val url = authorizationUrl(request)
     logger.log(LogLevel.INFO) { "Opening the browser for ${request.reason ?: "redirect_to_web"}" }
-    val callback = presenter.authenticate(url, scheme)
+    val callback = presenter.authenticate(url, redirectUri)
     val code = code(callback, request.state)
     return tokens.exchange(code, codeVerifier, redirectUri = request.redirectUri)
   }
