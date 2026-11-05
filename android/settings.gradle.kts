@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 include(":core")
 include(":android")
+include(":ui")
