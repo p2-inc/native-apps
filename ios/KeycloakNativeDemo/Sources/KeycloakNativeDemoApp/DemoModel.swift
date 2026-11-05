@@ -237,6 +237,25 @@ public final class DemoModel {
     }
   }
 
+  /// The system sheet of saved passwords (iCloud Keychain, password-manager apps): answers the
+  /// `username` challenge with the picked account, then the `password` challenge that follows.
+  public func useSavedPassword(_ challenge: Challenge) async {
+    guard let flow else { return }
+    await run("Picking a saved password") {
+      let saved = try await sdk.pickSavedPassword()
+      self.username = saved.username
+      self.password = saved.password
+      var step = challenge
+      if challenge.type == .username {
+        let next = try await flow.respond(.username(saved.username), to: challenge)
+        self.apply(next)
+        guard case .challenges(let challenges, _) = next, let password = challenges.first(where: { $0.type == .password && $0.error == nil }) else { return }
+        step = password
+      }
+      self.apply(try await flow.respond(.password(saved.password), to: step))
+    }
+  }
+
   /// Runs the platform passkey sheet for an assertion challenge; cancellation keeps the flow open.
   public func usePasskey(_ challenge: Challenge, preferImmediatelyAvailable: Bool = false) async {
     guard let params = challenge.passkeyParams else { return }
@@ -450,6 +469,8 @@ public final class DemoModel {
       status = "\(error.code): \(error.errorDescription ?? "")"
       if error.code == NativeAuthError.Code.passkeyCancelled {
         status = "Passkey prompt cancelled — pick another way."
+      } else if error.code == NativeAuthError.Code.savedPasswordCancelled {
+        status = "Saved-password sheet closed — type the password or pick another way."
       } else if [NativeAuthError.Code.invalidSession, NativeAuthError.Code.accessDenied].contains(error.code) {
         flow = nil
         step = nil

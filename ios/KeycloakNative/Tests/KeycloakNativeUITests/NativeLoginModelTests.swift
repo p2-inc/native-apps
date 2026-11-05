@@ -38,9 +38,10 @@ import Testing
   }
 
   @MainActor
-  func makeModel(_ handlers: [(HTTPRequest) throws -> HTTPResponse], autoSelectPasskey: Bool = false, dpop: DPoPMode = .disabled) -> (NativeLoginModel, ScriptedTransport, Collector, KeycloakNative) {
+  func makeModel(_ handlers: [(HTTPRequest) throws -> HTTPResponse], autoSelectPasskey: Bool = false, dpop: DPoPMode = .disabled, savedPasswords: (any SavedPasswordPlatform)? = nil) -> (NativeLoginModel, ScriptedTransport, Collector, KeycloakNative) {
     let transport = ScriptedTransport(handlers)
     var options = KeycloakNative.Options()
+    options.savedPasswordPlatform = savedPasswords
     options.transport = transport
     options.secureStore = InMemorySecureStore()
     options.dpop = dpop
@@ -172,6 +173,61 @@ import Testing
     guard case .cancelled? = collector.results.first else { Issue.record("expected .cancelled, got \(collector.results)"); return }
     #expect(transport.sent.count == 3)
     #expect(transport.sent[2].formFields?.contains { $0.name == "action" && $0.value == "cancel" } == true)
+  }
+
+  /// Returns `result` from the saved-password sheet.
+  struct StubSavedPasswords: SavedPasswordPlatform {
+    let result: Result<SavedPassword, NativeAuthError>
+    func pick() async throws -> SavedPassword { try result.get() }
+  }
+
+  static let usernameSet: [JSONValue] = [["type": "username", "id": "u", "required": true, "params": ["allow_email": true]]]
+
+  @Test @MainActor func aSavedPasswordAnswersTheUsernameAndThenThePassword() async throws {
+    let (model, transport, collector, _) = makeModel([
+      { _ in ScriptedTransport.json(200, Self.metadata) },
+      { _ in ScriptedTransport.json(403, Self.set(Self.usernameSet)) },
+      { _ in ScriptedTransport.json(403, Self.set(Self.passwordAndTotp, session: "s2")) },
+      { _ in ScriptedTransport.json(200, ["authorization_code": "code", "auth_session": "post"]) },
+      { _ in ScriptedTransport.json(200, Self.tokens()) },
+    ], savedPasswords: StubSavedPasswords(result: .success(SavedPassword(username: "alice", password: "s3cret"))))
+    await model.startIfNeeded()
+    let username = try #require(selected(model))
+    let presentation = ChallengePresentationContext(challenge: username, challenges: [username], flowContext: .empty, isSubmitting: false, model: model)
+    #expect(presentation.offersSavedPasswords)
+    presentation.useSavedPassword()
+    await settle(model) { !collector.results.isEmpty }
+    guard case .authorized? = collector.results.first else { Issue.record("expected authorized, got \(collector.results)"); return }
+    #expect(transport.sent[2].formFields?.contains { $0.name == "username" && $0.value == "alice" } == true)
+    #expect(transport.sent[3].formFields?.contains { $0.name == "password" && $0.value == "s3cret" } == true, "the picked password answers the password challenge without a tap")
+  }
+
+  @Test @MainActor func closingTheSavedPasswordSheetKeepsTheUsernameScreen() async throws {
+    let (model, transport, collector, _) = makeModel([
+      { _ in ScriptedTransport.json(200, Self.metadata) },
+      { _ in ScriptedTransport.json(403, Self.set(Self.usernameSet)) },
+    ], savedPasswords: StubSavedPasswords(result: .failure(NativeAuthError(code: NativeAuthError.Code.savedPasswordCancelled, description: "closed"))))
+    await model.startIfNeeded()
+    let username = try #require(selected(model))
+    ChallengePresentationContext(challenge: username, challenges: [username], flowContext: .empty, isSubmitting: false, model: model).useSavedPassword()
+    await settle(model) { !model.isSubmitting }
+    try? await Task.sleep(for: .milliseconds(50))
+    #expect(selected(model)?.type == .username && model.message == nil && collector.results.isEmpty)
+    #expect(transport.sent.count == 2, "nothing is sent when the sheet is closed")
+  }
+
+  @Test @MainActor func aSavedPasswordIsDroppedWhenNoPasswordChallengeFollows() async throws {
+    let (model, transport, _, _) = makeModel([
+      { _ in ScriptedTransport.json(200, Self.metadata) },
+      { _ in ScriptedTransport.json(403, Self.set(Self.usernameSet)) },
+      { _ in ScriptedTransport.json(403, Self.set([["type": "totp", "id": "t", "required": true, "params": ["digits": 6]]], session: "s2")) },
+    ], savedPasswords: StubSavedPasswords(result: .success(SavedPassword(username: "alice", password: "s3cret"))))
+    await model.startIfNeeded()
+    let username = try #require(selected(model))
+    ChallengePresentationContext(challenge: username, challenges: [username], flowContext: .empty, isSubmitting: false, model: model).useSavedPassword()
+    await settle(model) { self.selected(model)?.type == .totp }
+    try? await Task.sleep(for: .milliseconds(50))
+    #expect(selected(model)?.type == .totp && transport.sent.count == 3, "the password is not sent to a set without a password challenge")
   }
 
   @Test @MainActor func terminalErrorsEndTheViewAndTransientOnesKeepIt() async throws {

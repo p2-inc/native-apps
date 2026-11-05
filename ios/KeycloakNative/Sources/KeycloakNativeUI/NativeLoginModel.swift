@@ -22,14 +22,19 @@ final class NativeLoginModel {
   private let kc: KeycloakNative
   private let flow: NativeLoginFlow
   private let autoSelectPasskey: Bool
+  let offersSavedPasswords: Bool
   private let onResult: @MainActor (NativeLoginResult) -> Void
   private var started = false
   private var done = false
+  /// The password of a saved password picked on the `username` step, answered once to the
+  /// `password` challenge that follows (and dropped if none does).
+  private var pendingSavedPassword: String?
 
-  init(kc: KeycloakNative, flow: NativeLoginFlow, autoSelectPasskey: Bool, onResult: @escaping @MainActor (NativeLoginResult) -> Void) {
+  init(kc: KeycloakNative, flow: NativeLoginFlow, autoSelectPasskey: Bool, offersSavedPasswords: Bool = true, onResult: @escaping @MainActor (NativeLoginResult) -> Void) {
     self.kc = kc
     self.flow = flow
     self.autoSelectPasskey = autoSelectPasskey
+    self.offersSavedPasswords = offersSavedPasswords
     self.onResult = onResult
   }
 
@@ -49,6 +54,22 @@ final class NativeLoginModel {
       await perform {
         let assertion = try await self.kc.passkeys().assert(params, preferImmediatelyAvailableCredentials: preferImmediatelyAvailable)
         return try await self.flow.respond(.passkey(assertion), to: challenge)
+      }
+    }
+  }
+
+  /// Shows the saved-password sheet. On the `username` step the picked username is answered and
+  /// its password is kept for the `password` challenge that follows; on the `password` step the
+  /// password is answered directly.
+  func useSavedPassword(_ challenge: Challenge) {
+    Task {
+      await perform {
+        let saved = try await self.kc.pickSavedPassword()
+        if challenge.type == .password {
+          return try await self.flow.respond(.password(saved.password), to: challenge)
+        }
+        self.pendingSavedPassword = saved.password
+        return try await self.flow.respond(.username(saved.username), to: challenge)
       }
     }
   }
@@ -116,12 +137,13 @@ final class NativeLoginModel {
     do {
       apply(try await body())
     } catch let error as NativeAuthError {
+      pendingSavedPassword = nil
       switch error.code {
-      case NativeAuthError.Code.passkeyCancelled, NativeAuthError.Code.webFallbackCancelled:
+      case NativeAuthError.Code.passkeyCancelled, NativeAuthError.Code.webFallbackCancelled, NativeAuthError.Code.savedPasswordCancelled:
         // Not a flow failure: the set stays, the user may pick another way (spec/12 D4).
         message = nil
       case NativeAuthError.Code.passkeyFailed, NativeAuthError.Code.passkeyUnavailable, NativeAuthError.Code.rpIdMismatch,
-        NativeAuthError.Code.networkError, NativeAuthError.Code.webFallbackFailed:
+        NativeAuthError.Code.networkError, NativeAuthError.Code.webFallbackFailed, NativeAuthError.Code.savedPasswordUnavailable:
         message = error.errorDescription ?? error.code
       default:
         // Terminal (invalid_session, access_denied, …): the flow is over.
@@ -130,6 +152,7 @@ final class NativeLoginModel {
         onResult(.failed(error))
       }
     } catch {
+      pendingSavedPassword = nil
       message = String(describing: error)
     }
   }
@@ -137,6 +160,14 @@ final class NativeLoginModel {
   private func apply(_ step: FlowStep) {
     switch step {
     case .challenges(let challenges, let context):
+      if let password = pendingSavedPassword {
+        pendingSavedPassword = nil
+        if let challenge = challenges.first(where: { $0.type == .password && $0.error == nil }) {
+          phase = .challenge(challenges, context, selected: challenge)
+          submit(.password(password), to: challenge)
+          return
+        }
+      }
       let selected = pick(from: challenges, previous: currentSelection)
       phase = .challenge(challenges, context, selected: selected)
       if autoSelectPasskey, selected.type == .passkey, selected.error == nil, !isStepUpAfterPasskeyFailure(selected) {

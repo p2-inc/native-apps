@@ -135,6 +135,17 @@ Extra request fields (spec/03 §2.3), e.g. a device or risk signal from another 
 
 To replace one default screen use `.challengePresenter(for: .totp) { context in … }`. Your view receives `ChallengePresentationContext` with current challenge/set/context, `isSubmitting`, `submit`, `switchTo`, passkey/enrollment helpers and `cancel`. To replace alternatives UI use `.challengeChooser`; localization uses `.nativeLoginStrings(bundle:)` and existing English/German string catalog keys. See the sample's [CustomTOTPScreen](../ios/KeycloakNativeDemo/Sources/KeycloakNativeDemoApp/Views/LoginView.swift).
 
+### Password managers
+
+Password AutoFill (iCloud Keychain and third-party managers such as 1Password or Bitwarden) needs two things: the app associated with the site, and fields that say what they hold.
+
+- **Association.** Add an Associated Domains `webcredentials:<domain>` entry for the domain where users' passwords are saved (usually the Keycloak host) and serve `apple-app-site-association` there, the same entry passkeys need (see [sample setup](sample-app.md)). Without it the keyboard can still offer passwords, but not matched to your site, and saved passwords land under the app instead of the domain.
+- **Content types.** The default screens set them: `.username` on the username field, `.password` on the password field, `.newPassword` on both update-password fields, `.oneTimeCode` on TOTP, OTP and email-code fields. Custom screens must do the same.
+- **Two-step login.** Keycloak asks for the username and the password on separate screens, and password managers pair a password with a username field on the same screen. The default password and update-password screens therefore repeat the username (`FlowContext.username`) in a read-only `.username` field; without it the "Save password?" prompt stores a password with no account, or does not appear. Custom password screens should do the same.
+- **Saved-password sheet.** `kc.pickSavedPassword()` shows the system sheet of passwords saved for the associated domains and returns the pick; answer `.username(saved.username)`, then the following `password` challenge with `.password(saved.password)`. The default username and password screens offer it as "Use a saved password" (turn off with `NativeLoginView(offerSavedPasswords: false)`). Closing the sheet is `saved_password_cancelled` and leaves the flow as it was; nothing saved is `saved_password_unavailable`.
+
+Saving needs no code on iOS: the system offers it when a screen with filled `.username` and `.password` fields goes away after a successful submit.
+
 ## Tokens and application sessions
 
 ```swift

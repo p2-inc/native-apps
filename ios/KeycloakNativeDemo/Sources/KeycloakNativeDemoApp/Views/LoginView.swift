@@ -40,7 +40,7 @@ struct LoginView: View {
         }
         ForEach(challenges) { challenge in
           Section {
-            challengeView(challenge)
+            challengeView(challenge, context: context)
           } header: {
             Text("\(challenge.type.wire)\(challenge.required ? "" : " · alternative")")
           } footer: {
@@ -69,8 +69,18 @@ struct LoginView: View {
     .navigationTitle("Login")
   }
 
+  /// Password managers pair a password with a username field on the same screen; Keycloak asks
+  /// for the username on the previous one, so the password screens repeat it read-only.
   @ViewBuilder
-  private func challengeView(_ challenge: Challenge) -> some View {
+  private func autofillUsername(_ context: FlowContext) -> some View {
+    if let username = context.username {
+      TextField("Username", text: .constant(username)).textContentType(.username)
+        .foregroundStyle(.secondary).allowsHitTesting(false)
+    }
+  }
+
+  @ViewBuilder
+  private func challengeView(_ challenge: Challenge, context: FlowContext) -> some View {
     @Bindable var model = model
     switch challenge.type {
     case .username:
@@ -80,10 +90,17 @@ struct LoginView: View {
         .accessibilityIdentifier("username")
       Button("Continue") { Task { await model.answer(.username(model.username), to: challenge) } }
         .disabled(model.isBusy || model.username.isEmpty)
+      Button("Use a saved password") { Task { await model.useSavedPassword(challenge) } }
+        .disabled(model.isBusy)
+        .accessibilityIdentifier("useSavedPassword")
     case .password:
+      // Password managers pair the password with a username field on the same screen.
+      autofillUsername(context)
       SecureField("Password", text: $model.password).textContentType(.password)
         .accessibilityIdentifier("password")
       Button("Sign in with password") { Task { await model.answer(.password(model.password), to: challenge) } }
+        .disabled(model.isBusy)
+      Button("Use a saved password") { Task { await model.useSavedPassword(challenge) } }
         .disabled(model.isBusy)
     case .totp:
       let params = challenge.totpParams
@@ -118,6 +135,7 @@ struct LoginView: View {
       if let hints = params?.hints, !hints.isEmpty {
         Text(hints.joined(separator: " · ")).font(.footnote).foregroundStyle(.secondary)
       }
+      autofillUsername(context)
       SecureField("New password", text: $model.newPassword).textContentType(.newPassword).accessibilityIdentifier("newPassword")
       SecureField("Confirm new password", text: $model.newPasswordConfirm).textContentType(.newPassword).accessibilityIdentifier("newPasswordConfirm")
       Button("Update password") { Task { await model.answer(.updatePassword(model.newPassword, confirm: model.newPasswordConfirm), to: challenge) } }

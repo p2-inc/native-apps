@@ -29,6 +29,17 @@ public struct ChallengePresentationContext {
     model.usePasskey(challenge, preferImmediatelyAvailable: preferImmediatelyAvailableCredentials)
   }
 
+  /// The default `username` and `password` screens show "Use a saved password"
+  /// (`NativeLoginView(offerSavedPasswords:)`).
+  public var offersSavedPasswords: Bool { model.offersSavedPasswords }
+
+  /// Shows the system sheet of saved passwords. On a `username` challenge the picked username is
+  /// submitted and its password answers the `password` challenge that follows; on a `password`
+  /// challenge the password is submitted. Closing the sheet leaves the screen as it was.
+  public func useSavedPassword() {
+    model.useSavedPassword(challenge)
+  }
+
   /// Runs the platform registration for a `passkey_registration` challenge and submits it.
   public func registerPasskey(label: String?) {
     model.registerPasskey(challenge, label: label)
@@ -84,8 +95,11 @@ public struct NativeLoginView: View {
   ///   - kc: the configured SDK (for passkeys and the browser fallback).
   ///   - flow: a flow from `authentication().startLogin(...)` or `stepUp(...)`, not yet started.
   ///   - autoSelectPasskey: when a set contains `passkey`, run the ceremony right away.
-  public init(kc: KeycloakNative, flow: NativeLoginFlow, theme: NativeLoginTheme = NativeLoginTheme(), autoSelectPasskey: Bool = false, onResult: @escaping @MainActor (NativeLoginResult) -> Void) {
-    _model = State(initialValue: NativeLoginModel(kc: kc, flow: flow, autoSelectPasskey: autoSelectPasskey, onResult: onResult))
+  ///   - offerSavedPasswords: show "Use a saved password" on the `username` and `password` screens.
+  ///     The fields carry autofill content types either way, so password managers fill and save
+  ///     credentials from the keyboard; the app needs an Associated Domains `webcredentials:` entry.
+  public init(kc: KeycloakNative, flow: NativeLoginFlow, theme: NativeLoginTheme = NativeLoginTheme(), autoSelectPasskey: Bool = false, offerSavedPasswords: Bool = true, onResult: @escaping @MainActor (NativeLoginResult) -> Void) {
+    _model = State(initialValue: NativeLoginModel(kc: kc, flow: flow, autoSelectPasskey: autoSelectPasskey, offersSavedPasswords: offerSavedPasswords, onResult: onResult))
     self.theme = theme
   }
 
