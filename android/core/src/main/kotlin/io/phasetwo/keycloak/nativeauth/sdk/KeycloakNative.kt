@@ -23,6 +23,8 @@ import io.phasetwo.keycloak.nativeauth.sdk.passkeys.PasskeyAttestation
 import io.phasetwo.keycloak.nativeauth.sdk.passkeys.PasskeyPlatform
 import io.phasetwo.keycloak.nativeauth.sdk.passkeys.PasskeyRegistrationClient
 import io.phasetwo.keycloak.nativeauth.sdk.passkeys.Passkeys
+import io.phasetwo.keycloak.nativeauth.sdk.passkeys.SavedPassword
+import io.phasetwo.keycloak.nativeauth.sdk.passkeys.SavedPasswordPlatform
 import io.phasetwo.keycloak.nativeauth.sdk.tokens.Credentials
 import io.phasetwo.keycloak.nativeauth.sdk.tokens.Tokens
 import io.phasetwo.keycloak.nativeauth.sdk.transport.FlowObserver
@@ -65,6 +67,8 @@ public class KeycloakNative private constructor(issuer: URI, public val clientId
      */
     public val credentialsStore: SecureStore? = null,
     public val passkeyPlatform: PasskeyPlatform? = null,
+    /** The password manager behind [pickSavedPassword] and [savePassword]. */
+    public val savedPasswordPlatform: SavedPasswordPlatform? = null,
     /** The browser used by `WebFallback`. */
     public val webPresenter: WebAuthenticationPresenter? = null,
     public val metadataCacheTtl: Duration = 5.minutes,
@@ -96,6 +100,25 @@ public class KeycloakNative private constructor(issuer: URI, public val clientId
     registration = PasskeyRegistrationClient(issuer, metadataClient, transport, dpopSigner),
     logger = options.logger,
   )
+
+  /**
+   * Shows the system sheet of passwords saved for the app and returns the one the user picked. Answer
+   * the `username` challenge with its `username`, then the `password` challenge with its `password`.
+   * Errors: `saved_password_cancelled`, `saved_password_unavailable` (also without a configured
+   * [Options.savedPasswordPlatform]).
+   */
+  public suspend fun pickSavedPassword(): SavedPassword = savedPasswords().pick()
+
+  /**
+   * Offers to store the username and password the user typed, after the flow ended in
+   * `FlowStep.Authorized`. The autofill framework's own save prompt is unreliable when the username and
+   * the password were typed on different screens.
+   * Errors as [pickSavedPassword]; a closed prompt is `saved_password_cancelled`.
+   */
+  public suspend fun savePassword(username: String, password: String): Unit = savedPasswords().save(SavedPassword(username, password))
+
+  private fun savedPasswords(): SavedPasswordPlatform = options.savedPasswordPlatform
+    ?: throw NativeAuthError(NativeAuthError.Code.SAVED_PASSWORD_UNAVAILABLE, errorDescription = "No SavedPasswordPlatform is configured")
 
   /** Completes `FlowStep.RedirectToWeb` through the browser (spec/03 §3.4). */
   public fun webFallback(): WebFallback = WebFallback(clientId, issuer, metadataClient, options.webPresenter, tokens(), options.logger)

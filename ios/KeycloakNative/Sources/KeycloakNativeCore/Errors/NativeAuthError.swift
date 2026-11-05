@@ -43,6 +43,10 @@ public struct NativeAuthError: Error, CustomStringConvertible {
     /// `WebFallback`: the user closed the browser (not a flow failure, the app may retry).
     public static let webFallbackCancelled = "web_fallback_cancelled"
     public static let webFallbackFailed = "web_fallback_failed"
+    /// Saved-password picker: the user closed the sheet (not a flow failure).
+    public static let savedPasswordCancelled = "saved_password_cancelled"
+    /// Saved-password picker: nothing saved for the app's domains, or the sheet could not be shown.
+    public static let savedPasswordUnavailable = "saved_password_unavailable"
   }
 
   public let code: String

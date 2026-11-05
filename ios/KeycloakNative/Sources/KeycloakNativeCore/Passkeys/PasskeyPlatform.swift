@@ -68,6 +68,7 @@ public final class ASAuthorizationPasskeyPlatform: PasskeyPlatform {
 enum PasskeyPlatformResult: Sendable {
   case assertion(PasskeyAssertion)
   case registration(PasskeyAttestation)
+  case password(SavedPassword)
 }
 
 /// One `ASAuthorizationController` ceremony bridged to async/await. The delegate converts the
@@ -127,6 +128,8 @@ final class AuthorizationBridge: NSObject, ASAuthorizationControllerDelegate, AS
         clientDataJSON: credential.rawClientDataJSON,
         attestationObject: attestationObject,
         transports: ["internal", "hybrid"]))))
+    case let credential as ASPasswordCredential:
+      finish(.success(.password(SavedPassword(username: credential.user, password: credential.password))))
     default:
       finish(.failure(NativeAuthError(code: NativeAuthError.Code.passkeyFailed, description: "Unsupported credential \(type(of: authorization.credential))")))
     }

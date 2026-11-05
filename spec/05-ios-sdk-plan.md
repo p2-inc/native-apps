@@ -166,6 +166,7 @@ NativeLoginView(flow: …) { result in … }
 - Provided default screens: Username, Password, PasskeyPrompt (shows a button that triggers the platform sheet, with autofill variant), PasskeyRegistration, TOTP (6-digit field with paste/autofill of `oneTimeCode`), OTP (with resend countdown and masked destination), PushWait (spinner + number-match digit + "cancel"), RecoveryCode, RedirectToWeb (explains fallback), ErrorScreen.
 - Localisation: `Localizable.xcstrings` in the package; apps override by supplying their own `Bundle` via `.nativeLoginStrings(bundle:)`.
 - Accessibility: all defaults pass VoiceOver + Dynamic Type; `oneTimeCode` text content type for SMS autofill.
+- Password managers: `.username` / `.password` / `.newPassword` / `.oneTimeCode` content types on every field; the password and update-password screens repeat the identified username in a read-only `.username` field (the login is two-step, and AutoFill pairs a password with a username on the same screen); "Use a saved password" runs `KeycloakNative.pickSavedPassword()` (`ASAuthorizationPasswordProvider`), answers `username` with the pick and the following `password` challenge with its password (`saved_password_cancelled` / `saved_password_unavailable`). Association: the `webcredentials:` entry passkeys need.
 
 ## 5. Push module (`KeycloakNativePush`)
 

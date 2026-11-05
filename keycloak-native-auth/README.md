@@ -240,6 +240,9 @@ algorithms the challenge endpoint verifies).
   policy's extra origins.
 - **RP ID.** `passkey.rp_id` in metadata is the policy's RP ID (fallback: the base URI host). The app
   needs an Associated Domains `webcredentials:<rp_id>` entry.
+- **Password managers.** The same association (iOS `webcredentials:`, Android `assetlinks.json` with
+  `get_login_creds`) is what lets iCloud Keychain, Google Password Manager and third-party managers
+  offer and save the site's passwords in the app. Serve both files even for password-only logins.
 - **Required action continuation.** The `passkey_registration` descriptor's `id` is the required
   action's provider id (`native-passkey-register`); answer with `challenge_type=passkey_registration`
   and that `challenge_id`. While it is pending the `auth_session` is bound to the realm's

@@ -77,6 +77,7 @@ struct UsernameScreen: View {
       Button(l("Continue"), action: submit)
         .buttonStyle(.borderedProminent)
         .disabled(username.isEmpty || presentation.isSubmitting)
+      SavedPasswordButton(presentation: presentation)
     }
     .onAppear { if username.isEmpty, let hint = presentation.challenge.usernameParams?.hint { username = hint } }
   }
@@ -91,6 +92,7 @@ struct PasswordScreen: View {
 
   var body: some View {
     ChallengeFrame(presentation: presentation, title: l("Enter your password"), subtitle: nil) {
+      AutofillUsernameField(username: presentation.flowContext.username)
       SecureField(l("Password"), text: $password)
         .textContentType(.password)
         .textFieldStyle(.roundedBorder)
@@ -99,10 +101,47 @@ struct PasswordScreen: View {
       Button(l("Sign in"), action: submit)
         .buttonStyle(.borderedProminent)
         .disabled(password.isEmpty || presentation.isSubmitting)
+      SavedPasswordButton(presentation: presentation)
     }
   }
 
   private func submit() { presentation.submit(.password(password)) }
+}
+
+/// The account the password belongs to, as a read-only field with the `username` content type.
+/// Keycloak asks for the username and the password on separate screens; password managers pair a
+/// password with the username field on the same screen, so without it the "Save password?" prompt
+/// stores a password with no account (or does not appear) and autofill cannot match the entry.
+struct AutofillUsernameField: View {
+  let username: String?
+  @Environment(\.nativeLoginStrings) private var l
+
+  var body: some View {
+    if let username {
+      TextField(l("Username"), text: .constant(username))
+        .textContentType(.username)
+        .autocorrectionDisabled()
+        .textFieldStyle(.roundedBorder)
+        .foregroundStyle(.secondary)
+        .allowsHitTesting(false)
+        .accessibilityIdentifier("autofillUsername")
+    }
+  }
+}
+
+/// "Use a saved password": the system sheet of passwords saved for the app's associated domains.
+struct SavedPasswordButton: View {
+  let presentation: ChallengePresentationContext
+  @Environment(\.nativeLoginStrings) private var l
+
+  var body: some View {
+    if presentation.offersSavedPasswords {
+      Button(l("Use a saved password")) { presentation.useSavedPassword() }
+        .font(.footnote)
+        .disabled(presentation.isSubmitting)
+        .accessibilityIdentifier("useSavedPassword")
+    }
+  }
 }
 
 struct TOTPScreen: View {
@@ -270,6 +309,7 @@ struct UpdatePasswordScreen: View {
   var body: some View {
     let params = presentation.challenge.updatePasswordParams
     ChallengeFrame(presentation: presentation, title: l("Choose a new password"), subtitle: l("Your password must be updated before you can continue.")) {
+      AutofillUsernameField(username: presentation.flowContext.username)
       SecureField(l("New password"), text: $password)
         .textContentType(.newPassword)
         .textFieldStyle(.roundedBorder)

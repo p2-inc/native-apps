@@ -77,6 +77,12 @@ public class NativeAuthError(
     /** `WebFallback`: the user closed the browser (not a flow failure, the app may retry). */
     public const val WEB_FALLBACK_CANCELLED: String = "web_fallback_cancelled"
     public const val WEB_FALLBACK_FAILED: String = "web_fallback_failed"
+
+    /** Saved-password sheet: the user closed it (not a flow failure). */
+    public const val SAVED_PASSWORD_CANCELLED: String = "saved_password_cancelled"
+
+    /** Saved-password sheet: nothing saved for the app, no provider, or the sheet could not be shown. */
+    public const val SAVED_PASSWORD_UNAVAILABLE: String = "saved_password_unavailable"
   }
 
   public val authSessionStillValid: Boolean get() = authSession != null

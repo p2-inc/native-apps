@@ -23,6 +23,8 @@ public final class KeycloakNative: Sendable {
     public var keychainAccessGroup: String? = nil
     /// Overrides the platform passkey bridge (tests).
     public var passkeyPlatform: (any PasskeyPlatform)? = nil
+    /// Overrides the saved-password sheet (tests).
+    public var savedPasswordPlatform: (any SavedPasswordPlatform)? = nil
     /// Overrides the system browser used by `WebFallback` (tests).
     public var webPresenter: (any WebAuthenticationPresenter)? = nil
     /// `ASWebAuthenticationSession.prefersEphemeralWebBrowserSession` for the fallback browser.
@@ -44,6 +46,7 @@ public final class KeycloakNative: Sendable {
   let metadataClient: MetadataClient
   let dpopSigner: DPoPSigner?
   let passkeyPlatform: any PasskeyPlatform
+  let savedPasswordPlatform: any SavedPasswordPlatform
   let webPresenter: any WebAuthenticationPresenter
   private let credentialsManagerInstance: CredentialsManager
 
@@ -65,6 +68,7 @@ public final class KeycloakNative: Sendable {
       ? nil
       : DPoPSigner(mode: options.dpop, store: store, storeKey: "\(scope)|dpop-key", logger: options.logger)
     self.passkeyPlatform = options.passkeyPlatform ?? ASAuthorizationPasskeyPlatform(anchor: options.presentationAnchor)
+    self.savedPasswordPlatform = options.savedPasswordPlatform ?? ASAuthorizationSavedPasswordPlatform(anchor: options.presentationAnchor)
     self.webPresenter = options.webPresenter ?? ASWebAuthenticationSessionPresenter(anchor: options.presentationAnchor, prefersEphemeralSession: options.ephemeralWebSession)
     let tokens = Tokens(clientId: clientId, issuer: self.issuer, metadata: metadataClient, transport: transport, dpop: dpopSigner, logger: options.logger)
     self.credentialsManagerInstance = CredentialsManager(store: options.credentialsStore ?? store, key: "\(scope)|credentials", tokens: tokens, logger: options.logger)
@@ -79,6 +83,13 @@ public final class KeycloakNative: Sendable {
       allowRpIdMismatch: options.allowRpIdMismatch,
       registration: PasskeyRegistrationClient(issuer: issuer, metadata: metadataClient, transport: transport, dpop: dpopSigner),
       logger: options.logger)
+  }
+
+  /// Shows the system sheet of passwords saved for the app's associated domains and returns the
+  /// one the user picked. Answer the `username` challenge with its `username`, then the `password`
+  /// challenge with its `password`. Errors: `saved_password_cancelled`, `saved_password_unavailable`.
+  public func pickSavedPassword() async throws -> SavedPassword {
+    try await savedPasswordPlatform.pick()
   }
 
   /// Completes `FlowStep.redirectToWeb` through the system browser (spec/03 §3.4).
