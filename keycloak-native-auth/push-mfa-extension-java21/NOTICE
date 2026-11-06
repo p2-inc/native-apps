@@ -1,0 +1,3 @@
+keycloak-push-mfa-extension, rebuilt for Java 21
+
+This module recompiles, without changes, the published sources of keycloak-push-mfa-extension by ba-itsys (https://github.com/ba-itsys/keycloak-push-mfa-extension), licensed under the Apache License, Version 2.0. The build files in this directory are Copyright 2026 Phase Two, Inc., under the same license.
