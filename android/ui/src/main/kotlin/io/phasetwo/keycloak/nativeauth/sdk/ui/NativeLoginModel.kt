@@ -10,6 +10,7 @@ import io.phasetwo.keycloak.nativeauth.sdk.challenge.NativeLoginFlow
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.RedirectToWebRequest
 import io.phasetwo.keycloak.nativeauth.sdk.errors.NativeAuthError
 import io.phasetwo.keycloak.nativeauth.sdk.passkeys.SavedPassword
+import io.phasetwo.keycloak.nativeauth.sdk.push.PushProviderRegistration
 import io.phasetwo.keycloak.nativeauth.sdk.tokens.Credentials
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +40,8 @@ internal class NativeLoginModel(
   private val autoSelectPasskey: Boolean = false,
   val offersSavedPasswords: Boolean = true,
   private val offersToSavePassword: Boolean = true,
+  /** The push provider a `push_enrollment` registers; `null` enrolls without delivery (`none`). */
+  private val pushRegistration: (suspend () -> PushProviderRegistration)? = null,
   private val onResult: (NativeLoginResult) -> Unit,
 ) {
   sealed class Phase {
@@ -110,6 +113,22 @@ internal class NativeLoginModel(
     perform {
       val attestation = kc.passkeys().register(params)
       flow.respond(ChallengeAnswer.PasskeyRegistration(attestation, label), challenge)
+    }
+  }
+
+  /**
+   * `push_enrollment` (spec/03 §4.15): the device JWT is signed with the DPoP key and the enrollment
+   * stored once the server moved on from the challenge.
+   */
+  fun enrollPush(challenge: Challenge, deviceLabel: String) {
+    val params = challenge.pushEnrollmentParams ?: return
+    perform {
+      val registration = pushRegistration?.invoke() ?: PushProviderRegistration.NONE
+      val push = kc.push()
+      val prepared = push.prepareEnrollment(params, deviceLabel, registration.type, registration.id)
+      val step = flow.respond(prepared.answer, challenge)
+      if (step.challenges.orEmpty().none { it.type == ChallengeType.PushEnrollment && it.error != null }) push.commit(prepared)
+      step
     }
   }
 

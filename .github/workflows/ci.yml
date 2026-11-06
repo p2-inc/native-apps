@@ -105,6 +105,7 @@ jobs:
         run: xcodebuild -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build-for-testing | tail -n 20
 
   android-core:
+    # The name is a required status check on main (branch protection); renaming it needs the rule updated too.
     name: Android SDK (core transcript replay, android and ui module builds, ui model tests)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -122,10 +123,10 @@ jobs:
       - name: Build + tests (transcript replay from keycloak-native-auth/demo/transcripts)
         run: ./gradlew --no-daemon --console=plain :core:build
       # The runner image has the Android SDK with its licenses accepted; AGP downloads a missing platform.
-      - name: Android and ui modules (libraries + instrumentation test APKs; the instrumentation tests themselves need an emulator)
-        run: ./gradlew --no-daemon --console=plain :android:assembleRelease :android:assembleDebugAndroidTest :ui:assembleRelease :ui:assembleDebugAndroidTest
-      - name: ui model tests (JVM)
-        run: ./gradlew --no-daemon --console=plain :ui:testDebugUnitTest
+      - name: Android, ui and push modules (libraries + instrumentation test APKs; the instrumentation tests themselves need an emulator)
+        run: ./gradlew --no-daemon --console=plain :android:assembleRelease :android:assembleDebugAndroidTest :ui:assembleRelease :ui:assembleDebugAndroidTest :push:assembleRelease
+      - name: ui model and push tests (JVM)
+        run: ./gradlew --no-daemon --console=plain :ui:testDebugUnitTest :push:testDebugUnitTest
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -134,3 +135,4 @@ jobs:
           path: |
             android/core/build/reports/tests/
             android/ui/build/reports/tests/
+            android/push/build/reports/tests/

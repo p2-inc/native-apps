@@ -9,6 +9,7 @@ import io.phasetwo.keycloak.nativeauth.sdk.dpop.DPoPMode
 import io.phasetwo.keycloak.nativeauth.sdk.errors.NativeAuthError
 import io.phasetwo.keycloak.nativeauth.sdk.passkeys.SavedPassword
 import io.phasetwo.keycloak.nativeauth.sdk.passkeys.SavedPasswordPlatform
+import io.phasetwo.keycloak.nativeauth.sdk.push.PushProviderRegistration
 import io.phasetwo.keycloak.nativeauth.sdk.transport.HttpRequest
 import io.phasetwo.keycloak.nativeauth.sdk.transport.HttpResponse
 import io.phasetwo.keycloak.nativeauth.sdk.transport.Transport
@@ -72,22 +73,24 @@ class NativeLoginModelTest {
     }
   }
 
-  private class Fixture(val model: NativeLoginModel, val transport: Scripted, val results: MutableList<NativeLoginResult>)
+  private class Fixture(val kc: KeycloakNative, val model: NativeLoginModel, val transport: Scripted, val results: MutableList<NativeLoginResult>)
 
   private fun TestScope.fixture(
     vararg handlers: (HttpRequest) -> HttpResponse,
     passwords: SavedPasswordPlatform? = null,
     offerToSavePassword: Boolean = true,
+    dpop: DPoPMode = DPoPMode.DISABLED,
+    pushRegistration: (suspend () -> PushProviderRegistration)? = null,
   ): Fixture {
     val transport = Scripted(*handlers)
     val kc = KeycloakNative.configure(
       URI("https://idp.example.com/realms/demo"),
       "c",
-      KeycloakNative.Options(dpop = DPoPMode.DISABLED, transport = transport, savedPasswordPlatform = passwords),
+      KeycloakNative.Options(dpop = dpop, transport = transport, savedPasswordPlatform = passwords),
     )
     val results = mutableListOf<NativeLoginResult>()
-    val model = NativeLoginModel(kc, kc.authentication().startLogin(), this, offersToSavePassword = offerToSavePassword) { results += it }
-    return Fixture(model, transport, results)
+    val model = NativeLoginModel(kc, kc.authentication().startLogin(), this, offersToSavePassword = offerToSavePassword, pushRegistration = pushRegistration) { results += it }
+    return Fixture(kc, model, transport, results)
   }
 
   private val NativeLoginModel.selected get() = (state.value.phase as? NativeLoginModel.Phase.Challenges)?.selected
@@ -227,5 +230,47 @@ class NativeLoginModelTest {
     advanceUntilIdle()
     val phase = f.model.state.value.phase as NativeLoginModel.Phase.RedirectToWeb
     assertEquals("required_action:UPDATE_PROFILE", phase.request.reason)
+  }
+
+  @Test
+  fun pushEnrollmentSignsWithTheDPoPKeyRegistersTheFcmTokenAndIsStoredOnceAccepted() = runTest {
+    val b64 = { text: String -> Base64.getUrlEncoder().withoutPadding().encodeToString(text.toByteArray()) }
+    val enrollmentToken = "eyJhbGciOiJub25lIn0." + b64("""{"sub":"u-1","username":"judy","enrollmentId":"e-1","nonce":"n-1","exp":4102444800}""") + "."
+    val enroll = """{"type":"push_enrollment","id":"native-push-enroll","required":true,"params":{"enrollment_token":"$enrollmentToken","device_api_base":"https://idp.example.com/realms/demo/push-mfa","user_id":"u-1"}}"""
+    val f = fixture(
+      { json(200, METADATA) }, { set(enroll) }, { json(200, AUTHORIZED) }, { tokens() },
+      dpop = DPoPMode.SOFTWARE,
+      pushRegistration = { PushProviderRegistration("fcm", "fcm-token-1") },
+    )
+    f.model.startIfNeeded()
+    advanceUntilIdle()
+    assertEquals(ChallengeType.PushEnrollment, f.model.selected?.type)
+    f.model.enrollPush(f.model.selected!!, "Judy's Pixel")
+    advanceUntilIdle()
+    assertTrue(f.results.single() is NativeLoginResult.Authorized)
+    val claims = String(Base64.getUrlDecoder().decode(f.transport.field(2, "token")!!.split('.')[1]))
+    for (expected in listOf("\"deviceType\":\"android\"", "\"pushProviderType\":\"fcm\"", "\"pushProviderId\":\"fcm-token-1\"", "\"enrollmentId\":\"e-1\"", "\"deviceLabel\":\"Judy's Pixel\"")) {
+      assertTrue("$expected in $claims", claims.contains(expected))
+    }
+    val enrollment = f.kc.push().enrollment()!!
+    assertEquals("u-1" to "judy", enrollment.userId to enrollment.username)
+    assertEquals("fcm-token-1", enrollment.pushProviderId)
+    assertEquals(f.kc.dpopKeyThumbprint(), enrollment.keyThumbprint)
+  }
+
+  @Test
+  fun aRefusedPushEnrollmentIsNotStored() = runTest {
+    val enrollmentToken = "eyJhbGciOiJub25lIn0." + Base64.getUrlEncoder().withoutPadding().encodeToString("""{"sub":"u-1","enrollmentId":"e-1","nonce":"n-1"}""".toByteArray()) + "."
+    val enroll = """{"type":"push_enrollment","id":"native-push-enroll","required":true,"params":{"enrollment_token":"$enrollmentToken"}}"""
+    val refused = """{"type":"push_enrollment","id":"native-push-enroll","required":true,"error":{"code":"invalid_credential"},"params":{"enrollment_token":"$enrollmentToken"}}"""
+    val f = fixture({ json(200, METADATA) }, { set(enroll) }, { set(refused, session = "s2") }, dpop = DPoPMode.SOFTWARE)
+    f.model.startIfNeeded()
+    advanceUntilIdle()
+    f.model.enrollPush(f.model.selected!!, "x")
+    advanceUntilIdle()
+    assertEquals("invalid_credential", f.model.selected?.error?.code)
+    assertNull(f.kc.push().enrollment())
+    val claims = String(Base64.getUrlDecoder().decode(f.transport.field(2, "token")!!.split('.')[1]))
+    assertTrue("no registration: none", claims.contains("\"pushProviderType\":\"none\"") && !claims.contains("pushProviderId"))
   }
 }

@@ -83,6 +83,21 @@ public class NativeAuthError(
 
     /** Saved-password sheet: nothing saved for the app, no provider, or the sheet could not be shown. */
     public const val SAVED_PASSWORD_UNAVAILABLE: String = "saved_password_unavailable"
+
+    /** No DPoP-bound native login to call the push device API with. */
+    public const val DEVICE_TOKEN_UNAVAILABLE: String = "device_token_unavailable"
+
+    /** This device is not enrolled for push MFA (no stored `PushEnrollment`). */
+    public const val PUSH_NOT_ENROLLED: String = "push_not_enrolled"
+
+    /** The server has no push-MFA extension (metadata without a `push` block). */
+    public const val PUSH_UNAVAILABLE: String = "push_unavailable"
+
+    /** `409` from `/respond`: the challenge was resolved concurrently; re-read the pending list. */
+    public const val PUSH_CONFLICT: String = "push_conflict"
+
+    /** `403` from `/respond`: the number or PIN did not match. */
+    public const val USER_VERIFICATION_MISMATCH: String = "user_verification_mismatch"
   }
 
   public val authSessionStillValid: Boolean get() = authSession != null

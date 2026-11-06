@@ -133,7 +133,8 @@ import Testing
     let approval = try #require(pendingList.first)
     #expect(approval.cid == params.cid && approval.numbers.count == 3 && approval.numbers.contains(number))
     let wrong = try #require(approval.numbers.first { $0 != number })
-    await #expect(throws: NativeAuthError.self) { try await push.respond(to: approval, .approve(userVerification: wrong)) }
+    let mismatch = await #expect(throws: NativeAuthError.self) { try await push.respond(to: approval, .approve(userVerification: wrong)) }
+    #expect(mismatch?.code == NativeAuthError.Code.userVerificationMismatch)
     #expect(try await push.respond(to: approval, .approve(userVerification: number)) == "approved")
 
     step = try await flow.respond(.pushPoll, to: challenge)

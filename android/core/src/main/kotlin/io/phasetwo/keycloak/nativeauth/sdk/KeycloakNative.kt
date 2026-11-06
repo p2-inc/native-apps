@@ -25,6 +25,9 @@ import io.phasetwo.keycloak.nativeauth.sdk.passkeys.PasskeyRegistrationClient
 import io.phasetwo.keycloak.nativeauth.sdk.passkeys.Passkeys
 import io.phasetwo.keycloak.nativeauth.sdk.passkeys.SavedPassword
 import io.phasetwo.keycloak.nativeauth.sdk.passkeys.SavedPasswordPlatform
+import io.phasetwo.keycloak.nativeauth.sdk.push.DeviceTokenProvider
+import io.phasetwo.keycloak.nativeauth.sdk.push.NativeDeviceTokenProvider
+import io.phasetwo.keycloak.nativeauth.sdk.push.Push
 import io.phasetwo.keycloak.nativeauth.sdk.tokens.Credentials
 import io.phasetwo.keycloak.nativeauth.sdk.tokens.Tokens
 import io.phasetwo.keycloak.nativeauth.sdk.transport.FlowObserver
@@ -169,6 +172,13 @@ public class KeycloakNative private constructor(issuer: URI, public val clientId
   public suspend fun commitDPoPKeyRotation(key: DPoPKey) {
     requireSigner("DPoP is disabled").commitRotation(key)
   }
+
+  /**
+   * Push MFA for this device (spec/05 §5). The default token provider is the instance's stored native
+   * login ([NativeDeviceTokenProvider], spec/03 §7.1). The FCM side is in the `push` module.
+   */
+  public fun push(tokenProvider: DeviceTokenProvider? = null, deviceType: String = "android"): Push =
+    Push(this, tokenProvider ?: NativeDeviceTokenProvider(credentialsManager), deviceType)
 
   /** A key under this instance's issuer + client scope in [secureStore]. */
   public fun scopedStorageKey(suffix: String): String = "$issuer|$clientId|$suffix"

@@ -284,11 +284,13 @@ public struct Push: Sendable {
     return HTTPRequest(method: method, url: url, headers: headers, body: body)
   }
 
+  /// ba-itsys puts a sentence in `error` ("User verification mismatch"), not a code, so the code
+  /// is chosen here from the status and the server's text becomes the description.
   private static func error(_ response: HTTPResponse, fallback: String) -> NativeAuthError {
-    switch response.statusCode {
-    case 401: return NativeAuthError.from(response: response, fallbackCode: NativeAuthError.Code.invalidToken)
-    default: return NativeAuthError.from(response: response, fallbackCode: fallback)
-    }
+    let code = response.statusCode == 401 ? NativeAuthError.Code.invalidToken : fallback
+    let json = response.json
+    let text = json?["error_description"]?.stringValue ?? json?["error"]?.stringValue ?? "HTTP \(response.statusCode) from the push device API"
+    return NativeAuthError(code: code, statusCode: response.statusCode, description: text, details: json, isRetryable: response.statusCode >= 500)
   }
 
   static func randomBytes(_ count: Int) -> Data {
