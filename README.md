@@ -1,6 +1,6 @@
 # native-apps — browserless native authentication for Keycloak
 
-See the [roadmap](ROADMAP.md) for what comes next. Start with the [developer documentation](docs/README.md) for setup, protocol and flow examples,
+Start with the [developer documentation](docs/README.md) for setup, protocol and flow examples,
 iOS integration, sample walkthrough, troubleshooting, and security responsibilities.
 The iOS SDK and sample are implemented. The Android SDK is in progress: its platform-independent `core` (the login state machine, tokens, DPoP, credentials) is ported and passes the same transcript replays, the `android` module provides the platform pieces (Credential Manager passkeys and saved passwords, Keystore keys and storage, the Auth Tab browser fallback), and the `ui` module the default Compose screens; push and the sample app are **not implemented** yet.
 
