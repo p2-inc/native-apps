@@ -11,7 +11,7 @@ Sign users in to Keycloak with your app's own screens instead of a browser or we
 
 **Status:** the Keycloak extensions, the iOS SDK and the iOS demo app are done. The Android SDK has its core, platform and UI modules; push and the demo app are in progress.
 
-Start with the [developer documentation](docs/README.md) for setup, the protocol, flow examples, iOS integration, the demo app, troubleshooting and security.
+See the [roadmap](ROADMAP.md) for what comes next. Start with the [developer documentation](docs/README.md) for setup, the protocol, flow examples, iOS integration, the demo app, troubleshooting and security.
 
 | Directory | What |
 |---|---|
