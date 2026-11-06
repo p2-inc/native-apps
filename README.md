@@ -40,12 +40,13 @@ To cut a release from `main`: `gh release create <version> --target main --prere
 
 ## License
 
-The SDKs and the protocol are under the [Apache License 2.0](LICENSE), so apps can bundle them freely; the Keycloak extensions are under the [Elastic License 2.0](keycloak-native-auth/COPYING) (ELv2), like Phase Two's other extensions.
+The SDKs, the protocol and the demo assets are under the [Apache License 2.0](LICENSE), so apps can bundle them and integrators can copy the demo setup freely. The Keycloak extensions that implement native authentication (the challenge endpoint, the native authenticators and required actions, and the push and one-time-code support built for them) are under the [Elastic License 2.0](keycloak-native-auth/COPYING) (ELv2), like Phase Two's other extensions.
 
 | Path | License |
 |---|---|
-| `Package.swift`, `ios/`, the Android SDK (`android/`, in progress), `spec/`, `docs/` | Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)) |
-| `keycloak-native-auth/` | ELv2 ([COPYING](keycloak-native-auth/COPYING)) |
-| `keycloak-native-auth/demo/transcripts/` | Apache-2.0 ([LICENSE](keycloak-native-auth/demo/transcripts/LICENSE)): the recorded exchanges are the conformance fixtures for any client |
+| `Package.swift`, `ios/`, `android/`, `spec/`, `docs/` | Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)) |
+| `keycloak-native-auth/demo/` except `src/`: the compose files, realm export, resource server, scripts and the recorded transcripts (the conformance fixtures for any client) | Apache-2.0 ([LICENSE](keycloak-native-auth/demo/LICENSE)) |
+| `keycloak-native-auth/push-mfa-extension-java21/` | Apache-2.0 ([LICENSE](keycloak-native-auth/push-mfa-extension-java21/LICENSE), [NOTICE](keycloak-native-auth/push-mfa-extension-java21/NOTICE)): ba-itsys' push MFA extension, recompiled for Java 21 |
+| Everything else in `keycloak-native-auth/`: `native-auth-core`, `-authenticators`, `-endpoint`, `-required-actions`, `-otp-sender`, `-push`, `-push-apns`, and the integration tests in `demo/src/` | ELv2 ([COPYING](keycloak-native-auth/COPYING)) |
 
 Copyright 2026 Phase Two, Inc.

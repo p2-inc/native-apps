@@ -1,0 +1,3 @@
+The integration tests and test support code under this directory are licensed under the Elastic License 2.0, like the Keycloak extensions they exercise. See ../../COPYING.
+
+The rest of demo/ (the compose files, realm export, resource server, scripts and transcripts) is licensed under the Apache License 2.0. See ../LICENSE.

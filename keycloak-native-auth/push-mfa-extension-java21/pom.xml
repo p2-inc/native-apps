@@ -10,6 +10,13 @@
   </parent>
 
   <artifactId>keycloak-push-mfa-extension-java21</artifactId>
+  <!-- ba-itsys' code, recompiled unchanged: it keeps its own license, not the parent's ELv2. -->
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+    </license>
+  </licenses>
   <name>Keycloak Native Auth :: ba-itsys push MFA, rebuilt for Java 21</name>
   <description>
     The published de.arbeitsagentur.opdt:keycloak-push-mfa-extension jars are compiled for Java 25
