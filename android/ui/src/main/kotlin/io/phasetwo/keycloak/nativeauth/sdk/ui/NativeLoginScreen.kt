@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.phasetwo.keycloak.nativeauth.sdk.KeycloakNative
+import io.phasetwo.keycloak.nativeauth.sdk.push.PushProviderRegistration
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.Challenge
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.ChallengeAnswer
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.ChallengeType
@@ -62,6 +63,14 @@ public class ChallengePresentationContext internal constructor(
   /** Runs the platform registration for a `passkey_registration` challenge and submits it. */
   public fun registerPasskey(label: String?) {
     model.registerPasskey(challenge, label)
+  }
+
+  /**
+   * Enrolls this device for push MFA on a `push_enrollment` challenge (spec/03 §4.15) with the SDK's
+   * DPoP key and the screen's `pushRegistration` (for example the FCM token from the `push` module).
+   */
+  public fun enrollPush(deviceLabel: String) {
+    model.enrollPush(challenge, deviceLabel)
   }
 
   /**
@@ -134,11 +143,12 @@ public fun NativeLoginScreen(
   autoSelectPasskey: Boolean = false,
   offerSavedPasswords: Boolean = true,
   offerToSavePassword: Boolean = true,
+  pushRegistration: (suspend () -> PushProviderRegistration)? = null,
 ) {
   val scope = rememberCoroutineScope()
   val currentOnResult by rememberUpdatedState(onResult)
   val model = remember(kc, flow) {
-    NativeLoginModel(kc, flow, scope, autoSelectPasskey, offerSavedPasswords, offerToSavePassword) { currentOnResult(it) }
+    NativeLoginModel(kc, flow, scope, autoSelectPasskey, offerSavedPasswords, offerToSavePassword, pushRegistration) { currentOnResult(it) }
   }
   LaunchedEffect(model) { model.startIfNeeded() }
   val state by model.state.collectAsState()

@@ -69,8 +69,7 @@ internal fun DefaultChallengeScreen(presentation: ChallengePresentationContext) 
     ChallengeType.Terms -> TermsScreen(presentation)
     ChallengeType.RecoveryCode -> RecoveryCodeScreen(presentation)
     ChallengeType.Push -> PushScreen(presentation)
-    // EXTENSION POINT: push_enrollment needs the push module's device key and token; until then
-    // apps answer it with a presenter of their own.
+    ChallengeType.PushEnrollment -> PushEnrollmentScreen(presentation)
     else -> UnsupportedScreen(presentation)
   }
 }
@@ -317,6 +316,24 @@ internal fun PasskeyRegistrationScreen(presentation: ChallengePresentationContex
       TextButton(onClick = { presentation.submit(ChallengeAnswer.Skip(challenge.type)) }, enabled = !presentation.isSubmitting, modifier = Modifier.testTag("skipChallenge")) {
         Text(stringResource(R.string.nl_not_now))
       }
+    }
+  }
+}
+
+/**
+ * `push_enrollment` (spec/03 §4.15): enrolls this device with the SDK's DPoP key. Messages reach it
+ * through the screen's `pushRegistration` (the `push` module's FCM token); without one the device
+ * reads its approvals itself (`none`).
+ */
+@Composable
+internal fun PushEnrollmentScreen(presentation: ChallengePresentationContext) {
+  var label by rememberSaveable { mutableStateOf("") }
+  val client = presentation.flowContext.clientName ?: stringResource(R.string.nl_this_service)
+  val fallbackLabel = stringResource(R.string.nl_this_device)
+  ChallengeFrame(presentation, stringResource(R.string.nl_push_enroll_title), stringResource(R.string.nl_push_enroll_subtitle, client)) {
+    AutofillField(value = label, onValueChange = { label = it }, label = stringResource(R.string.nl_device_name), contentType = null, tag = "pushDeviceLabel")
+    Button(onClick = { presentation.enrollPush(label.ifEmpty { fallbackLabel }) }, enabled = !presentation.isSubmitting, modifier = Modifier.fillMaxWidth().testTag("pushEnroll")) {
+      Text(stringResource(R.string.nl_push_enroll))
     }
   }
 }
