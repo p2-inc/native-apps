@@ -184,7 +184,7 @@ final class DemoAppUITests: XCTestCase {
 
   // MARK: - Phase 2 scenarios driven by XCUITest (spec/10 Phase 2b)
 
-  /// S4: bob on demo-ios-otp gets the e-mail code as the only second factor; the code comes from mailpit.
+  /// S4: bob on demo-native-otp gets the e-mail code as the only second factor; the code comes from mailpit.
   func testS4EmailOtpWithResend() throws {
     let app = XCUIApplication()
     app.launch()
@@ -261,7 +261,7 @@ final class DemoAppUITests: XCTestCase {
     XCTAssertTrue(wait(timeout) { self.status(app).contains("Signed in as alice") }, status(app))
   }
 
-  /// S6: password-only login on demo-ios-stepup (acr 1); Transfer is refused with 401 until the
+  /// S6: password-only login on demo-native-stepup (acr 1); Transfer is refused with 401 until the
   /// step-up asks for the TOTP only; then it succeeds with acr 2.
   func testS6StepUpForTheProtectedTransfer() throws {
     let app = XCUIApplication()

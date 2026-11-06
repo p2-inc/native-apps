@@ -109,21 +109,21 @@ Demo realm contents:
   `native-auth.flow-alias=native`. The passkey alternative is offered to a user only once they have
   one; the challenge set is ordered like the flow (passkey first).
 - Flow `native-alternatives` (spec/08 Q2 prototype): password and TOTP as ALTERNATIVE siblings;
-  bound to client `demo-ios-alt` via the client attribute `native-auth.flow-alias`.
-- Flow `native-passkey-first` (client `demo-ios-passkey`): a REQUIRED subflow with `native-passkey`
+  bound to client `demo-native-alt` via the client attribute `native-auth.flow-alias`.
+- Flow `native-passkey-first` (client `demo-native-passkey`): a REQUIRED subflow with `native-passkey`
   ALTERNATIVE (discoverable: no username yet) and a `native-username → native-password` subflow
   ALTERNATIVE, then the conditional second factor. The first challenge set is `[passkey, username]`.
-- Flow `native-step-up` (client `demo-ios-stepup`, spec/03 §5): `native-username` → CONDITIONAL
+- Flow `native-step-up` (client `demo-native-stepup`, spec/03 §5): `native-username` → CONDITIONAL
   *level 1* (`conditional-level-of-authentication` level 1 / max age 36000 s, then passkey or
   password) → CONDITIONAL *level 2* (level 2 / max age 0, `conditional-user-configured`,
   `native-totp`). A plain login yields `acr=1`; `acr_values=2` (fresh login or step-up) adds the
   TOTP; a step-up re-asks only what the requested level needs.
-- Flow `native-otp` (client `demo-ios-otp`, spec/03 §4.6): `native-username` → `native-password` →
+- Flow `native-otp` (client `demo-native-otp`, spec/03 §4.6): `native-username` → `native-password` →
   CONDITIONAL second factor with `native-totp` and `native-otp` (email) as ALTERNATIVEs. The code is
   only sent when `otp` is the single option or the client asks for it (`action=resend`); config alias
   `native-otp - email`: 6 digits, 300 s, 10 s resend cooldown, 3 attempts. Emails land in mailpit
   (template `native-otp.ftl`, subject `nativeOtpSubject`; override both in the realm's email theme).
-- Flow `native-sms` (client `demo-ios-sms`): `native-username` → `native-password` → `native-otp`
+- Flow `native-sms` (client `demo-native-sms`): `native-username` → `native-password` → `native-otp`
   REQUIRED with config `native-otp - sms` (channel `sms-webhook`). The sender needs
   `--spi-native-otp-sender--sms-webhook--url` (and optionally `--token`); the integration test
   `SmsOtpIT` points it at an in-JVM sink through `host.testcontainers.internal`, the compose stack
@@ -138,7 +138,11 @@ Demo realm contents:
   `native-push-enroll` (its native substitute) are enabled. The `apns` sender is installed but idle
   until `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_KEY` (PEM), `APNS_TOPIC` and `APNS_ENVIRONMENT` are set
   in the compose environment; devices enrolled with `pushProviderType` `none` work without Apple (the
-  app pulls pending approvals from `/push-mfa/login/pending`).
+  app pulls pending approvals from `/push-mfa/login/pending`). For FCM, layer
+  `docker-compose.fcm.yml` on the main file with `FCM_PROJECT_ID` set; it sets the `fcm` sender's
+  send URL and mounts the Firebase service account (`FCM_SERVICE_ACCOUNT`, default
+  `~/.config/native-apps/fcm-service-account.json`) as `GOOGLE_APPLICATION_CREDENTIALS`
+  (`android/demo/README.md` §2).
 - WebAuthn **Passwordless** policy: RP ID `localhost`, ES256/RS256, user verification `required`,
   resident key `required`, attestation `none`, no extra origins. Required actions
   `native-passkey-register`, `native-update-password`, `native-verify-email` and `native-terms` are
@@ -146,7 +150,7 @@ Demo realm contents:
   Keycloak's default required actions too, because Keycloak seeds them only into an empty list).
   Realm attributes `native-auth.terms-text|url|version` feed the `terms` challenge (a realm export
   cannot carry required-action config).
-- Client `demo-ios`: public, PKCE S256 required, attribute `native-auth.enabled=true`,
+- Client `demo-native`: public, PKCE S256 required, attribute `native-auth.enabled=true`,
   standard flow enabled (needed for the code exchange), redirect URI `demoapp://auth/callback`
   reserved for the later `redirect_to_web` fallback.
 - Users: `alice` / `alice-password` with TOTP (secret `alice-totp-secret-20261014`, label *Phone*),

@@ -4,7 +4,7 @@ Organised as threat → mitigation → where it is implemented → phase. Source
 
 ## 1. Client impersonation / "first-partyness"
 
-| Threat | A malicious app (or script) calls the challenge endpoint pretending to be `demo-ios`, harvesting credentials or brute-forcing. |
+| Threat | A malicious app (or script) calls the challenge endpoint pretending to be `demo-native`, harvesting credentials or brute-forcing. |
 |---|---|
 | Mitigations | (a) Challenge endpoint only enabled per client (`native-auth.enabled`), never on confidential clients' secrets being shipped; (b) PKCE + DPoP so a captured code/token is useless without the key; (c) rate limiting per `auth_session`, per client, per IP (Keycloak brute-force + endpoint-level token bucket); (d) **App Attest** (iOS) / Play Integrity (Android) → attestation-based client authentication headers (Phase 4); (e) server MAY answer `redirect_to_web` for risky requests (new device, impossible travel) — a policy hook `NativeRiskEvaluator` SPI is reserved. |
 | Residual risk | Until Phase 4, a determined attacker can drive the endpoint from a script. This is **equal to today's risk** on the browser login page; the endpoint does not reveal more than the forms do. Phishing risk (FiPA §9.2) is mitigated by passkeys being the primary factor. |

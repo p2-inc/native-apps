@@ -9,7 +9,7 @@ Examples below are **illustrative, derived from source and committed integration
 These layouts are transcribed from [demo-realm.json](../keycloak-native-auth/demo/realm-export/demo-realm.json), in priority order. R = REQUIRED, A = ALTERNATIVE, C = CONDITIONAL; parentheses give priority, and brackets name subflows. These labels are execution requirements, distinct from descriptor `required`.
 
 ```text
-native                                      client demo-ios (realm default)
+native                                      client demo-native (realm default)
   R(10) native-username
   R(20) [native - primary factor]
     A(5) native-passkey
@@ -20,13 +20,13 @@ native                                      client demo-ios (realm default)
     A(25) native-push                     config: native-push - number match
     A(30) native-recovery-code
 
-native-alternatives                         client demo-ios-alt
+native-alternatives                         client demo-native-alt
   R(10) native-username
   R(20) [native-alternatives - factor]
     A(10) native-password
     A(20) native-totp
 
-native-passkey-first                        client demo-ios-passkey
+native-passkey-first                        client demo-native-passkey
   R(10) [native-passkey-first - identify]
     A(10) native-passkey
     A(20) [native-passkey-first - username password]
@@ -36,7 +36,7 @@ native-passkey-first                        client demo-ios-passkey
     R(10) conditional-user-configured
     A(20) native-totp
 
-native-step-up                              client demo-ios-stepup
+native-step-up                              client demo-native-stepup
   R(10) native-username
   C(20) [native-step-up - level 1]
     R(10) conditional-level-of-authentication config: native-step-up - level 1 condition
@@ -48,7 +48,7 @@ native-step-up                              client demo-ios-stepup
     R(15) conditional-user-configured
     A(20) native-totp
 
-native-otp                                  client demo-ios-otp
+native-otp                                  client demo-native-otp
   R(10) native-username
   R(20) native-password
   C(30) [native-otp - second factor]
@@ -56,7 +56,7 @@ native-otp                                  client demo-ios-otp
     A(20) native-totp
     A(30) native-otp                      config: native-otp - email
 
-native-sms                                  client demo-ios-sms
+native-sms                                  client demo-native-sms
   R(10) native-username
   R(20) native-password
   R(30) native-otp                        config: native-otp - sms
@@ -94,7 +94,7 @@ The export RP ID is `localhost`; change it and the public host together for real
 Initial form, using a PKCE pair from the standard RFC example for illustration:
 
 ```text
-client_id=demo-ios&response_type=code&scope=openid%20profile&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&device_name=Example%20iPhone
+client_id=demo-native&response_type=code&scope=openid%20profile&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&device_name=Example%20iPhone
 ```
 
 Shared terminal response after all required factors/actions:
@@ -110,7 +110,7 @@ Cache-Control: no-store
 SDK automatically POSTs to `/protocol/openid-connect/token`:
 
 ```text
-grant_type=authorization_code&client_id=demo-ios&code=<code>&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+grant_type=authorization_code&client_id=demo-native&code=<code>&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
 ```
 
 ```json
@@ -121,7 +121,7 @@ The client ID in each token exchange must match the example's initial client. Wi
 
 ## Username, password and conditional factors
 
-Preconditions: `demo-ios` / `native`, enabled existing user. `alice` has password/TOTP; `bob` has only password. Start with `kc.authentication().startLogin()` then `await flow.start()`.
+Preconditions: `demo-native` / `native`, enabled existing user. `alice` has password/TOTP; `bob` has only password. Start with `kc.authentication().startLogin()` then `await flow.start()`.
 
 ```mermaid
 sequenceDiagram
@@ -156,7 +156,7 @@ sequenceDiagram
 
 Wrong password/TOTP returns a new 403 envelope with error on that descriptor, e.g. `"error":{"code":"invalid_credential","message":"Invalid password"},"retry":{"remaining":4}`. Use the new session/descriptor and let the user retry. Empty password returns `missing_credential` without a failure. Locked account eventually gives 403 `access_denied`. Unknown user defaults to a phantom password challenge; it never authenticates. Cancellation and session expiry follow the [common error contract](protocol-and-flows.md#errors-retries-and-cancellation).
 
-For `demo-ios-alt`, use the same start/username steps but receive `[password,totp]` (both `required:false`) for alice; either answer completes immediately. Bob receives only password. See [NativeAuthIT](../keycloak-native-auth/demo/src/test/java/io/phasetwo/keycloak/nativeauth/demo/NativeAuthIT.java) and its [happy-path transcript](../keycloak-native-auth/demo/transcripts/NativeAuthIT.happyPathUsernamePasswordTotpYieldsTokensWithoutRedirectUri.json).
+For `demo-native-alt`, use the same start/username steps but receive `[password,totp]` (both `required:false`) for alice; either answer completes immediately. Bob receives only password. See [NativeAuthIT](../keycloak-native-auth/demo/src/test/java/io/phasetwo/keycloak/nativeauth/demo/NativeAuthIT.java) and its [happy-path transcript](../keycloak-native-auth/demo/transcripts/NativeAuthIT.happyPathUsernamePasswordTotpYieldsTokensWithoutRedirectUri.json).
 
 ## Passkey login and registration
 
@@ -180,12 +180,12 @@ sequenceDiagram
   KC-->>App: next factor or authorized (SDK exchanges code)
 ```
 
-1. After registration, identified alice on `demo-ios` gets `[passkey,password]` after username. On `demo-ios-passkey` the very first set is `[passkey,username]`; choose passkey for discoverable login or username → password for its other subflow. Initial client ID is `demo-ios-passkey`; username/password fields match the shared example.
+1. After registration, identified alice on `demo-native` gets `[passkey,password]` after username. On `demo-native-passkey` the very first set is `[passkey,username]`; choose passkey for discoverable login or username → password for its other subflow. Initial client ID is `demo-native-passkey`; username/password fields match the shared example.
 2. Illustrative assertion descriptor: `{"type":"passkey","id":"<execution-passkey>","required":false,"params":{"challenge":"<base64url-challenge>","rp_id":"idp.example.com","timeout":60000,"user_verification":"required","allow_credentials":[],"discoverable":true}}`. Identified mode instead lists enrolled `{type:"public-key",id:"<credential>",transports:[…]}` and `discoverable:false`.
 3. Native UI invokes `try await kc.passkeys().assert(params)`, then `flow.respond(.passkey(assertion), to: challenge)`. Form: `auth_session=<latest>&challenge_type=passkey&challenge_id=<execution-passkey>&credential_id=<credential>&client_data_json=<base64url-client-data>&authenticator_data=<base64url-authenticator-data>&signature=<base64url-signature>&user_handle=<base64url-user-id>`. Discoverable mode resolves user from handle; identified mode can omit handle.
 4. Success advances to conditional second factor (TOTP for alice in `native-passkey-first`; `native` also allows enrolled push/recovery) and shared completion. A passkey does not remove these executions. Wrong signature yields `invalid_credential` with a **new** assertion challenge; missing fields yields `missing_credential`. Platform cancellation (`passkey_cancelled`) sends no answer; choose an alternative or cancel the whole flow.
 
-Mid-flow registration uses `dave` / `dave-password` on `demo-ios` with enabled, assigned `native-passkey-register`. It is a required action, not a primary authentication factor:
+Mid-flow registration uses `dave` / `dave-password` on `demo-native` with enabled, assigned `native-passkey-register`. It is a required action, not a primary authentication factor:
 
 ```mermaid
 sequenceDiagram
@@ -221,7 +221,7 @@ Evidence: [PasskeyIT](../keycloak-native-auth/demo/src/test/java/io/phasetwo/key
 
 ## Email and SMS codes
 
-Use `demo-ios-otp` / `native-otp` or `demo-ios-sms` / `native-sms`. Bob has an email; SMS additionally needs the webhook and allowed `phoneNumber` attribute. Compose configures SMTP to mailpit but **no SMS webhook**. `SmsOtpIT` enables unmanaged user attributes and configures its own sink; those test-only changes are not exported automatically.
+Use `demo-native-otp` / `native-otp` or `demo-native-sms` / `native-sms`. Bob has an email; SMS additionally needs the webhook and allowed `phoneNumber` attribute. Compose configures SMTP to mailpit but **no SMS webhook**. `SmsOtpIT` enables unmanaged user attributes and configures its own sink; those test-only changes are not exported automatically.
 
 ```mermaid
 sequenceDiagram
@@ -255,7 +255,7 @@ Evidence: [OtpIT](../keycloak-native-auth/demo/src/test/java/io/phasetwo/keycloa
 
 ## Step-up and reauthentication
 
-Preconditions: previously stored native credentials/post-login session for the **same client**, `demo-ios-stepup` / `native-step-up`, alice has TOTP. A regular initial login runs username and level-1 password/passkey → shared completion with `acr=1`. A fresh login including `acr_values=2` also asks TOTP before completion.
+Preconditions: previously stored native credentials/post-login session for the **same client**, `demo-native-stepup` / `native-step-up`, alice has TOTP. A regular initial login runs username and level-1 password/passkey → shared completion with `acr=1`. A fresh login including `acr_values=2` also asks TOTP before completion.
 
 ```mermaid
 sequenceDiagram
@@ -279,7 +279,7 @@ sequenceDiagram
 ```
 
 1. API `GET http://localhost:8091/transfer` with headers from `kc.resourceRequestHeaders` returns 401 body `{"error":"insufficient_user_authentication","acr_values":"2",…}` below ACR 2. The app decides to step up; Core does not intercept API calls.
-2. `try await kc.authentication().stepUp(acrValues:"2")`, then `start()` sends `client_id=demo-ios-stepup&response_type=code&scope=openid&code_challenge=<new-S256>&code_challenge_method=S256&acr_values=2&auth_session=<post-login-session>`.
+2. `try await kc.authentication().stepUp(acrValues:"2")`, then `start()` sends `client_id=demo-native-stepup&response_type=code&scope=openid&code_challenge=<new-S256>&code_challenge_method=S256&acr_values=2&auth_session=<post-login-session>`.
 3. Server checks session/client/key, identifies user, carries previous levels and runs flow conditions. Response: 403 new in-flow session, only TOTP, `context:{username:"alice",step_up:true,acr_requested:"2",…}`. Native TOTP screen submits normal TOTP continuation.
 4. Shared completion exchanges using **new** verifier, preserves user session (`sid`) and yields elevated ACR. Store replacement credentials, then explicitly retry API request. `max_age=0`/`prompt=login` can force primary-factor reauthentication; username remains known. If no level needs authentication, step-up can return code immediately. Flow without LoA conditions reasks factors and does not magically produce ACR 2.
 
@@ -287,7 +287,7 @@ Expired post-login value, ended user session or a different `client_id`/key → 
 
 ## Password update, email verification, terms and recovery codes
 
-Use `demo-ios` / `native`. On a fresh export carol has `UPDATE_PASSWORD`, grace `VERIFY_EMAIL`, hank `TERMS_AND_CONDITIONS`; their native substitutes are enabled. Ivy has TOTP plus three single-use recovery codes. These use the same prefix and terminal exchange as username/password login; each required-action response contains a **single** descriptor.
+Use `demo-native` / `native`. On a fresh export carol has `UPDATE_PASSWORD`, grace `VERIFY_EMAIL`, hank `TERMS_AND_CONDITIONS`; their native substitutes are enabled. Ivy has TOTP plus three single-use recovery codes. These use the same prefix and terminal exchange as username/password login; each required-action response contains a **single** descriptor.
 
 ```mermaid
 sequenceDiagram
@@ -322,7 +322,7 @@ Demo values: `carol-password`, `grace-password`, `hank-password`, `ivy-password`
 
 ## Push enrollment and approval
 
-Use `demo-ios` / `native`; device signing key = SDK DPoP key. Device API access needs a native DPoP-bound user token and local enrollment. Post-login enrollment also requires authentication within 300 s. `none` delivery permits polling without Apple infrastructure. Real `apns` needs a device token and configured server sender.
+Use `demo-native` / `native`; device signing key = SDK DPoP key. Device API access needs a native DPoP-bound user token and local enrollment. Post-login enrollment also requires authentication within 300 s. `none` delivery permits polling without Apple infrastructure. Real `apns` needs a device token and configured server sender.
 
 ```mermaid
 sequenceDiagram
@@ -359,7 +359,7 @@ Browser approval uses a separate exported browser flow, not `/native-auth/challe
 
 ## Unsupported required action and browser fallback
 
-Preconditions: `demo-ios` / `native`, frank / `frank-password`, pending `UPDATE_PROFILE`, configured registered callback `demoapp://auth/callback`, initial S256 and PAR feature. Built-in browser flow above completes the unsupported profile action.
+Preconditions: `demo-native` / `native`, frank / `frank-password`, pending `UPDATE_PROFILE`, configured registered callback `demoapp://auth/callback`, initial S256 and PAR feature. Built-in browser flow above completes the unsupported profile action.
 
 ```mermaid
 sequenceDiagram
@@ -383,17 +383,17 @@ sequenceDiagram
 ```
 
 1. Common prefix as frank, then password → 403 `{"error":"redirect_to_web","error_description":"Complete the login in a browser: required_action:UPDATE_PROFILE","request_uri":"urn:ietf:params:oauth:request_uri:<opaque>","expires_in":60,"redirect_uri":"demoapp://auth/callback","state":"<server-state>","reason":"required_action:UPDATE_PROFILE"}`. No native continuation remains.
-2. SDK `.redirectToWeb(request)` → app offers Open browser, calls `kc.webFallback().complete(request,flow:flow)`. Browser GET `/protocol/openid-connect/auth?client_id=demo-ios&request_uri=<encoded-request-uri>` returns normal Keycloak HTML/forms/cookies; it does not transfer native factor success into the browser session. User completes browser authentication/profile action.
-3. Browser redirect `demoapp://auth/callback?code=<browser-code>&state=<server-state>` → SDK validates state → POST token form `grant_type=authorization_code&client_id=demo-ios&code=<browser-code>&code_verifier=<original-verifier>&redirect_uri=demoapp%3A%2F%2Fauth%2Fcallback` → standard tokens. Persist result explicitly. No native post-login `auth_session` is minted by this browser exchange.
+2. SDK `.redirectToWeb(request)` → app offers Open browser, calls `kc.webFallback().complete(request,flow:flow)`. Browser GET `/protocol/openid-connect/auth?client_id=demo-native&request_uri=<encoded-request-uri>` returns normal Keycloak HTML/forms/cookies; it does not transfer native factor success into the browser session. User completes browser authentication/profile action.
+3. Browser redirect `demoapp://auth/callback?code=<browser-code>&state=<server-state>` → SDK validates state → POST token form `grant_type=authorization_code&client_id=demo-native&code=<browser-code>&code_verifier=<original-verifier>&redirect_uri=demoapp%3A%2F%2Fauth%2Fcallback` → standard tokens. Persist result explicitly. No native post-login `auth_session` is minted by this browser exchange.
 4. Expired/used PAR URI or closed browser requires a new login. `web_fallback_cancelled` leaves no native session to resume. Without initial PKCE/PAR/callback the native server instead returns terminal `access_denied`. HTML authenticator accidentally placed in native flow gives `server_error`, not this fallback. [RedirectToWebIT](../keycloak-native-auth/demo/src/test/java/io/phasetwo/keycloak/nativeauth/demo/RedirectToWebIT.java) drives the actual browser forms; UI S7 remains a manual system-browser scenario.
 
 ## Refresh, logout, restoration and cancellation
 
 These are shared lifecycle operations, not additional Keycloak authentication-flow layouts:
 
-1. App stores credentials explicitly after authorized. On relaunch `credentialsManager().stored()` reads local state (possibly expired); `credentials()` refreshes when within its 30-second leeway. SDK POST token form `grant_type=refresh_token&client_id=demo-ios&refresh_token=<refresh>` plus current key proof → token JSON; manager stores replacements and keeps post-login session value. Concurrent manager refreshes share a task. Direct `tokens().refresh` does not persist its result.
+1. App stores credentials explicitly after authorized. On relaunch `credentialsManager().stored()` reads local state (possibly expired); `credentials()` refreshes when within its 30-second leeway. SDK POST token form `grant_type=refresh_token&client_id=demo-native&refresh_token=<refresh>` plus current key proof → token JSON; manager stores replacements and keeps post-login session value. Concurrent manager refreshes share a task. Direct `tokens().refresh` does not persist its result.
 2. Refused refresh `400 {"error":"invalid_grant",…}` becomes `reauthentication_required`; manager clears credentials. A hypothetical refresh `insufficient_authorization` with session is supported by SDK, but this server adds no token-endpoint hook emitting it.
-3. `credentialsManager().logout()` POSTs logout form `client_id=demo-ios&refresh_token=<refresh>` (SDK sends no DPoP here), then clears local credentials even on network failure. It does not remove passkeys, push credentials/enrollment, DPoP key or browser cookies. Direct `tokens().revoke(token:)` POSTs revoke form with `token_type_hint=refresh_token` by default and does not clear local state.
+3. `credentialsManager().logout()` POSTs logout form `client_id=demo-native&refresh_token=<refresh>` (SDK sends no DPoP here), then clears local credentials even on network failure. It does not remove passkeys, push credentials/enrollment, DPoP key or browser cookies. Direct `tokens().revoke(token:)` POSTs revoke form with `token_type_hint=refresh_token` by default and does not clear local state.
 4. `await flow.cancel()` while awaiting input sends `auth_session=<latest>&action=cancel` → 400 `{"error":"invalid_session","error_description":"auth_session cancelled"}`. SDK finishes locally even if request fails; next start needs a newly created flow. No in-progress restoration API persists PKCE and challenges across process restarts.
 
 Evidence: [CredentialsAndTokensTests](../ios/KeycloakNative/Tests/KeycloakNativeCoreTests/CredentialsAndTokensTests.swift), [lifecycle transcript](../keycloak-native-auth/demo/transcripts/NativeAuthIT.tokensCanBeRefreshedLoggedOutAndRevoked.json), and [cancel transcript](../keycloak-native-auth/demo/transcripts/NativeAuthIT.cancelledAuthSessionCannotBeReused.json).

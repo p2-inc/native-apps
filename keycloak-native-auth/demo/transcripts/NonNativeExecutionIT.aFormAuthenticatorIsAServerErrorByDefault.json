@@ -1,8 +1,8 @@
 {
   "test": "NonNativeExecutionIT.aFormAuthenticatorIsAServerErrorByDefault",
-  "recorded_at": "2026-10-23T17:10:30.105397Z",
+  "recorded_at": "2026-11-06T20:41:47.431481Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:65234",
+  "base_url": "http://localhost:56356",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -25,10 +25,10 @@
           "Accept": "application/json"
         },
         "form": {
-          "client_id": "demo-ios-form",
+          "client_id": "demo-native-form",
           "response_type": "code",
           "scope": "openid profile",
-          "code_challenge": "bX8nSCRloGM-Nehiu54pGZLxrgLqs7XfIsgscsP8lp0",
+          "code_challenge": "jrCVNgwtHbX2hVcc9rVLJTDBYLSy_F0Rg8Fx7C5saa8",
           "code_challenge_method": "S256",
           "device_name": "NativeAuthIT"
         }

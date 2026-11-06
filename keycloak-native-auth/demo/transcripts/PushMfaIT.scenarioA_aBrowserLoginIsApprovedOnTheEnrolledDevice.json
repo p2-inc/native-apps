@@ -1,8 +1,8 @@
 {
   "test": "PushMfaIT.scenarioA_aBrowserLoginIsApprovedOnTheEnrolledDevice",
-  "recorded_at": "2026-10-23T17:10:30.596329Z",
+  "recorded_at": "2026-11-06T20:41:47.900719Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:65234",
+  "base_url": "http://localhost:56356",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -34,11 +34,11 @@
         "json": {
           "challenges": [
             {
-              "userId": "65fc687d-3253-401b-a29b-9400055f2c0f",
+              "userId": "24d23a73-0657-46a3-a4ec-be3272225932",
               "username": "alice",
-              "cid": "442ecff3-0264-48d3-88f0-9554389abd4f",
-              "expiresAt": 1792775670,
-              "createdAt": 1792775430,
+              "cid": "b602f58c-38e8-4e3d-8150-2a677f317c34",
+              "expiresAt": 1793997947,
+              "createdAt": 1793997707,
               "clientId": "web-app",
               "clientName": "Web App (not native-enabled)"
             }
@@ -50,7 +50,7 @@
       "seq": 2,
       "request": {
         "method": "POST",
-        "path": "/realms/demo/push-mfa/login/challenges/442ecff3-0264-48d3-88f0-9554389abd4f/respond",
+        "path": "/realms/demo/push-mfa/login/challenges/b602f58c-38e8-4e3d-8150-2a677f317c34/respond",
         "headers": {
           "Content-Type": "application/json",
           "Accept": "application/json",

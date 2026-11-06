@@ -32,7 +32,7 @@ Design: `../../spec/05`, decisions: `../../spec/12-phase1b-decisions.md` and
 ```swift
 import KeycloakNativeCore
 
-let kc = KeycloakNative.configure(issuer: URL(string: "https://idp.example.com/realms/demo")!, clientId: "demo-ios")
+let kc = KeycloakNative.configure(issuer: URL(string: "https://idp.example.com/realms/demo")!, clientId: "demo-native")
 let flow = kc.authentication().startLogin(LoginParameters(scope: "openid profile", deviceName: "My iPhone"))
 var step = try await flow.start()
 loop: while true {

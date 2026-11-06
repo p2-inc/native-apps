@@ -123,8 +123,8 @@ jobs:
       - name: Build + tests (transcript replay from keycloak-native-auth/demo/transcripts)
         run: ./gradlew --no-daemon --console=plain :core:build
       # The runner image has the Android SDK with its licenses accepted; AGP downloads a missing platform.
-      - name: Android, ui and push modules (libraries + instrumentation test APKs; the instrumentation tests themselves need an emulator)
-        run: ./gradlew --no-daemon --console=plain :android:assembleRelease :android:assembleDebugAndroidTest :ui:assembleRelease :ui:assembleDebugAndroidTest :push:assembleRelease
+      - name: Android, ui and push modules and the demo app (libraries + instrumentation test APKs; the instrumentation tests themselves need an emulator; the demo builds without Firebase config)
+        run: ./gradlew --no-daemon --console=plain :android:assembleRelease :android:assembleDebugAndroidTest :ui:assembleRelease :ui:assembleDebugAndroidTest :push:assembleRelease :demo:assembleDebug
       - name: ui model and push tests (JVM)
         run: ./gradlew --no-daemon --console=plain :ui:testDebugUnitTest :push:testDebugUnitTest
       - name: Upload test reports

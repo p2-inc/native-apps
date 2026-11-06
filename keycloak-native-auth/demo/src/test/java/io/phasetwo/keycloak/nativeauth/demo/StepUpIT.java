@@ -29,12 +29,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 /**
  * Step-up / re-authentication with the post-login {@code auth_session} (spec/03 §5, spec/13 D1) on
  * the {@code native-step-up} flow: level 1 = passkey or password (valid 10 h), level 2 = TOTP
- * (loa-max-age 0). Client {@code demo-ios-stepup}.
+ * (loa-max-age 0). Client {@code demo-native-stepup}.
  */
 @ExtendWith(TranscriptRecorder.class)
 class StepUpIT {
 
-  static final String CLIENT_STEP_UP = "demo-ios-stepup";
+  static final String CLIENT_STEP_UP = "demo-native-stepup";
 
   @BeforeAll
   static void startContainer() {

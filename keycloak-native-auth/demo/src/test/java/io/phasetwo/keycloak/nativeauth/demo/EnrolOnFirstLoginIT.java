@@ -195,7 +195,7 @@ class EnrolOnFirstLoginIT {
 
   @Test
   void registrationEndpointsCanBeRestrictedToNativeClients() {
-    // A token from the native login of demo-ios …
+    // A token from the native login of demo-native …
     Pkce pkce = Pkce.s256();
     Response r = login(CLIENT, pkce, "bob", "bob-password", null);
     String token = exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null).jsonPath().getString("access_token");

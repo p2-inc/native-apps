@@ -18,7 +18,7 @@ Format:
   "exchanges": [
     { "seq": 1,
       "request":  { "method": "POST", "path": "/realms/demo/native-auth/challenge", "headers": { "...": "..." },
-                    "form": { "client_id": "demo-ios", "...": "..." } },
+                    "form": { "client_id": "demo-native", "...": "..." } },
       "response": { "status": 403, "headers": { "...": "..." }, "json": { "error": "insufficient_authorization", "...": "..." } } }
   ]
 }

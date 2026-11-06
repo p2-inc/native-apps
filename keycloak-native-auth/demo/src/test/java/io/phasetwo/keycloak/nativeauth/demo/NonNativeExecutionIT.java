@@ -26,7 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(TranscriptRecorder.class)
 class NonNativeExecutionIT {
 
-  static final String CLIENT_FORM = "demo-ios-form";
+  static final String CLIENT_FORM = "demo-native-form";
   static final String FLOW = "native-with-form";
   static final String FORM_AUTHENTICATOR = "auth-username-password-form";
 

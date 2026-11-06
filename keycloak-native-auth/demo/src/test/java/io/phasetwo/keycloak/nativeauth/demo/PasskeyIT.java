@@ -44,7 +44,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(TranscriptRecorder.class)
 class PasskeyIT {
 
-  static final String CLIENT_PASSKEY = "demo-ios-passkey";
+  static final String CLIENT_PASSKEY = "demo-native-passkey";
 
   /** alice's passkey, registered once through the authenticated endpoints and shared by the tests. */
   private static SoftwareAuthenticator alicePasskey;

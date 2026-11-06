@@ -38,7 +38,7 @@ keycloak-native-auth/
 ├── conformance/                         HTTP-level test-suite (JUnit 5 + REST Assured + webauthn4j test authenticator)
 ├── demo/
 │   ├── docker-compose.yml               Keycloak + Postgres + mailpit + extensions + ba-itsys JAR
-│   ├── realm-export/demo-realm.json     native flow pre-wired, demo-ios client, test users
+│   ├── realm-export/demo-realm.json     native flow pre-wired, demo-native client, test users
 │   └── scripts/                         curl walkthrough; passkey simulator; push simulator
 └── docs/                                copies of 03-protocol-spec.md, admin setup guide
 ```
@@ -182,7 +182,7 @@ published sources (the published jars target Java 25; `@RunOnVirtualThread` drop
    └─ native-redirect-to-web              ALTERNATIVE (fallback; only reached if nothing above can run)
    ```
    Realm attribute `native-auth.flow-alias=native` (or per-client override attribute).
-2. Client `demo-ios`: public, PKCE S256 required, `native-auth.enabled=true`, DPoP bound tokens optional, `oauth2.device.authorization.grant.enabled=false`, no redirect URIs except the fallback web callback (`demoapp://auth/callback`) for `redirect_to_web`.
+2. Client `demo-native`: public, PKCE S256 required, `native-auth.enabled=true`, DPoP bound tokens optional, `oauth2.device.authorization.grant.enabled=false`, no redirect URIs except the fallback web callback (`demoapp://auth/callback`) for `redirect_to_web`.
 3. WebAuthn Passwordless policy: RP ID = IdP host, UV required, resident key required, attestation `none`, algorithms ES256/RS256.
 4. ba-itsys config: `push-device-client` (confidential, client-credentials, DPoP), `pushProviderType` default `apns`, number-match enabled, enrolment via `request_uri`.
 5. Browser flow: add ba-itsys `push-mfa` authenticator as an ALTERNATIVE second factor (scenario A).
@@ -196,7 +196,7 @@ published sources (the published jars target Java 25; `@RunOnVirtualThread` drop
 | Integration | Keycloak test containers (`quay.io/keycloak/keycloak:26.x`) + extensions mounted; REST Assured | whole flow per factor; failure branches; step-up; session expiry; redirect_to_web |
 | Passkey in CI | webauthn4j's software authenticator (or `com.yubico.webauthn` test helpers) to produce assertions/attestations | no device needed |
 | Push in CI | ba-itsys `log` sender + its simulator scripts; our conformance client signs login JWTs with a generated EC key | end-to-end approve/deny/number-match |
-| Conformance suite | Same integration tests packaged as a runnable JAR: `java -jar conformance.jar --base https://idp/realms/x --client demo-ios` | published for third-party server and client authors |
+| Conformance suite | Same integration tests packaged as a runnable JAR: `java -jar conformance.jar --base https://idp/realms/x --client demo-native` | published for third-party server and client authors |
 | Load | k6 script hitting `/challenge` with username+password+totp; reuse ba-itsys loadtest for push | before Phase 4 exit |
 
 ## 9. Observability

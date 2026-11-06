@@ -34,8 +34,8 @@ import org.keycloak.models.utils.TimeBasedOTP;
 @ExtendWith(TranscriptRecorder.class)
 class NativeAuthIT {
 
-  static final String CLIENT = "demo-ios";
-  static final String CLIENT_ALT = "demo-ios-alt";
+  static final String CLIENT = "demo-native";
+  static final String CLIENT_ALT = "demo-native-alt";
   static final String ALICE_TOTP_SECRET = "alice-totp-secret-20261014";
 
   @BeforeAll
@@ -600,7 +600,7 @@ class NativeAuthIT {
 
   @Test
   void q2_alternativesAreOfferedTogetherAndEitherCanBeAnswered() {
-    // password + totp are ALTERNATIVE siblings in the 'native-alternatives' flow bound to demo-ios-alt.
+    // password + totp are ALTERNATIVE siblings in the 'native-alternatives' flow bound to demo-native-alt.
     Pkce pkce = Pkce.s256();
     Response r = start(CLIENT_ALT, pkce);
     r = answer(r, "username", "username", "alice");

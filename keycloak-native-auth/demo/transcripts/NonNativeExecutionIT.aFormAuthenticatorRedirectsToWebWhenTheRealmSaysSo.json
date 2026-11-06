@@ -1,8 +1,8 @@
 {
   "test": "NonNativeExecutionIT.aFormAuthenticatorRedirectsToWebWhenTheRealmSaysSo",
-  "recorded_at": "2026-10-23T17:10:30.055588Z",
+  "recorded_at": "2026-11-06T20:41:47.393999Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:65234",
+  "base_url": "http://localhost:56356",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -25,10 +25,10 @@
           "Accept": "application/json"
         },
         "form": {
-          "client_id": "demo-ios-form",
+          "client_id": "demo-native-form",
           "response_type": "code",
           "scope": "openid profile",
-          "code_challenge": "gIPa1g3rtEP5QcO9Lr8n-qpudPPo8XpisjbW0RFoyvw",
+          "code_challenge": "oEdLI_x9hMxMSO1YKZFHL6vGZdrocIcKHvzt4E0YwnQ",
           "code_challenge_method": "S256",
           "device_name": "NativeAuthIT"
         }
@@ -43,10 +43,10 @@
         "json": {
           "error": "redirect_to_web",
           "error_description": "Complete the login in a browser: execution:auth-username-password-form",
-          "request_uri": "urn:ietf:params:oauth:request_uri:f6bf4ff5-4311-ecee-a5ae-1f7c90798fc8",
+          "request_uri": "urn:ietf:params:oauth:request_uri:acee711c-b625-4e96-874d-dad360a89a8b",
           "expires_in": 60,
           "redirect_uri": "demoapp://auth/callback",
-          "state": "MucsOIXDndbjct4vm0jD5Wj3UR6UTBM5",
+          "state": "2qPzh7n43VnrZnqeiR9MxiAckIwzMlp7",
           "reason": "execution:auth-username-password-form",
           "protocol_version": "1"
         }

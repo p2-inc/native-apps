@@ -91,7 +91,7 @@ intact and needs no engine wrapper (09 Q2 spirit).
 - A flow without LoA conditions (`native`) re-runs every factor on a step-up and `acr` stays `1`
   (`stepUpOnAFlowWithoutLevelsRerunsEveryFactor`) — the same as Keycloak's browser behaviour. The
   demo therefore gained `native-step-up` (level 1 = primary factor, 10 h; level 2 = TOTP, max age
-  0) bound to `demo-ios-stepup`, mirroring the step-up flow from Keycloak's documentation. A plain
+  0) bound to `demo-native-stepup`, mirroring the step-up flow from Keycloak's documentation. A plain
   login on it yields `acr=1`, which is what makes S6 demonstrable (`acr_values=2` → only TOTP, same
   `sid`, `acr=2`; `acr_values=1` afterwards → immediate code, `auth_time` untouched; `max_age=0` →
   full re-authentication, `auth_time` moves). Evidence: `StepUpIT`.
@@ -184,7 +184,7 @@ so an attacker cannot make the server burn SMS by failing. `configuredFor` (used
 `conditional-user-configured`) consults the realm-default channel because authenticator config is
 not available there.
 
-**Demo.** Flow `native-otp` (client `demo-ios-otp`): `[totp, otp]` for alice (nothing sent until she
+**Demo.** Flow `native-otp` (client `demo-native-otp`): `[totp, otp]` for alice (nothing sent until she
 picks), `[otp]` sent at once for bob; config 10 s cooldown / 3 attempts so the ITs stay short;
 mailpit as the SMTP sink in compose and as a Testcontainers sibling on a shared network; `OtpIT`
 reads codes from mailpit's API. The SMS webhook has no IT (it would need a host-side sink); it is
