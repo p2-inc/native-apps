@@ -1,0 +1,17 @@
+# Real FCM delivery for the Android demo (android/demo/README.md). Layer it on the main file:
+#
+#   FCM_PROJECT_ID=<firebase project id> docker compose -f docker-compose.yml -f docker-compose.fcm.yml up --wait
+#
+# ba-itsys' `fcm` sender reads the HTTP v1 send URL from its SPI option and the service account from
+# GOOGLE_APPLICATION_CREDENTIALS (keycloak-native-auth/README.md). The key file stays outside the
+# repository: FCM_SERVICE_ACCOUNT defaults to ~/.config/native-apps/fcm-service-account.json.
+#
+# The emulator reaches the stack as 10.0.2.2, so tokens carry that issuer; for the step-up demo API
+# also set RS_EXTRA_ISSUERS=",http://10.0.2.2:${KC_PORT:-8080}/realms/demo".
+services:
+  keycloak:
+    environment:
+      KC_SPI_PUSH_NOTIFICATION_SENDER__FCM__GOOGLE_FCM_URL: "https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID:?set FCM_PROJECT_ID to the Firebase project id}/messages:send"
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/keycloak/conf/fcm-service-account.json
+    volumes:
+      - ${FCM_SERVICE_ACCOUNT:-~/.config/native-apps/fcm-service-account.json}:/opt/keycloak/conf/fcm-service-account.json:ro

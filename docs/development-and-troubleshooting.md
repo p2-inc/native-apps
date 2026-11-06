@@ -20,7 +20,7 @@
 
 The [parent POM](../keycloak-native-auth/pom.xml) pins Keycloak **26.8.1**, Java release **21**, push MFA **2.3.7**, JUnit **6.1.3**, Testcontainers **2.0.5**, REST Assured **6.1.0**. Keycloak server private SPIs/services are compile dependencies; binary compatibility across other versions is not promised. Test realm/container version and production provider build must match. Compose adds Postgres 17 Alpine, mailpit v1.27 and Node 22 Alpine. Resource server uses Node built-ins without npm dependencies.
 
-Swift tools/language mode 6, iOS 17+ / macOS 14+ are declared in the [manifest](../Package.swift). The demo also targets iOS 17+. Xcode 27 / Swift 6.4 is the toolchain verified here. No Android SDK/build/sample exists; planned Android parity does not imply current Android APIs.
+Swift tools/language mode 6, iOS 17+ / macOS 14+ are declared in the [manifest](../Package.swift). The demo also targets iOS 17+. Xcode 27 / Swift 6.4 is the toolchain verified here. The Android SDK (`android/`, compileSdk 37, minSdk 28) and its demo app are in progress; see [the Android demo README](../android/demo/README.md) and [spec/17](../spec/17-android-sdk-plan.md).
 
 ## Build, deploy and run
 

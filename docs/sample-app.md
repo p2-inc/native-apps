@@ -76,6 +76,10 @@ Real APNs requires Apple signing/push capability, APNs token, and server `APNS_T
 
 For S7 register `demoapp://auth/callback` on the client (export already does). `ASWebAuthenticationSession` uses its callback scheme and returned state; the checked-in Info.plist does not declare a URL type. This SDK path is handled by the system session callback, not a general app deep-link router. An app implementing separate deep-link routing must configure that independently. The native session is gone after handoff; browser cancellation requires a new attempt.
 
+## Android demo
+
+[android/demo](../android/demo/README.md) is the Android counterpart, with Login, Home, Push and Diagnostics tabs on the SDK's default Compose screens. From the emulator the compose stack is `http://10.0.2.2:8080`. Real FCM delivery needs a Firebase project, its `google-services.json` and the server override `keycloak-native-auth/demo/docker-compose.fcm.yml` with the service account. Real passkeys need an HTTPS RP ID that serves `assetlinks.json`, and the app's `android:apk-key-hash:` origin in the Passwordless policy. Its README has the steps.
+
 ## Sample shortcuts to replace
 
 Development HTTP/`NSAllowsLocalNetworking`, admin credentials, seeded passwords/TOTP/recovery codes and permissive dev hostname settings are local conveniences. Demo OTP reuse is enabled for repeatable tests. Password/OTP inputs live in model strings; clear them promptly in a production app. `apply` stores asynchronously with `try?`, hiding persistence errors; production code should await storage and handle failure before treating restoration as reliable. Scenario switching drops `flow` without canceling server state, restore only covers one client, and credentials/enrollment are not scoped separately by user. Provide deliberate account switching, cancellation, navigation, refresh and error policies.

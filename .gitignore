@@ -12,3 +12,6 @@ android/.gradle/
 android/.kotlin/
 android/**/build/
 android/local.properties
+
+# The Android demo copies the developer's Firebase config here at configure time (android/demo/README.md).
+android/demo/google-services.json

@@ -138,7 +138,11 @@ Demo realm contents:
   `native-push-enroll` (its native substitute) are enabled. The `apns` sender is installed but idle
   until `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_KEY` (PEM), `APNS_TOPIC` and `APNS_ENVIRONMENT` are set
   in the compose environment; devices enrolled with `pushProviderType` `none` work without Apple (the
-  app pulls pending approvals from `/push-mfa/login/pending`).
+  app pulls pending approvals from `/push-mfa/login/pending`). For FCM, layer
+  `docker-compose.fcm.yml` on the main file with `FCM_PROJECT_ID` set; it sets the `fcm` sender's
+  send URL and mounts the Firebase service account (`FCM_SERVICE_ACCOUNT`, default
+  `~/.config/native-apps/fcm-service-account.json`) as `GOOGLE_APPLICATION_CREDENTIALS`
+  (`android/demo/README.md` §2).
 - WebAuthn **Passwordless** policy: RP ID `localhost`, ES256/RS256, user verification `required`,
   resident key `required`, attestation `none`, no extra origins. Required actions
   `native-passkey-register`, `native-update-password`, `native-verify-email` and `native-terms` are
