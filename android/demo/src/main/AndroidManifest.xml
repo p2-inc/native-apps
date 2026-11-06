@@ -21,7 +21,7 @@
       </intent-filter>
     </activity>
 
-    <!-- The browser fallback's callback (redirect_uri demoapp://auth/callback, as the demo-ios clients register). -->
+    <!-- The browser fallback's callback (redirect_uri demoapp://auth/callback, as the demo-native clients register). -->
     <activity
       android:name="io.phasetwo.keycloak.nativeauth.sdk.android.NativeAuthRedirectActivity"
       android:exported="true"

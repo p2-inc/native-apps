@@ -74,7 +74,7 @@ HTTP 200 `{"authorization_code":"<code>","auth_session":"<post-login-session>"}`
 
 ```text
 POST /realms/demo/protocol/openid-connect/token
-grant_type=authorization_code&client_id=demo-ios&code=<code>&code_verifier=<original-verifier>
+grant_type=authorization_code&client_id=demo-native&code=<code>&code_verifier=<original-verifier>
 ```
 
 Token response uses `access_token`, `token_type`, `expires_in`, and optional `refresh_token`, `refresh_expires_in`, `id_token`, `scope`. No `redirect_uri` is sent in default mode. SDK does not validate token signatures/issuer/audience/nonce; decoded claims are display-only. Resource servers must validate tokens and DPoP when applicable.

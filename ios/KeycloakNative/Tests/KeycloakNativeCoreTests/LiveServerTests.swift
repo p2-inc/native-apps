@@ -36,7 +36,7 @@ struct LiveServerTests {
   }
 
   @Test func metadataAndS3PasswordTotpLoginWithTokenLifecycle() async throws {
-    let kc = sdk(clientId: "demo-ios")
+    let kc = sdk(clientId: "demo-native")
     let metadata = try await kc.metadata()
     #expect(metadata.passkey?.rpId == "localhost")
     #expect(metadata.dpopSigningAlgValuesSupported.contains("ES256"))
@@ -58,7 +58,7 @@ struct LiveServerTests {
 
   @Test func s11RegisterPasskeyAfterLoginThenS1AllowListLogin() async throws {
     let authenticator = SoftwareAuthenticator(origin: Self.base)
-    let kc = sdk(clientId: "demo-ios", passkeys: authenticator)
+    let kc = sdk(clientId: "demo-native", passkeys: authenticator)
     let credentials = try await loginAlice(kc)
     let registered = try await kc.passkeys().registerNewPasskey(label: "LiveServerTests", credentials: credentials)
     #expect(registered.credentialId == authenticator.credentialIdBase64URL && registered.label == "LiveServerTests")
@@ -66,8 +66,8 @@ struct LiveServerTests {
     let viaPasskey = try await loginAlice(kc, passkey: true)
     #expect(viaPasskey.accessTokenClaims?["preferred_username"]?.stringValue == "alice")
 
-    // S2: discoverable login on demo-ios-passkey with the resident credential just registered.
-    let kcDiscoverable = sdk(clientId: "demo-ios-passkey", passkeys: authenticator)
+    // S2: discoverable login on demo-native-passkey with the resident credential just registered.
+    let kcDiscoverable = sdk(clientId: "demo-native-passkey", passkeys: authenticator)
     let flow = kcDiscoverable.authentication().startLogin(LoginParameters(scope: "openid"))
     var step = try await flow.start()
     let passkey = try #require(step.challenges?.first(.passkey))
@@ -79,7 +79,7 @@ struct LiveServerTests {
     #expect(step.credentials != nil)
 
     // Wrong key → invalid_credential with a fresh challenge, then cancel.
-    let wrong = sdk(clientId: "demo-ios", passkeys: SoftwareAuthenticator(origin: Self.base, wrongKey: true))
+    let wrong = sdk(clientId: "demo-native", passkeys: SoftwareAuthenticator(origin: Self.base, wrongKey: true))
     let flow2 = wrong.authentication().startLogin(LoginParameters(scope: "openid"))
     step = try await flow2.start()
     step = try await flow2.respond(.username("alice"), to: try #require(step.challenges?.first(.username)))
@@ -92,7 +92,7 @@ struct LiveServerTests {
 
   @Test func daveEnrolsAPasskeyInBandOnFirstLogin() async throws {
     let authenticator = SoftwareAuthenticator(origin: Self.base)
-    let kc = sdk(clientId: "demo-ios", passkeys: authenticator)
+    let kc = sdk(clientId: "demo-native", passkeys: authenticator)
     let flow = kc.authentication().startLogin(LoginParameters(scope: "openid"))
     var step = try await flow.start()
     step = try await flow.respond(.username("dave"), to: try #require(step.challenges?.first(.username)))
@@ -123,7 +123,7 @@ struct LiveServerTests {
   // MARK: - Phase 2 (spec/13)
 
   @Test func s6StepUpAgainstTheResourceServerAsksOnlyForTotp() async throws {
-    let kc = sdk(clientId: "demo-ios-stepup")
+    let kc = sdk(clientId: "demo-native-stepup")
     // Level 1: password only on the step-up flow.
     let flow = kc.authentication().startLogin(LoginParameters(scope: "openid profile", deviceName: "LiveServerTests"))
     var step = try await flow.start()
@@ -168,7 +168,7 @@ struct LiveServerTests {
       let match = try #require(text.firstRange(of: /code is (\d{6})/))
       return String(text[match].suffix(6))
     }
-    let kc = sdk(clientId: "demo-ios-otp")
+    let kc = sdk(clientId: "demo-native-otp")
     let flow = kc.authentication().startLogin(LoginParameters(scope: "openid", deviceName: "LiveServerTests"))
     var step = try await flow.start()
     step = try await flow.respond(.username("alice"), to: try #require(step.challenges?.first(.username)))
@@ -184,7 +184,7 @@ struct LiveServerTests {
   }
 
   @Test func s7FrankIsRedirectedToTheWeb() async throws {
-    let kc = sdk(clientId: "demo-ios")
+    let kc = sdk(clientId: "demo-native")
     let flow = kc.authentication().startLogin(LoginParameters(scope: "openid", deviceName: "LiveServerTests"))
     var step = try await flow.start()
     step = try await flow.respond(.username("frank"), to: try #require(step.challenges?.first(.username)))
@@ -208,7 +208,7 @@ struct LiveServerTests {
   }
 
   @Test func carolUpdatesHerPasswordInBand() async throws {
-    let kc = sdk(clientId: "demo-ios")
+    let kc = sdk(clientId: "demo-native")
     var (flow, step) = try await loginToRequiredAction(kc, username: "carol", password: "carol-password")
     if let challenge = step.challenges?.first(.updatePassword) {
       #expect(challenge.id == "native-update-password" && challenge.required)
@@ -222,7 +222,7 @@ struct LiveServerTests {
 
   @Test func graceVerifiesHerEmailWithACode() async throws {
     let mailpit = ProcessInfo.processInfo.environment["KEYCLOAK_NATIVE_LIVE_MAILPIT"] ?? "http://localhost:8025"
-    let kc = sdk(clientId: "demo-ios")
+    let kc = sdk(clientId: "demo-native")
     var (flow, step) = try await loginToRequiredAction(kc, username: "grace", password: "grace-password")
     if let challenge = step.challenges?.first(.verifyEmail) {
       let params = try #require(challenge.verifyEmailParams)
@@ -239,7 +239,7 @@ struct LiveServerTests {
   }
 
   @Test func hankAcceptsTheTerms() async throws {
-    let kc = sdk(clientId: "demo-ios")
+    let kc = sdk(clientId: "demo-native")
     var (flow, step) = try await loginToRequiredAction(kc, username: "hank", password: "hank-password")
     if let challenge = step.challenges?.first(.terms) {
       #expect(challenge.id == "native-terms" && challenge.termsParams?.text?.hasPrefix("Demo terms") == true)
@@ -249,7 +249,7 @@ struct LiveServerTests {
   }
 
   @Test func s14BruteForceLockEndsWithAccessDenied() async throws {
-    let kc = sdk(clientId: "demo-ios")
+    let kc = sdk(clientId: "demo-native")
     let flow = kc.authentication().startLogin(LoginParameters(scope: "openid"))
     var step = try await flow.start()
     step = try await flow.respond(.username("erin"), to: try #require(step.challenges?.first(.username)))

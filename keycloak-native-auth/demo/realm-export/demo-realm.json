@@ -59,7 +59,7 @@
   },
   "clients": [
     {
-      "clientId": "demo-ios",
+      "clientId": "demo-native",
       "name": "Demo iOS App",
       "description": "Public native client using the native authentication profile",
       "enabled": true,
@@ -81,9 +81,9 @@
       }
     },
     {
-      "clientId": "demo-ios-alt",
+      "clientId": "demo-native-alt",
       "name": "Demo iOS App (alternatives flow)",
-      "description": "Same as demo-ios but bound to the 'native-alternatives' flow (spec/08 Q2 prototype)",
+      "description": "Same as demo-native but bound to the 'native-alternatives' flow (spec/08 Q2 prototype)",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": true,
@@ -102,9 +102,9 @@
       }
     },
     {
-      "clientId": "demo-ios-passkey",
+      "clientId": "demo-native-passkey",
       "name": "Demo iOS App (passkey-first flow)",
-      "description": "Same as demo-ios but bound to the 'native-passkey-first' flow: discoverable passkey OR username+password, then the conditional second factor",
+      "description": "Same as demo-native but bound to the 'native-passkey-first' flow: discoverable passkey OR username+password, then the conditional second factor",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": true,
@@ -123,7 +123,7 @@
       }
     },
     {
-      "clientId": "demo-ios-stepup",
+      "clientId": "demo-native-stepup",
       "name": "Demo iOS App (step-up flow)",
       "description": "Bound to the native-step-up flow: acr 1 after a primary factor, acr 2 after TOTP (spec/06 S6, S8)",
       "enabled": true,
@@ -144,7 +144,7 @@
       }
     },
     {
-      "clientId": "demo-ios-otp",
+      "clientId": "demo-native-otp",
       "name": "Demo iOS App (email OTP flow)",
       "description": "Bound to the native-otp flow: email one-time code as second factor (spec/06 S4)",
       "enabled": true,
@@ -179,7 +179,7 @@
       }
     },
     {
-      "clientId": "demo-ios-sms",
+      "clientId": "demo-native-sms",
       "name": "Demo iOS (SMS code)",
       "description": "Bound to the native-otp flow: email one-time code as second factor (spec/06 S4)",
       "enabled": true,
@@ -808,7 +808,7 @@
     },
     {
       "alias": "native-step-up",
-      "description": "Native flow with step-up levels (spec/03 \u00a75): level 1 = primary factor (passkey or password, valid 10 h), level 2 = TOTP (re-asked on every step-up); client demo-ios-stepup",
+      "description": "Native flow with step-up levels (spec/03 \u00a75): level 1 = primary factor (passkey or password, valid 10 h), level 2 = TOTP (re-asked on every step-up); client demo-native-stepup",
       "providerId": "basic-flow",
       "topLevel": true,
       "builtIn": false,
@@ -916,7 +916,7 @@
     },
     {
       "alias": "native-otp",
-      "description": "Native flow with a one-time code second factor (spec/03 \u00a74.6): username -> password -> [totp | email otp]; client demo-ios-otp",
+      "description": "Native flow with a one-time code second factor (spec/03 \u00a74.6): username -> password -> [totp | email otp]; client demo-native-otp",
       "providerId": "basic-flow",
       "topLevel": true,
       "builtIn": false,

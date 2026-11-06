@@ -197,7 +197,7 @@ import Testing
   }
 
   @Test func bobGetsAnSmsCodeThroughTheWebhook() async throws {
-    let (h, transport, _) = try Harness.replay(["SmsOtpIT.bobGetsAnSmsCodeThroughTheWebhook"], clientId: "demo-ios-sms")
+    let (h, transport, _) = try Harness.replay(["SmsOtpIT.bobGetsAnSmsCodeThroughTheWebhook"], clientId: "demo-native-sms")
     let flow = h.sdk.authentication().startLogin(Self.itParameters)
     var step = try await flow.start()
     step = try await flow.respond(.username("bob"), to: try #require(step.challenges?.first(.username)))

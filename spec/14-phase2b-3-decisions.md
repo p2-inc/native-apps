@@ -173,7 +173,7 @@ Keycloak's `SETUP_REQUIRED` shortcut would grant the primary factor without any 
 **Registration endpoints restricted to native clients** (11 D5 option): realm attribute
 `native-auth.passkey-registration-native-clients-only=true` makes `/passkey/register/*` answer
 `403 access_denied` for a token whose client is not `native-auth.enabled`
-(`registrationEndpointsCanBeRestrictedToNativeClients`, which flips demo-ios's flag under a token it
+(`registrationEndpointsCanBeRestrictedToNativeClients`, which flips demo-native's flag under a token it
 issued). Default off, as 11 D5 chose.
 
 ## D5 — SMS webhook proven against a host-side sink; the OTP mail is a theme template
@@ -182,7 +182,7 @@ issued). Default off, as 11 D5 chose.
 exposes its port with `Testcontainers.exposeHostPorts`, and configures the sender through the
 environment form of the SPI options (`KC_SPI_NATIVE_OTP_SENDER__SMS_WEBHOOK__URL=http://host.testcontainers.internal:<port>/sms`,
 `…__TOKEN`). The demo realm gained flow `native-sms` (username → password → `native-otp` with
-config `native-otp - sms`, channel `sms-webhook`) and client `demo-ios-sms`; bob carries
+config `native-otp - sms`, channel `sms-webhook`) and client `demo-native-sms`; bob carries
 `phoneNumber` (the IT enables the realm's unmanaged-attribute policy, since Keycloak's declarative
 user profile drops unknown attributes on import). `SmsOtpIT.bobGetsAnSmsCodeThroughTheWebhook`
 checks the descriptor (`channel: sms`, `destination_masked: ***23`, `sent: true`), the webhook

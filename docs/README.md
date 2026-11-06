@@ -52,7 +52,7 @@ KC_BASE=http://localhost:8089 ./scripts/walkthrough.sh
 
 Packaging assembles all deployable JARs in `demo/target/providers/`; Compose mounts them into `/opt/keycloak/providers` and imports [demo-realm.json](../keycloak-native-auth/demo/realm-export/demo-realm.json). It also starts Postgres, mailpit (`http://localhost:8025`) and the step-up demo API (`http://localhost:8091`). Admin console: `http://localhost:8089/admin`, development credentials `admin` / `admin`.
 
-The import already supplies realm `demo`, public client `demo-ios`, `native-auth.enabled=true`, standard flow enabled, PKCE S256, and realm attribute `native-auth.flow-alias=native`. Do not bind this flow as the browser flow: the custom endpoint selects it by attribute. Existing persisted realms are not overwritten by startup import; use an isolated fresh stack or deliberately update the realm. [Flow layouts](flow-examples.md) explain the supplied clients and executions.
+The import already supplies realm `demo`, public client `demo-native`, `native-auth.enabled=true`, standard flow enabled, PKCE S256, and realm attribute `native-auth.flow-alias=native`. Do not bind this flow as the browser flow: the custom endpoint selects it by attribute. Existing persisted realms are not overwritten by startup import; use an isolated fresh stack or deliberately update the realm. [Flow layouts](flow-examples.md) explain the supplied clients and executions.
 
 The walkthrough logs in `alice` through username → password → TOTP → code → tokens, computes the current seeded TOTP, and checks its responses. The seeded credentials are development fixtures only. To avoid consuming MFA or required-action state initially, the app can also log in `bob` / `bob-password` through username and password alone.
 

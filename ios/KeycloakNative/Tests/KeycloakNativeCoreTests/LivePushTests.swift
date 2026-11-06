@@ -18,7 +18,7 @@ struct LivePushTests {
     options.secureStore = InMemorySecureStore()
     options.dpop = .software
     options.logger = NoopLogger()
-    return KeycloakNative.configure(issuer: Self.issuer, clientId: "demo-ios", options: options)
+    return KeycloakNative.configure(issuer: Self.issuer, clientId: "demo-native", options: options)
   }
 
   /// alice through password + TOTP (or push when offered and `approve` is given), tokens stored.

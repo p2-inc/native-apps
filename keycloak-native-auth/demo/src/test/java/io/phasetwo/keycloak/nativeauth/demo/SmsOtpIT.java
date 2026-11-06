@@ -24,13 +24,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 /**
  * The {@code sms-webhook} sender (spec/03 §4.6, spec/13 D4) against a host-side sink reachable from
  * the container as {@code host.testcontainers.internal} (spec/14 D5): flow {@code native-sms}
- * (client {@code demo-ios-sms}) asks bob for an SMS code after the password; the webhook receives
+ * (client {@code demo-native-sms}) asks bob for an SMS code after the password; the webhook receives
  * {@code {"to","message"}} with the configured bearer token.
  */
 @ExtendWith(TranscriptRecorder.class)
 class SmsOtpIT {
 
-  static final String CLIENT_SMS = "demo-ios-sms";
+  static final String CLIENT_SMS = "demo-native-sms";
   static final String BOB_PHONE = "+15555550123";
 
   @BeforeAll

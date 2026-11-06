@@ -34,8 +34,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(TranscriptRecorder.class)
 class CredentialConditionIT {
 
-  static final String CLIENT_ALLOW_LIST = "demo-ios-cc";
-  static final String CLIENT_PASSKEY_FIRST = "demo-ios-passkey-cc";
+  static final String CLIENT_ALLOW_LIST = "demo-native-cc";
+  static final String CLIENT_PASSKEY_FIRST = "demo-native-passkey-cc";
 
   @BeforeAll
   static void arrange() {

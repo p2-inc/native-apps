@@ -1,8 +1,8 @@
 {
   "test": "ExtensionParametersIT.moreThanSixteenExtensionParametersAreInvalidRequest",
-  "recorded_at": "2026-10-23T17:10:13.490638Z",
+  "recorded_at": "2026-11-06T20:41:30.116238Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:65234",
+  "base_url": "http://localhost:56356",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -25,10 +25,10 @@
           "Accept": "application/json"
         },
         "form": {
-          "client_id": "demo-ios",
+          "client_id": "demo-native",
           "response_type": "code",
           "scope": "openid profile",
-          "code_challenge": "ApCp_3IA-H_4DnY4sBrF-C55BJNqeTITfEsscLMvfWs",
+          "code_challenge": "mPY0moMM7tr2fqHqAf1rz6TGUJap-MdU0gbPwwWlsj0",
           "code_challenge_method": "S256",
           "x_p0": "v",
           "x_p1": "v",

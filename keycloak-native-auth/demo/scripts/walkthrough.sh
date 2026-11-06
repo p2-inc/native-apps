@@ -6,7 +6,7 @@ set -euo pipefail
 
 KC_BASE="${KC_BASE:-http://localhost:8080}"
 REALM="${REALM:-demo}"
-CLIENT_ID="${CLIENT_ID:-demo-ios}"
+CLIENT_ID="${CLIENT_ID:-demo-native}"
 USERNAME="${USERNAME:-alice}"
 PASSWORD="${PASSWORD:-alice-password}"
 # Raw TOTP secret seeded for alice in realm-export/demo-realm.json (its UTF-8 bytes are the HMAC key).

@@ -22,7 +22,7 @@ import KeycloakNativeCore
 
 let kc = KeycloakNative.configure(
   issuer: URL(string: "https://idp.example.com/realms/demo")!,
-  clientId: "demo-ios"
+  clientId: "demo-native"
 )
 ```
 

@@ -49,9 +49,9 @@ internal fun Credentials.expiredCopy(): Credentials = copy(expiresAt = Instant.n
  */
 class TranscriptReplayTest {
   companion object {
-    const val DEMO = "demo-ios"
-    const val DEMO_ALT = "demo-ios-alt"
-    const val DEMO_PASSKEY = "demo-ios-passkey"
+    const val DEMO = "demo-native"
+    const val DEMO_ALT = "demo-native-alt"
+    const val DEMO_PASSKEY = "demo-native-passkey"
 
     /** The integration tests send this `device_name`; the SDK must send exactly the same field set. */
     val IT_PARAMETERS = LoginParameters(scope = "openid profile", deviceName = "NativeAuthIT")

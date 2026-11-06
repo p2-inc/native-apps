@@ -54,19 +54,19 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
   public var details: String {
     switch self {
     case .s1UsernamePasskey:
-      "Client demo-ios. Log in as alice; once alice has a passkey (run S11 first) the primary-factor set is [passkey, password]. Pick the passkey, then TOTP."
+      "Client demo-native. Log in as alice; once alice has a passkey (run S11 first) the primary-factor set is [passkey, password]. Pick the passkey, then TOTP."
     case .s2DiscoverablePasskey:
-      "Client demo-ios-passkey: the first challenge set is [passkey (discoverable), username]. Use the passkey without typing a username; user_handle identifies the account."
+      "Client demo-native-passkey: the first challenge set is [passkey (discoverable), username]. Use the passkey without typing a username; user_handle identifies the account."
     case .s3PasswordTotp:
-      "Client demo-ios. alice / alice-password, then the 6-digit code from the seeded secret (walkthrough.sh prints it, or any authenticator app with alice-totp-secret-20261014)."
+      "Client demo-native. alice / alice-password, then the 6-digit code from the seeded secret (walkthrough.sh prints it, or any authenticator app with alice-totp-secret-20261014)."
     case .s4EmailOtp:
-      "Client demo-ios-otp. bob / bob-password gets an email code as the only second factor (sent at once); alice gets [totp, otp] and the code is only sent when she asks for it. Codes land in mailpit (http://localhost:8025). Resend has a 10 s cooldown."
+      "Client demo-native-otp. bob / bob-password gets an email code as the only second factor (sent at once); alice gets [totp, otp] and the code is only sent when she asks for it. Codes land in mailpit (http://localhost:8025). Resend has a 10 s cooldown."
     case .s5DefaultUI:
-      "Client demo-ios-otp with the KeycloakNativeUI product: NativeLoginView drives the whole flow with the default screens and the “Try another way” chooser (alice sees TOTP vs email code)."
+      "Client demo-native-otp with the KeycloakNativeUI product: NativeLoginView drives the whole flow with the default screens and the “Try another way” chooser (alice sees TOTP vs email code)."
     case .s6StepUp:
-      "Client demo-ios-stepup. Log in (password only = acr 1), then Home → Transfer: the demo API answers 401 insufficient_user_authentication acr_values=2; the app steps up with the stored auth_session (only TOTP is asked), retries and succeeds with acr 2."
+      "Client demo-native-stepup. Log in (password only = acr 1), then Home → Transfer: the demo API answers 401 insufficient_user_authentication acr_values=2; the app steps up with the stored auth_session (only TOTP is asked), retries and succeeds with acr 2."
     case .s7RedirectToWeb:
-      "Client demo-ios. frank / frank-password has a pending Update Profile action with no native variant: the server answers redirect_to_web with a PAR request_uri; Safari completes the login and the code comes back to the app (demoapp://auth/callback)."
+      "Client demo-native. frank / frank-password has a pending Update Profile action with no native variant: the server answers redirect_to_web with a PAR request_uri; Safari completes the login and the code comes back to the app (demoapp://auth/callback)."
     case .s8RefreshReauth:
       "After any login: Home → “End session on the server” (revokes the refresh token), then “Refresh tokens”: the SDK reports reauthentication_required and the app starts a new login."
     case .s9PushEnrolAndApprove:
@@ -80,7 +80,7 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .s13CustomPresenter:
       "Same as S5 but the TOTP screen is replaced through challengePresenter(for: .totp) — the SDK's screens are replaceable one by one."
     case .s14BruteForce:
-      "Client demo-ios, user erin. Submits wrong passwords automatically until Keycloak locks the account (failureFactor 5, or two failures within a second); the flow ends with 403 access_denied."
+      "Client demo-native, user erin. Submits wrong passwords automatically until Keycloak locks the account (failureFactor 5, or two failures within a second); the flow ends with 403 access_denied."
     case .daveEnrolment:
       "dave / dave-password carries the native-passkey-register required action: after the password the server asks for passkey_registration in-band (challenge_id native-passkey-register). Reset with docker compose down -v."
     case .carolUpdatePassword:

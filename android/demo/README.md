@@ -37,7 +37,7 @@ Settings are Gradle properties, read at build time (`-Pdemo.<name>=…` or `~/.g
 | Property | Default |
 |---|---|
 | `demo.issuer` | `http://10.0.2.2:8080/realms/demo` (use `…:8089/…` if compose runs with `KC_PORT=8089`) |
-| `demo.clientId`, `demo.passkeyClientId`, `demo.stepUpClientId`, `demo.otpClientId` | `demo-ios`, `demo-ios-passkey`, `demo-ios-stepup`, `demo-ios-otp` (the realm's native clients; they register `demoapp://auth/callback`) |
+| `demo.clientId`, `demo.passkeyClientId`, `demo.stepUpClientId`, `demo.otpClientId` | `demo-native`, `demo-native-passkey`, `demo-native-stepup`, `demo-native-otp` (the realm's native clients; they register `demoapp://auth/callback`) |
 | `demo.resourceServer` | `http://10.0.2.2:8091` |
 | `demo.allowRpIdMismatch` | `false` |
 | `demo.deviceName` | `KeycloakNativeDemo Android` |

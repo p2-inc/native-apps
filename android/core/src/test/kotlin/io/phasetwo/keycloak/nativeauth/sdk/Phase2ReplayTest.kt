@@ -42,8 +42,8 @@ private fun URI.query(name: String): String? =
  */
 class Phase2ReplayTest {
   companion object {
-    const val STEP_UP_CLIENT = "demo-ios-stepup"
-    const val OTP_CLIENT = "demo-ios-otp"
+    const val STEP_UP_CLIENT = "demo-native-stepup"
+    const val OTP_CLIENT = "demo-native-otp"
     val IT_PARAMETERS = TranscriptReplayTest.IT_PARAMETERS
     val STEP_UP_PARAMETERS = LoginParameters(scope = "openid profile", acrValues = "2", deviceName = "NativeAuthIT")
   }
@@ -213,7 +213,7 @@ class Phase2ReplayTest {
     assertTrue(presenter.opened.size == 1 && presenter.opened[0].second == "demoapp")
     val opened = presenter.opened.first().first
     assertTrue(opened.path.endsWith("/protocol/openid-connect/auth"))
-    assertEquals("demo-ios", opened.query("client_id"))
+    assertEquals("demo-native", opened.query("client_id"))
     // The exchange carried the redirect_uri and this flow's verifier.
     val token = transport.sent.last().formFields.orEmpty()
     assertTrue(token.contains("redirect_uri" to "demoapp://auth/callback"))
