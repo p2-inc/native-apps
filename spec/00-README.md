@@ -1,8 +1,8 @@
 # Keycloak Native Mobile Authentication — Investigation & Build Plan
 
-**Date:** 15 October 2026
-**Status:** Phase 0 spike (`09`), Phase 1a server passkeys (`11`), Phase 1b iOS SDK core + example app (`12`), Phase 1c simulator pass and Phase 2 step-up / redirect-to-web / OTP / UI product (`13`) done; Phase 2b close-out and Phase 3 push MFA done on the simulator (`14`); username + password + TOTP + passkeys + email OTP, push MFA (ba-itsys + APNs sender + native bridge), step-up and the browser fallback work end to end against Keycloak 26.8.1 from curl, the Java integration tests, the Swift SDK and the example app on the iOS 27 simulator (not yet on a physical device)
-**Scope:** Browserless native authentication for Keycloak (passkeys, TOTP, OTP codes, push MFA), delivered as (1) a set of Keycloak extensions, (2) an iOS SDK, and (3) an example iOS app.
+This folder is the design record: the investigation, the protocol, the plans for each component and the decisions taken while building them, in the order they were written. The plans and the dated decision memos are kept as written; when a later memo changes a decision, it says which one it supersedes. For where the project stands now, read the [roadmap](../ROADMAP.md) and `10-status-and-task-list.md`.
+
+**Scope:** browserless native authentication for Keycloak (passwords, passkeys, TOTP, one-time codes, recovery codes, push MFA), delivered as Keycloak extensions, an iOS SDK and an Android SDK, with a demo app for each.
 
 ## Documents in this folder
 
@@ -15,7 +15,7 @@
 | 05 | `05-ios-sdk-plan.md` | Swift package design, public API, UI customisation model, push module, credential storage, DPoP, error model. |
 | 06 | `06-example-ios-app.md` | Demo app structure, screens, scenarios to demonstrate, local dev setup. |
 | 07 | `07-security-considerations.md` | Threat model and mitigations: first-partyness/attestation, token & session binding, replay, push fatigue, passkey RP ID, key storage. |
-| 08 | `08-roadmap-and-open-questions.md` | Phased implementation plan, effort estimates, risks, and unresolved questions that need a decision before/while building. |
+| 08 | `08-roadmap-and-open-questions.md` | The original phased plan, risks, and the open questions with the answers recorded later. The current plan is the top-level [`ROADMAP.md`](../ROADMAP.md). |
 | 09 | `09-phase0-decisions.md` | **Phase 0 spike results** (14 Oct 2026): answers to Q1–Q4 with evidence, decisions taken while building `keycloak-native-auth/`, spec edits, extension points. |
 | 10 | `10-status-and-task-list.md` | **Current state and task list**: what exists and is verified, protocol coverage, known limitations, open tasks per phase. Start here when picking up the project. |
 | 11 | `11-phase1-decisions.md` | **Phase 1a (server passkeys) decisions** (14 Oct 2026): native required actions in-band, `native-passkey` eligibility/discoverable login, flow-order challenge sets, post-login `auth_session`, registration endpoints and freshness rule, the test software authenticator. |
@@ -26,7 +26,7 @@
 | 16 | `16-keycloak-version-support.md` | **Keycloak version support** (23 Oct 2026): one build against 26.8.1 runs on stock 26.4, 26.6 and 26.8; the API differences handled at runtime (`KeycloakCompat`, `ServicesCompat`, `WebAuthnCompat`), the CI matrix; supersedes the 26.8 floor of 08 Q4 / 09 Q4. |
 | 17 | `17-android-sdk-plan.md` | **Android SDK plan** (23 Oct 2026): readiness, modules (a plain-JVM `core` replaying the shared transcripts, then `android`, `push`, `ui`, `demo`), platform mapping, API sketch, testing, order of work, open questions. |
 
-## Executive summary
+## Executive summary (October 2026, before the build)
 
 **Protocol foundation.** Adopt the IETF draft *OAuth 2.0 for First-Party Applications* (FiPA, `draft-ietf-oauth-first-party-apps-04`, July 2026) as the outer envelope: a POST-only *Authorization Challenge Endpoint* that returns either an `authorization_code` or an `insufficient_authorization` error carrying an `auth_session` plus structured challenge descriptors. The draft deliberately leaves the challenge payloads to each deployment, so we define a **Keycloak Native Auth Profile** that specifies them. Tokens are then obtained from Keycloak's normal token endpoint, so everything downstream (refresh, introspection, logout, step-up via RFC 9470) stays standard.
 
@@ -41,5 +41,4 @@
 ## How to use these files
 
 - Treat `03-protocol-spec.md` as the source of truth; both the Keycloak extensions and the SDK are implementations of it. Change the spec first, then the implementations.
-- `08-roadmap-and-open-questions.md` lists decisions that block or shape implementation — resolve the "Decide before Phase 0" items first.
 - All source URLs reviewed are listed at the end of `01-reference-review.md`.
