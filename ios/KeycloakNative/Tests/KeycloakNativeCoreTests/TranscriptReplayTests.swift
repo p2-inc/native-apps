@@ -5,9 +5,9 @@ import Testing
 /// Contract tests: the SDK drives each recorded scenario through `MockTransport`, which rejects any
 /// request that differs from what the integration test sent and answers with what Keycloak sent.
 @Suite(.serialized) struct TranscriptReplayTests {
-  static let demoIOS = "demo-ios"
-  static let demoAlt = "demo-ios-alt"
-  static let demoPasskey = "demo-ios-passkey"
+  static let demoIOS = "demo-native"
+  static let demoAlt = "demo-native-alt"
+  static let demoPasskey = "demo-native-passkey"
   /// The integration tests send this `device_name`; the SDK must send exactly the same field set.
   static let itParameters = LoginParameters(scope: "openid profile", deviceName: "NativeAuthIT")
 

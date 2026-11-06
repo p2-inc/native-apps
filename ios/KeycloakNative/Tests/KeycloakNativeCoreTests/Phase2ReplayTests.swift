@@ -5,8 +5,8 @@ import Testing
 /// Phase 2 contract tests (spec/13): step-up, OTP, redirect_to_web, DPoP-bound sessions, replayed
 /// from the transcripts of StepUpIT, OtpIT, RedirectToWebIT, DPoPBindingIT and PasskeyIT.
 @Suite(.serialized) struct Phase2ReplayTests {
-  static let stepUpClient = "demo-ios-stepup"
-  static let otpClient = "demo-ios-otp"
+  static let stepUpClient = "demo-native-stepup"
+  static let otpClient = "demo-native-otp"
   static let itParameters = TranscriptReplayTests.itParameters
 
   // MARK: - Step-up (spec/03 §5)
@@ -181,7 +181,7 @@ import Testing
     #expect(presenter.opened.count == 1 && presenter.opened[0].scheme == "demoapp")
     let opened = try #require(presenter.opened.first?.url)
     #expect(opened.path.hasSuffix("/protocol/openid-connect/auth"))
-    #expect(URLComponents(url: opened, resolvingAgainstBaseURL: false)?.queryItems?.contains { $0.name == "client_id" && $0.value == "demo-ios" } == true)
+    #expect(URLComponents(url: opened, resolvingAgainstBaseURL: false)?.queryItems?.contains { $0.name == "client_id" && $0.value == "demo-native" } == true)
     // The exchange carried the redirect_uri and this flow's verifier.
     let token = try #require(transport.sent.last)
     #expect(token.formFields?.contains { $0.name == "redirect_uri" && $0.value == "demoapp://auth/callback" } == true)

@@ -213,7 +213,7 @@ class Phase2bReplayTest {
 
   @Test
   fun bobGetsAnSmsCodeThroughTheWebhook() = runTest {
-    val (h, transport, _) = Harness.replay(listOf("SmsOtpIT.bobGetsAnSmsCodeThroughTheWebhook"), "demo-ios-sms")
+    val (h, transport, _) = Harness.replay(listOf("SmsOtpIT.bobGetsAnSmsCodeThroughTheWebhook"), "demo-native-sms")
     val flow = h.sdk.authentication().startLogin(itParameters)
     var step = flow.upToSecondStep("bob", "bob-password")
     val otp = step.require(ChallengeType.Otp)

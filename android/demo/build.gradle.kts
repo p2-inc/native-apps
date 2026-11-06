@@ -41,10 +41,10 @@ android {
 
     // 10.0.2.2 is the host's localhost from the emulator; compose publishes Keycloak on KC_PORT (8080).
     buildConfigField("String", "ISSUER", quoted(demoSetting("issuer", "http://10.0.2.2:8080/realms/demo")))
-    buildConfigField("String", "CLIENT_ID", quoted(demoSetting("clientId", "demo-ios")))
-    buildConfigField("String", "PASSKEY_CLIENT_ID", quoted(demoSetting("passkeyClientId", "demo-ios-passkey")))
-    buildConfigField("String", "STEP_UP_CLIENT_ID", quoted(demoSetting("stepUpClientId", "demo-ios-stepup")))
-    buildConfigField("String", "OTP_CLIENT_ID", quoted(demoSetting("otpClientId", "demo-ios-otp")))
+    buildConfigField("String", "CLIENT_ID", quoted(demoSetting("clientId", "demo-native")))
+    buildConfigField("String", "PASSKEY_CLIENT_ID", quoted(demoSetting("passkeyClientId", "demo-native-passkey")))
+    buildConfigField("String", "STEP_UP_CLIENT_ID", quoted(demoSetting("stepUpClientId", "demo-native-stepup")))
+    buildConfigField("String", "OTP_CLIENT_ID", quoted(demoSetting("otpClientId", "demo-native-otp")))
     buildConfigField("String", "RESOURCE_SERVER", quoted(demoSetting("resourceServer", "http://10.0.2.2:8091")))
     buildConfigField("boolean", "ALLOW_RP_ID_MISMATCH", demoSetting("allowRpIdMismatch", "false"))
     buildConfigField("String", "DEVICE_NAME", quoted(demoSetting("deviceName", "KeycloakNativeDemo Android")))

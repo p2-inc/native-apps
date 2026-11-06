@@ -397,7 +397,7 @@ The following is frozen as **v1.0-rc**: §1.1 metadata (except the `push` block)
 B=https://idp.example.com/realms/demo
 # 1. start
 curl -s -X POST $B/native-auth/challenge -H 'Accept: application/json' \
-  -d client_id=demo-ios -d response_type=code -d scope='openid profile' \
+  -d client_id=demo-native -d response_type=code -d scope='openid profile' \
   -d code_challenge=$CC -d code_challenge_method=S256
 # -> 403 insufficient_authorization, auth_session=S1, challenges=[{type:username,id:E1}]
 
@@ -415,10 +415,10 @@ curl -s -X POST $B/native-auth/challenge -d auth_session=$S3 -d challenge_type=t
 # -> 200 {"authorization_code":"C","auth_session":"S4"}
 
 # 5. tokens
-curl -s -X POST $B/protocol/openid-connect/token -d grant_type=authorization_code -d client_id=demo-ios -d code=C -d code_verifier=$CV
+curl -s -X POST $B/protocol/openid-connect/token -d grant_type=authorization_code -d client_id=demo-native -d code=C -d code_verifier=$CV
 
 # 6. later: step up to acr "2" inside the same user session (§5), with a new PKCE pair
-curl -s -X POST $B/native-auth/challenge -d client_id=demo-ios -d response_type=code -d scope=openid \
+curl -s -X POST $B/native-auth/challenge -d client_id=demo-native -d response_type=code -d scope=openid \
   -d code_challenge=$CC2 -d code_challenge_method=S256 -d acr_values=2 -d auth_session=$S4
 # -> 403, context.step_up=true, context.username=alice, challenges=[{type:totp,id:E5}]  (no username step)
 curl -s -X POST $B/native-auth/challenge -d auth_session=$S5 -d challenge_type=totp -d challenge_id=E5 -d totp=123456

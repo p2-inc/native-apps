@@ -32,7 +32,7 @@ All binary values are base64url without padding. Field names are the ones of `sp
 
 ## B. Log in with the passkey (spec/03 §4.3)
 
-Client `demo-ios` (flow `native`): after `username`, the set is `[passkey, password]` once the user
+Client `demo-native` (flow `native`): after `username`, the set is `[passkey, password]` once the user
 has a passkey:
 
 ```bash
@@ -44,7 +44,7 @@ curl -s -X POST "$B/native-auth/challenge" -d auth_session="$S" -d challenge_typ
 # -> 403 totp challenge (alice) or 200 { authorization_code, auth_session } (users without a second factor)
 ```
 
-Client `demo-ios-passkey` (flow `native-passkey-first`): the **first** response already offers
+Client `demo-native-passkey` (flow `native-passkey-first`): the **first** response already offers
 `[passkey (discoverable: true, allow_credentials: []), username]`; answer `passkey` with a resident
 credential (the `user_handle` names the user) or `username` to fall back to password.
 

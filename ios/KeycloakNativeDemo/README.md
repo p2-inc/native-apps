@@ -63,10 +63,10 @@ manual.
 
 ### Phase 2 scenarios on the simulator (S4, S6, S7, S8, S5/S13; all but S7 also run as XCUITests)
 
-- **S4** (client `demo-ios-otp`): `bob / bob-password` → the email code is sent at once; read it in
+- **S4** (client `demo-native-otp`): `bob / bob-password` → the email code is sent at once; read it in
   mailpit (`http://localhost:8025`). `alice` gets `[totp, otp]` and a "Send me a code" button.
 - **S5 / S13**: the same client rendered by `NativeLoginView`; S13 swaps the TOTP screen.
-- **S6** (client `demo-ios-stepup`): log in with the password (acr 1), Home → **Transfer**: the
+- **S6** (client `demo-native-stepup`): log in with the password (acr 1), Home → **Transfer**: the
   compose `resource-server` (`http://localhost:8091`) answers `401 insufficient_user_authentication`,
   the app steps up with the stored `auth_session`, the Login tab shows only the TOTP, and the next
   Transfer succeeds with acr 2 (the token is DPoP-bound; the API checks the proof).
@@ -138,7 +138,7 @@ Platform passkeys need (a) an RP ID that is a real domain the app is associated 
    sheet anyway unless the entitlement matches.
 5. Run on a device or simulator signed in to iCloud Keychain. Order: **S3** (log in) → **S11**
    (Home → Register passkey) → **S1** (restart login: `[passkey, password]` after the username) →
-   **S2** (client `demo-ios-passkey`, discoverable). **dave**: fresh realm (`docker compose down -v`),
+   **S2** (client `demo-native-passkey`, discoverable). **dave**: fresh realm (`docker compose down -v`),
    log in as `dave / dave-password`, the `passkey_registration` challenge appears in-band.
 
 The Diagnostics tab shows every request/response with secrets masked (`auth_session`, codes, tokens,

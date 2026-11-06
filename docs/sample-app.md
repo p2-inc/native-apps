@@ -16,7 +16,7 @@ xcodebuild -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo \
 
 Open the committed `KeycloakNativeDemo.xcodeproj` in Xcode, choose application scheme **KeycloakNativeDemo**, select a simulator, and Run. Package-library schemes are not executables. The generated project is committed; XcodeGen is needed only when regenerating from [project.yml](../ios/KeycloakNativeDemo/project.yml): `xcodegen generate` in that directory. Keep simulator ad hoc signing; disabling signing can cause Keychain `-34018`.
 
-[Config.plist](../ios/KeycloakNativeDemo/App/Config.plist) supplies `Issuer=http://localhost:8089/realms/demo`, `ClientId=demo-ios`, `PasskeyClientId=demo-ios-passkey`, `StepUpClientId=demo-ios-stepup`, `OtpClientId=demo-ios-otp`, `ResourceServer=http://localhost:8091`, `AllowRpIdMismatch=false`, `DeviceName=KeycloakNativeDemo`. [DemoConfig](../ios/KeycloakNativeDemo/Sources/KeycloakNativeDemoApp/DemoConfig.swift) loads these from the app bundle and has matching fallback defaults. There is no settings UI. On a physical device, `localhost` is that device; use a reachable correctly configured HTTPS server/issuer.
+[Config.plist](../ios/KeycloakNativeDemo/App/Config.plist) supplies `Issuer=http://localhost:8089/realms/demo`, `ClientId=demo-native`, `PasskeyClientId=demo-native-passkey`, `StepUpClientId=demo-native-stepup`, `OtpClientId=demo-native-otp`, `ResourceServer=http://localhost:8091`, `AllowRpIdMismatch=false`, `DeviceName=KeycloakNativeDemo`. [DemoConfig](../ios/KeycloakNativeDemo/Sources/KeycloakNativeDemoApp/DemoConfig.swift) loads these from the app bundle and has matching fallback defaults. There is no settings UI. On a physical device, `localhost` is that device; use a reachable correctly configured HTTPS server/issuer.
 
 Begin with S3 (alice/password/TOTP; current code from the walkthrough), or bob/password on a regular flow to skip second factor. Home's claims/token type/expiry and a successful `/token` exchange in Diagnostics confirm SDK completion. A `.challenges` username/context value alone does not mean authentication succeeded.
 
@@ -41,16 +41,16 @@ On authorized, `apply` sets in-memory credentials, clears flow and launches a ta
 
 | Scenario | Client/flow and actions |
 | --- | --- |
-| S1, S3 | `demo-ios` / `native`: username → passkey or password → configured second factor. S1 needs a previously registered passkey; S3 works from fresh export. |
-| S2 | `demo-ios-passkey` / `native-passkey-first`: discoverable passkey or username/password branch, then conditional TOTP |
-| S4 | `demo-ios-otp` / `native-otp`: bob gets email code automatically; alice chooses TOTP or requests code. Inbox `http://localhost:8025`. |
+| S1, S3 | `demo-native` / `native`: username → passkey or password → configured second factor. S1 needs a previously registered passkey; S3 works from fresh export. |
+| S2 | `demo-native-passkey` / `native-passkey-first`: discoverable passkey or username/password branch, then conditional TOTP |
+| S4 | `demo-native-otp` / `native-otp`: bob gets email code automatically; alice chooses TOTP or requests code. Inbox `http://localhost:8025`. |
 | S5, S13 | Same OTP client using default SDK UI; S13 substitutes the TOTP screen |
-| S6 | `demo-ios-stepup` / `native-step-up`: initial ACR 1, Home → Transfer → Login TOTP → retry Transfer with ACR 2 |
+| S6 | `demo-native-stepup` / `native-step-up`: initial ACR 1, Home → Transfer → Login TOTP → retry Transfer with ACR 2 |
 | S7 | frank/password → `UPDATE_PROFILE` unsupported natively → system browser login/profile completion → callback/token exchange |
 | S8 | Home “End session on the server” revokes refresh token but keeps local copy; “Refresh tokens” then demonstrates `reauthentication_required` |
 | S9, S10, S12 | Standard client: enroll on Home → approve browser/native sign-in from Sign-in requests → token/provider/key/lockout maintenance |
 | S11 | After login, Home → Register passkey; stale auth triggers reauthentication on Login, then retry registration |
-| S14 | erin; automatic deliberate wrong-password sequence until Keycloak lockout; uses `demo-ios`, not your production account |
+| S14 | erin; automatic deliberate wrong-password sequence until Keycloak lockout; uses `demo-native`, not your production account |
 | Dave | `native-passkey-register` required action after password → native platform registration → tokens |
 | Carol, Grace, Hank | Password → native password update / email code verification / terms acceptance → tokens (declining terms fails) |
 | Ivy | Password → TOTP or recovery code; last recovery code triggers browser-only code generation |

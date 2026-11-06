@@ -151,7 +151,7 @@ sends no proof), so the replay tests prove the `Bearer` path and the live tests 
 Scope was Core only, so the app renders `FlowStep` itself (05 §4 "full control"): one section per
 challenge in server order, errors from the descriptor, a passkey button, the mid-flow registration
 form, and an "unsupported type" notice. `DemoModel` (`@MainActor @Observable`) owns one
-`KeycloakNative` per client (`demo-ios`, `demo-ios-passkey`), the flow log and the stored
+`KeycloakNative` per client (`demo-native`, `demo-native-passkey`), the flow log and the stored
 credentials; S14 is automated (wrong passwords until `access_denied`). No Settings bundle, no
 `DemoAPIClient`/resource server (S6 is Phase 2).
 

@@ -15,15 +15,15 @@ public struct DemoConfig: Sendable, Equatable {
 
   public static let defaults = DemoConfig(
     issuer: URL(string: "http://localhost:8089/realms/demo")!,
-    clientId: "demo-ios",
-    passkeyClientId: "demo-ios-passkey",
-    stepUpClientId: "demo-ios-stepup",
-    otpClientId: "demo-ios-otp",
+    clientId: "demo-native",
+    passkeyClientId: "demo-native-passkey",
+    stepUpClientId: "demo-native-stepup",
+    otpClientId: "demo-native-otp",
     resourceServer: URL(string: "http://localhost:8091")!,
     allowRpIdMismatch: false,
     deviceName: "KeycloakNativeDemo")
 
-  public init(issuer: URL, clientId: String, passkeyClientId: String, stepUpClientId: String = "demo-ios-stepup", otpClientId: String = "demo-ios-otp", resourceServer: URL = URL(string: "http://localhost:8091")!, allowRpIdMismatch: Bool, deviceName: String) {
+  public init(issuer: URL, clientId: String, passkeyClientId: String, stepUpClientId: String = "demo-native-stepup", otpClientId: String = "demo-native-otp", resourceServer: URL = URL(string: "http://localhost:8091")!, allowRpIdMismatch: Bool, deviceName: String) {
     self.issuer = issuer
     self.clientId = clientId
     self.passkeyClientId = passkeyClientId

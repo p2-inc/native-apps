@@ -6,13 +6,13 @@
   <key>Issuer</key>
   <string>http://localhost:8089/realms/demo</string>
   <key>ClientId</key>
-  <string>demo-ios</string>
+  <string>demo-native</string>
   <key>PasskeyClientId</key>
-  <string>demo-ios-passkey</string>
+  <string>demo-native-passkey</string>
   <key>StepUpClientId</key>
-  <string>demo-ios-stepup</string>
+  <string>demo-native-stepup</string>
   <key>OtpClientId</key>
-  <string>demo-ios-otp</string>
+  <string>demo-native-otp</string>
   <!-- S6: docker compose service resource-server (GET /transfer requires acr 2) -->
   <key>ResourceServer</key>
   <string>http://localhost:8091</string>

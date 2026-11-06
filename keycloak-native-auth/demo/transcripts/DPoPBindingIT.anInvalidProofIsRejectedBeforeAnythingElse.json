@@ -1,8 +1,8 @@
 {
   "test": "DPoPBindingIT.anInvalidProofIsRejectedBeforeAnythingElse",
-  "recorded_at": "2026-10-23T17:10:26.143139Z",
+  "recorded_at": "2026-11-06T20:41:42.730303Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:65234",
+  "base_url": "http://localhost:56356",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -26,10 +26,10 @@
           "DPoP": "***"
         },
         "form": {
-          "client_id": "demo-ios",
+          "client_id": "demo-native",
           "response_type": "code",
           "scope": "openid profile",
-          "code_challenge": "0ZdNFMav0_xTlqnBQ45qpZfa-qCfD8EcC2HbiJpNvQg",
+          "code_challenge": "RDGSH34tGIbp10UCKo6KMgGC9mQH9UM5EH-J1yiiPuU",
           "code_challenge_method": "S256",
           "device_name": "NativeAuthIT"
         }
@@ -59,10 +59,10 @@
           "DPoP": "***"
         },
         "form": {
-          "client_id": "demo-ios",
+          "client_id": "demo-native",
           "response_type": "code",
           "scope": "openid profile",
-          "code_challenge": "7AKGCUEAQYuCvAaZ3-qIob2Corf524jhjCDKQmHUm1A",
+          "code_challenge": "yUz9aweNlYBo8OjlqF1eHWww4GIv5PLLN_jXqlTXSh4",
           "code_challenge_method": "S256",
           "device_name": "NativeAuthIT"
         }

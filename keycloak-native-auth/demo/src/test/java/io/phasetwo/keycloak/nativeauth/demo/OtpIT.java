@@ -23,13 +23,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * The {@code otp} challenge over email (spec/03 §4.6, spec/13 D4) on the {@code native-otp} flow
- * (client {@code demo-ios-otp}): username → password → [totp | otp]. Codes are read back from
+ * (client {@code demo-native-otp}): username → password → [totp | otp]. Codes are read back from
  * mailpit. The flow's config: 6 digits, ttl 300 s, resend cooldown 10 s, 3 attempts.
  */
 @ExtendWith(TranscriptRecorder.class)
 class OtpIT {
 
-  static final String CLIENT_OTP = "demo-ios-otp";
+  static final String CLIENT_OTP = "demo-native-otp";
 
   @BeforeAll
   static void startContainer() {

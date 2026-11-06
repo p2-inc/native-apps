@@ -44,7 +44,7 @@ class AuthSessionCodecTest {
     return new AuthSessionClaims()
         .setRootSessionId("root-1")
         .setTabId("tab-1")
-        .setClientId("demo-ios")
+        .setClientId("demo-native")
         .setIat(1_760_000_000L);
   }
 
@@ -66,7 +66,7 @@ class AuthSessionCodecTest {
     AuthSessionClaims decoded = codec.decode(token);
     assertEquals("root-1", decoded.getRootSessionId());
     assertEquals("tab-1", decoded.getTabId());
-    assertEquals("demo-ios", decoded.getClientId());
+    assertEquals("demo-native", decoded.getClientId());
     assertEquals(1_760_000_000L, decoded.getIat());
     assertNull(decoded.getJkt());
   }
@@ -85,7 +85,7 @@ class AuthSessionCodecTest {
     String token = codec.encode(claims());
     String payload = new String(Base64.getUrlDecoder().decode(token.split("\\.")[3]));
     assertFalse(payload.contains("root-1"));
-    assertFalse(payload.contains("demo-ios"));
+    assertFalse(payload.contains("demo-native"));
   }
 
   @Test
@@ -141,7 +141,7 @@ class AuthSessionCodecTest {
         codec.encode(
             new AuthSessionClaims()
                 .setUserSessionId("user-session-1")
-                .setClientId("demo-ios")
+                .setClientId("demo-native")
                 .setIat(now)
                 .setExp(now + 3600));
     AuthSessionClaims decoded = codec.decode(token);
@@ -160,7 +160,7 @@ class AuthSessionCodecTest {
         codec.encode(
             new AuthSessionClaims()
                 .setUserSessionId("user-session-1")
-                .setClientId("demo-ios")
+                .setClientId("demo-native")
                 .setIat(now - 10)
                 .setExp(now - 1));
     assertThrows(InvalidAuthSessionException.class, () -> codec.decode(token));
@@ -169,7 +169,7 @@ class AuthSessionCodecTest {
   @Test
   void payloadWithNeitherShapeIsRejected() {
     AuthSessionCodec codec = new AuthSessionCodec(keys("k1", aesKey(16)));
-    String token = codec.encode(new AuthSessionClaims().setClientId("demo-ios").setIat(1L));
+    String token = codec.encode(new AuthSessionClaims().setClientId("demo-native").setIat(1L));
     assertThrows(InvalidAuthSessionException.class, () -> codec.decode(token));
   }
 

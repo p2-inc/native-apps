@@ -108,7 +108,7 @@ removed, next login offers the passkey), `pendingRequiredActionIsReportedAsAcces
   (`http(s)://host[:port]`), plus the policy's *extra origins*. An iOS client signs
   `clientDataJSON.origin = https://<rp_id>`; when Keycloak's public base URI differs from that (port,
   proxy host), add `https://<rp_id>` to the Passwordless policy's extra origins. Documented in the README.
-- Demo flow `native-passkey-first` (client `demo-ios-passkey`) shows the username-less case: a
+- Demo flow `native-passkey-first` (client `demo-native-passkey`) shows the username-less case: a
   REQUIRED subflow with `native-passkey` ALTERNATIVE and a `username → password` subflow ALTERNATIVE,
   then the conditional second factor. The first set is `[passkey (discoverable), username]`; either
   can be answered.
