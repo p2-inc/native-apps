@@ -114,7 +114,7 @@ worked by different agents with the transcripts as the hand-off. Each phase gets
 - [x] Demo realm, docker-compose, curl walkthrough
 - [x] Integration tests + CI workflow
 - [x] Decisions memo `09`, spec edits
-- [ ] Push the repository and confirm both CI jobs pass on GitHub Actions
+- [x] Push the repository and confirm both CI jobs pass on GitHub Actions
 - [x] Q6 decided in Phase 3 (14 D9): no token exchange for public clients in Keycloak 26.8; the DPoP key is the device key
 
 ### Phase 1 — Passkeys (server) + SDK core + example app

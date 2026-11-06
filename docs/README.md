@@ -2,7 +2,7 @@
 
 This repository lets an application render Keycloak authentication challenges as native screens. The server runs a dedicated Keycloak flow, the SDK exchanges its structured challenges and authorization code, and the application owns UI and navigation. Supported native paths need neither a browser nor a webview. Some account actions require a separate login in the system browser.
 
-**iOS is implemented. Android SDK and sample support is planned and not implemented.** The HTTP contract is platform-neutral; all SDK and application instructions here describe the existing Swift code.
+**The iOS SDK and demo app are implemented. The Android SDK is in progress:** its core, platform and Compose UI modules are done, and push and a demo app are still to come (see [`android/`](../android/) and [the Android plan](../spec/17-android-sdk-plan.md)). The HTTP contract is platform-neutral; the SDK and application instructions here describe the Swift code until the Android guide is written.
 
 ## Reading guide
 

@@ -1,8 +1,17 @@
-# native-apps — browserless native authentication for Keycloak
+# Native authentication for Keycloak
 
-Start with the [developer documentation](docs/README.md) for setup, protocol and flow examples,
-iOS integration, sample walkthrough, troubleshooting, and security responsibilities.
-The iOS SDK and sample are implemented. The Android SDK is in progress: its platform-independent `core` (the login state machine, tokens, DPoP, credentials) is ported and passes the same transcript replays, the `android` module provides the platform pieces (Credential Manager passkeys and saved passwords, Keystore keys and storage, the Auth Tab browser fallback), and the `ui` module the default Compose screens; push and the sample app are **not implemented** yet.
+[![CI](https://github.com/p2-inc/native-apps/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/p2-inc/native-apps/actions/workflows/ci.yml)
+![Keycloak 26.4 to 26.8](https://img.shields.io/badge/Keycloak-26.4%20to%2026.8-4d4d4d?logo=keycloak)
+![iOS 17+](https://img.shields.io/badge/iOS-17%2B-000000?logo=apple)
+![Android 9+](https://img.shields.io/badge/Android-9%2B%20(API%2028)-3ddc84?logo=android&logoColor=white)
+[![SDKs: Apache 2.0](https://img.shields.io/badge/SDKs-Apache%202.0-blue)](LICENSE)
+[![Extensions: ELv2](https://img.shields.io/badge/extensions-ELv2-blue)](keycloak-native-auth/COPYING)
+
+Sign users in to Keycloak with your app's own screens instead of a browser or webview. A set of Keycloak extensions serves the login flow as structured JSON challenges, and the iOS and Android SDKs turn them into native screens and tokens. Passwords, one-time codes, passkeys, recovery codes, push approvals and required actions all run natively. Anything the native flow can't handle falls back to the system browser.
+
+**Status:** the Keycloak extensions, the iOS SDK and the iOS demo app are done. The Android SDK has its core, platform and UI modules; push and the demo app are in progress.
+
+See the [roadmap](ROADMAP.md) for what comes next. Start with the [developer documentation](docs/README.md) for setup, the protocol, flow examples, iOS integration, the demo app, troubleshooting and security.
 
 | Directory | What |
 |---|---|
