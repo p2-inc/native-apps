@@ -2,7 +2,7 @@
 
 This repository lets an application render Keycloak authentication challenges as native screens. The server runs a dedicated Keycloak flow, the SDK exchanges its structured challenges and authorization code, and the application owns UI and navigation. Supported native paths need neither a browser nor a webview. Some account actions require a separate login in the system browser.
 
-**The iOS and Android SDKs and their demo apps are implemented** (see [`android/`](../android/), [the Android demo README](../android/demo/README.md) and [the Android plan](../spec/17-android-sdk-plan.md)). The HTTP contract is platform-neutral; the SDK and application instructions here describe the Swift code until the Android guide is written.
+**The iOS and Android SDKs and their demo apps are implemented** (see [`android/`](../android/), [the Android demo README](../android/demo/README.md) and [the Android plan](../spec/17-android-sdk-plan.md)). The HTTP contract is platform-neutral; each SDK has its own integration guide.
 
 ## Reading guide
 
@@ -11,6 +11,7 @@ This repository lets an application render Keycloak authentication challenges as
 | [Protocol and flows](protocol-and-flows.md) | HTTP contract, server configuration, authenticator reference, flow composition |
 | [Flow examples](flow-examples.md) | Ordered executions, native screens, requests, responses, and terminal outcomes |
 | [iOS integration](ios-integration.md) | Install the package, drive challenges, store and refresh credentials |
+| [Android integration](android-integration.md) | Add the Gradle modules, drive challenges, store and refresh credentials, push over FCM |
 | [Sample application](sample-app.md) | Run and understand the demo, including passkey and push setup |
 | [Development and troubleshooting](development-and-troubleshooting.md) | Builds, tests, diagnostics, compatibility and verification record |
 | [Security](security.md) | Trust boundaries, implemented protections, deployment responsibilities and gaps |

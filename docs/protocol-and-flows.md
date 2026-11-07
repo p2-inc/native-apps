@@ -1,6 +1,6 @@
 # Protocol and server reference
 
-[Index](README.md) · [End-to-end examples](flow-examples.md) · [iOS APIs](ios-integration.md)
+[Index](README.md) · [End-to-end examples](flow-examples.md) · [iOS APIs](ios-integration.md) · [Android APIs](android-integration.md)
 
 ## Transport contract
 

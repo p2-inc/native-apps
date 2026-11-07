@@ -1,6 +1,6 @@
 # Integrating the iOS SDK
 
-[Index](README.md) · [Protocol](protocol-and-flows.md) · [Sample](sample-app.md)
+[Index](README.md) · [Protocol](protocol-and-flows.md) · [Sample](sample-app.md) · [Android integration](android-integration.md)
 
 ## Installation and configuration
 
