@@ -9,13 +9,9 @@ on:
       - "android/**"
       - "Package.swift"
       - ".github/workflows/ci.yml"
+  # Every pull request, docs-only ones too: the six jobs are required checks on main, and a
+  # filtered-out run would leave the PR waiting for them forever.
   pull_request:
-    paths:
-      - "keycloak-native-auth/**"
-      - "ios/**"
-      - "android/**"
-      - "Package.swift"
-      - ".github/workflows/ci.yml"
   workflow_dispatch:
 
 defaults:
