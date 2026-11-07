@@ -7,12 +7,11 @@ Where the project stands and what comes next. The design record behind it, inclu
 - **Keycloak extensions** (Keycloak 26.4, 26.6 and 26.8): the challenge endpoint with step-up, browser fallback and DPoP binding; native username, password, TOTP, passkey (with enrollment on first login), recovery code and email/SMS one-time-code authenticators; native required actions for passkey registration, password update, email verification, terms and push enrollment; push MFA with number matching on top of ba-itsys' [`keycloak-push-mfa-extension`](https://github.com/ba-itsys/keycloak-push-mfa-extension), with an APNs sender and in-app enrollment.
 - **Protocol**: [spec/03](spec/03-protocol-spec.md), with recorded request/response transcripts that every client replays in its tests.
 - **iOS SDK**: `KeycloakNativeCore`, `KeycloakNativePush` and `KeycloakNativeUI` (default SwiftUI screens, replaceable per challenge), password-manager support, and the demo app with UI tests.
-- **Android SDK, first three modules**: `core` (the login state machine, tokens, DPoP, credentials; replays the same transcripts as iOS), `android` (Credential Manager passkeys and saved passwords, Keystore keys and storage, the Auth Tab browser fallback) and `ui` (default Jetpack Compose screens, replaceable per challenge, with password-manager support).
+- **Android SDK**: `core` (the login state machine, tokens, DPoP, credentials, the push protocol; replays the same transcripts as iOS), `android` (Credential Manager passkeys and saved passwords, Keystore keys and storage, the Auth Tab browser fallback), `ui` (default Jetpack Compose screens, replaceable per challenge, with password-manager support and the push approvals list), `push` (Firebase Cloud Messaging enrollment, approvals with number matching, token sync) and the demo app.
 
 ## In progress
 
-- **Android push**: FCM enrollment, approvals with number matching, token sync, and the push enrollment screen ([spec/17](spec/17-android-sdk-plan.md) step 9).
-- **Android demo app** (step 10), then passkeys, saved passwords and the browser fallback checked on an emulator with a Google account and on a phone.
+- **Real-device verification on Android**: passkeys and saved passwords behind a public hostname with `assetlinks.json`, the browser fallback, and real FCM delivery on a phone.
 - **Android integration guide** in `docs/`, alongside the iOS one.
 
 ## Next
