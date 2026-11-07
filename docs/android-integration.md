@@ -264,7 +264,7 @@ Stale authentication needs a step-up and a fresh registration attempt; the SDK d
 
 ### Protected credentials
 
-To keep tokens in a store that requires user authentication, pass it as `credentialsStore`; the DPoP key reference and push enrollment stay in `secureStore`, which the SDK reads on every signed request without user interaction. The SDK ships no biometric-gated `SecureStore` yet; implement the three-method `SecureStore` interface (`data`, `set`, `remove`) over a Keystore key that requires authentication, and surface a failed or cancelled authentication as `keychain_authentication_failed`.
+To keep tokens in a store that requires user authentication, pass it as `credentialsStore`; the DPoP key reference and push enrollment stay in `secureStore`, which the SDK reads on every signed request without user interaction. The SDK ships no biometric-gated `SecureStore` yet; implement the three-method `SecureStore` interface (`data`, `set`, `remove`) over a Keystore key that requires authentication, and surface a failed or canceled authentication as `keychain_authentication_failed`.
 
 ## Push integration
 
@@ -316,7 +316,7 @@ Catch `NativeAuthError` and compare its `code` with the constants in `NativeAuth
 - `network_error` leaves the last local pending state, but the server may already have advanced. Offer a deliberate retry or restart; there is no general automatic safe replay. A failed token exchange cannot be retried through the finished flow.
 - `passkey_cancelled` leaves the challenges available; the user can pick another way. `web_fallback_cancelled` follows a terminal native handoff and requires starting again.
 - `rp_id_mismatch` requires a deployment or configuration correction. Do not ship `allowRpIdMismatch = true` as a workaround.
-- `flow.cancel()` is a best-effort server cancellation of pending native state. Cancelling a coroutine or leaving the composition is not an explicit server cancel; call it when your UI abandons the login. There is no restoration of an in-progress login across process death.
+- `flow.cancel()` is a best-effort server cancellation of pending native state. Canceling a coroutine or leaving the composition is not an explicit server cancel; call it when your UI abandons the login. There is no restoration of an in-progress login across process death.
 - Storage failures are `keychain_error` and authentication failures of a protected store `keychain_authentication_failed`: the codes are shared with iOS.
 
 `manager.logout()` attempts a server logout with the stored refresh token and clears local credentials regardless of the network result. It does not remove browser SSO cookies, passkeys, push enrollment or DPoP keys, and cannot guarantee server invalidation while offline. For explicit revocation use `kc.tokens().revoke(refreshToken)` and manage local state separately. See [security](security.md).
