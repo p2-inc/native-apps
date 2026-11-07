@@ -1,0 +1,54 @@
+# Attaches the build outputs to a GitHub release when it is published (README "Releases"):
+#   keycloak-native-auth-providers-<tag>.zip   the Keycloak provider jars for /opt/keycloak/providers
+#   keycloak-native-android-<tag>-maven-repo.zip   the Android SDK as a Maven repository
+# Swift packages need nothing here: SwiftPM resolves the tag itself.
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and attach assets to
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  assets:
+    name: Build and attach release assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Keycloak providers
+        working-directory: keycloak-native-auth
+        run: |
+          mvn -B --no-transfer-progress versions:set -DnewVersion="$TAG" -DgenerateBackupPoms=false
+          mvn -B --no-transfer-progress -DskipTests -DskipITs package
+          mkdir -p ../dist/providers
+          cp demo/target/providers/*.jar COPYING ../dist/providers/
+          cp push-mfa-extension-java21/LICENSE ../dist/providers/LICENSE-keycloak-push-mfa-extension
+          cp push-mfa-extension-java21/NOTICE ../dist/providers/NOTICE-keycloak-push-mfa-extension
+          (cd ../dist/providers && zip -q -r "../keycloak-native-auth-providers-$TAG.zip" .)
+      # The runner image has the Android SDK with its licenses accepted.
+      - name: Android SDK Maven repository
+        working-directory: android
+        run: |
+          ./gradlew --no-daemon --console=plain -PreleaseVersion="$TAG" :core:test publishAllPublicationsToReleaseRepository
+          (cd build/maven-repo && zip -q -r "../../../dist/keycloak-native-android-$TAG-maven-repo.zip" .)
+      - name: Upload to the release
+        run: gh release upload "$TAG" dist/*.zip --clobber

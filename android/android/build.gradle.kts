@@ -1,6 +1,7 @@
 plugins {
   // AGP 9 compiles Kotlin itself (built-in Kotlin), with the Kotlin Gradle plugin the root build pins.
   alias(libs.plugins.android.library)
+  `maven-publish`
 }
 
 base {
@@ -10,6 +11,12 @@ base {
 android {
   namespace = "io.phasetwo.keycloak.nativeauth.sdk.android"
   compileSdk = 37
+
+  publishing {
+    singleVariant("release") {
+      withSourcesJar()
+    }
+  }
 
   defaultConfig {
     // Credential Manager passkeys and Keystore StrongBox both start at API 28.
@@ -47,4 +54,13 @@ dependencies {
   androidTestImplementation(libs.androidx.test.junit)
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.coroutines.test)
+}
+
+publishing {
+  publications {
+    register<MavenPublication>("release") {
+      artifactId = "keycloak-native-android"
+      afterEvaluate { from(components["release"]) }
+    }
+  }
 }

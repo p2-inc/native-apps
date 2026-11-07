@@ -1,6 +1,7 @@
 plugins {
   alias(libs.plugins.kotlin.jvm)
   alias(libs.plugins.kotlin.serialization)
+  `maven-publish`
 }
 
 base {
@@ -15,6 +16,19 @@ kotlin {
     allWarningsAsErrors = true
   }
   explicitApi()
+}
+
+java {
+  withSourcesJar()
+}
+
+publishing {
+  publications {
+    register<MavenPublication>("release") {
+      artifactId = "keycloak-native-core"
+      from(components["java"])
+    }
+  }
 }
 
 tasks.withType<JavaCompile>().configureEach {
