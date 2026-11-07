@@ -1,6 +1,7 @@
 plugins {
   alias(libs.plugins.android.library)
   alias(libs.plugins.kotlin.compose)
+  `maven-publish`
 }
 
 base {
@@ -10,6 +11,12 @@ base {
 android {
   namespace = "io.phasetwo.keycloak.nativeauth.sdk.ui"
   compileSdk = 37
+
+  publishing {
+    singleVariant("release") {
+      withSourcesJar()
+    }
+  }
 
   defaultConfig {
     minSdk = 28
@@ -58,4 +65,13 @@ dependencies {
   androidTestImplementation(libs.androidx.test.junit)
   androidTestImplementation(libs.coroutines.test)
   debugImplementation(libs.compose.ui.test.manifest)
+}
+
+publishing {
+  publications {
+    register<MavenPublication>("release") {
+      artifactId = "keycloak-native-ui"
+      afterEvaluate { from(components["release"]) }
+    }
+  }
 }

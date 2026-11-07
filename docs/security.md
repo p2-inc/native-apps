@@ -2,7 +2,7 @@
 
 [Index](README.md) · [Protocol](protocol-and-flows.md) · [Troubleshooting](development-and-troubleshooting.md)
 
-This document describes implemented mechanisms and their limits, not an audit, security certification or claim of OAuth/FiPA conformance. The demo is development configuration. Android SDK and sample support is planned and unimplemented; no Android attestation or key-storage guarantees exist here.
+This document describes implemented mechanisms and their limits, not an audit, security certification or claim of OAuth/FiPA conformance. The demo is development configuration. The storage and key details below describe the iOS SDK; the Android SDK keeps credentials and DPoP keys in the Android Keystore (`KeystoreSecureStore`, `KeystoreDPoPKeys`), and it has no attestation either.
 
 ## Trust boundaries
 
