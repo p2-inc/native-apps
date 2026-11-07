@@ -1,6 +1,6 @@
 # Running and understanding the sample app
 
-[Index](README.md) · [iOS integration](ios-integration.md) · [Protocol examples](flow-examples.md)
+[Index](README.md) · [iOS integration](ios-integration.md) · [Android integration](android-integration.md) · [Protocol examples](flow-examples.md)
 
 ## Build and launch
 

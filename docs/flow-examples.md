@@ -1,6 +1,6 @@
 # End-to-end flow examples
 
-[Index](README.md) · [Contract and providers](protocol-and-flows.md) · [Native UI APIs](ios-integration.md)
+[Index](README.md) · [Contract and providers](protocol-and-flows.md) · [iOS APIs](ios-integration.md) · [Android APIs](android-integration.md)
 
 Examples below are **illustrative, derived from source and committed integration transcripts**, with secrets and opaque values replaced. They are not runnable signed WebAuthn or DPoP payloads. `<session-1>`, `<session-2>` mean successive opaque server values; always use the latest. `<execution-…>` means the actual returned descriptor ID, not a configurable constant. URLs use `https://idp.example.com/realms/demo`; the local demo uses `http://localhost:8089/realms/demo`. All challenge requests are form-encoded POSTs to `/native-auth/challenge` with JSON accept headers. Angle-bracket values require URL encoding. Optional DPoP proofs are omitted from examples; if initial request proves a key, every continuation and exchange must prove the same key.
 
