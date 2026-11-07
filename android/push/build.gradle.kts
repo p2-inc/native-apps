@@ -1,5 +1,6 @@
 plugins {
   alias(libs.plugins.android.library)
+  `maven-publish`
 }
 
 base {
@@ -9,6 +10,12 @@ base {
 android {
   namespace = "io.phasetwo.keycloak.nativeauth.sdk.push.fcm"
   compileSdk = 37
+
+  publishing {
+    singleVariant("release") {
+      withSourcesJar()
+    }
+  }
 
   defaultConfig {
     minSdk = 28
@@ -44,4 +51,13 @@ dependencies {
 
   testImplementation(libs.junit4)
   testImplementation(libs.coroutines.test)
+}
+
+publishing {
+  publications {
+    register<MavenPublication>("release") {
+      artifactId = "keycloak-native-push"
+      afterEvaluate { from(components["release"]) }
+    }
+  }
 }
