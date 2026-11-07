@@ -11,7 +11,7 @@ plugins {
 allprojects {
   group = "io.phasetwo.keycloak.nativeauth"
   // The release workflow passes the tag (.github/workflows/release.yml).
-  version = providers.gradleProperty("releaseVersion").getOrElse("0.1.0-SNAPSHOT")
+  version = providers.gradleProperty("releaseVersion").getOrElse("0.3.0-SNAPSHOT")
 }
 
 // The libraries publish to a Maven repository under build/maven-repo, which the release workflow
