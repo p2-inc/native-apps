@@ -1,6 +1,7 @@
 import Flutter
 import Foundation
 import KeycloakNativeCore
+import KeycloakNativePush
 import UIKit
 
 /// The iOS side of the Flutter plugin (spec/18): a thin bridge from the Pigeon host API to the iOS
@@ -9,7 +10,14 @@ import UIKit
 /// browser use the SDK's default anchor, the key window (Flutter's).
 public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNativeHostApi {
   public static func register(with registrar: FlutterPluginRegistrar) {
-    KeycloakNativeHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: KeycloakNativePlugin())
+    let plugin = KeycloakNativePlugin(flutterApi: KeycloakNativeFlutterApi(binaryMessenger: registrar.messenger()))
+    KeycloakNativeHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: plugin)
+  }
+
+  private let flutterApi: KeycloakNativeFlutterApi
+
+  init(flutterApi: KeycloakNativeFlutterApi) {
+    self.flutterApi = flutterApi
   }
 
   private final class FlowRecord {
@@ -30,6 +38,9 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
   private var flows: [String: FlowRecord] = [:]
   /// Credentials a flow produced that Dart has not stored yet, by handle.
   private var pendingCredentials: [String: Credentials] = [:]
+  /// Per instance, the last error that handed back an `auth_session`: `continueAfterTokenChallenge`
+  /// steps up with it, so the session value never reaches Dart.
+  private var tokenChallenges: [String: NativeAuthError] = [:]
 
   // MARK: - KeycloakNativeHostApi
 
@@ -49,6 +60,7 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
       options.ephemeralWebSession = config.ephemeralWebSession
       if let ttl = config.metadataCacheTtlSeconds { options.metadataCacheTTL = TimeInterval(ttl) }
       let handle = UUID().uuidString
+      if config.observeFlow == true { options.flowObserver = FlowLogForwarder(instance: handle, api: flutterApi) }
       let kc = KeycloakNative.configure(issuer: issuer, clientId: config.clientId, options: options)
       lock.withLock { instances[handle] = kc }
       return handle
@@ -66,6 +78,16 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
     try await bridgedAsync {
       let kc = try self.instance(instance)
       return register(kc, try await kc.authentication().stepUp(parameters.sdk))
+    }
+  }
+
+  func continueAfterTokenChallenge(instance: String, parameters: LoginParametersMessage) async throws -> String {
+    try await bridgedAsync {
+      let kc = try self.instance(instance)
+      guard let error = lock.withLock({ tokenChallenges.removeValue(forKey: instance) }) else {
+        throw NativeAuthError(code: NativeAuthError.Code.reauthenticationRequired, description: "No token challenge with an auth_session is pending; start a new login")
+      }
+      return register(kc, try kc.authentication().continueAfterTokenChallenge(error, parameters: parameters.sdk))
     }
   }
 
@@ -128,7 +150,9 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
 
   func credentials(instance: String, minTtlSeconds: Int64) async throws -> CredentialsMessage {
     try await bridgedAsync {
-      Self.message(try await self.instance(instance).credentialsManager().credentials(minTTL: TimeInterval(minTtlSeconds)), handle: "")
+      try await rememberingTokenChallenge(instance) {
+        Self.message(try await self.instance(instance).credentialsManager().credentials(minTTL: TimeInterval(minTtlSeconds)), handle: "")
+      }
     }
   }
 
@@ -150,7 +174,9 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
       guard let target = URL(string: url) else {
         throw NativeAuthError(code: NativeAuthError.Code.invalidParameter, description: "Not a URL: \(url)")
       }
-      return try await kc.resourceRequestHeaders(for: kc.credentialsManager().credentials(), method: method, url: target)
+      return try await rememberingTokenChallenge(instance) {
+        try await kc.resourceRequestHeaders(for: kc.credentialsManager().credentials(), method: method, url: target)
+      }
     }
   }
 
@@ -162,7 +188,147 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
     try await bridgedAsync { Self.json(try await self.instance(instance).metadata(forceRefresh: forceRefresh).raw ?? .object([:])) }
   }
 
+  // MARK: - Ceremonies that answer a challenge natively
+
+  func usePasskey(flow: String, challengeId: String, preferImmediatelyAvailableCredentials: Bool) async throws -> FlowStepMessage {
+    try await bridgedAsync {
+      let record = try self.flow(flow)
+      let challenge = try await pending(record, challengeId, .passkey)
+      guard let params = challenge.passkeyParams else {
+        throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "passkey challenge without usable params")
+      }
+      let assertion = try await record.instance.passkeys().assert(params, preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials)
+      return message(try await record.flow.respond(.passkey(assertion), to: challenge), record)
+    }
+  }
+
+  func registerPasskey(flow: String, challengeId: String, label: String?) async throws -> FlowStepMessage {
+    try await bridgedAsync {
+      let record = try self.flow(flow)
+      let challenge = try await pending(record, challengeId, .passkeyRegistration)
+      guard let params = challenge.passkeyRegistrationParams else {
+        throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "passkey_registration challenge without usable params")
+      }
+      let attestation = try await record.instance.passkeys().register(params)
+      return message(try await record.flow.respond(.passkeyRegistration(attestation, label: label), to: challenge), record)
+    }
+  }
+
+  func enrollPush(flow: String, challengeId: String, deviceLabel: String, pushProviderType: String, pushProviderId: String?) async throws -> FlowStepMessage {
+    try await bridgedAsync {
+      let record = try self.flow(flow)
+      let challenge = try await pending(record, challengeId, .pushEnrollment)
+      guard let params = challenge.pushEnrollmentParams else {
+        throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "push_enrollment challenge without params")
+      }
+      let push = record.instance.push()
+      let prepared = try await push.prepareEnrollment(for: params, deviceLabel: deviceLabel, pushProviderType: pushProviderType, pushProviderId: pushProviderId)
+      let step = try await record.flow.respond(prepared.answer, to: challenge)
+      // Kept only once the server moved on from the challenge (the iOS and Android UI models do the same).
+      if !(step.challenges ?? []).contains(where: { $0.type == .pushEnrollment && $0.error != nil }) { try push.commit(prepared) }
+      return message(step, record)
+    }
+  }
+
+  // MARK: - Passkeys and passwords outside a flow
+
+  func registerNewPasskey(instance: String, label: String?) async throws -> RegisteredPasskeyMessage {
+    try await bridgedAsync {
+      let kc = try self.instance(instance)
+      return try await rememberingTokenChallenge(instance) {
+        let registered = try await kc.passkeys().registerNewPasskey(label: label, credentials: kc.credentialsManager().credentials())
+        return RegisteredPasskeyMessage(credentialId: registered.credentialId, label: registered.label)
+      }
+    }
+  }
+
+  func pickSavedPassword(instance: String) async throws -> SavedPasswordMessage {
+    try await bridgedAsync {
+      let saved = try await self.instance(instance).pickSavedPassword()
+      return SavedPasswordMessage(username: saved.username, password: saved.password)
+    }
+  }
+
+  /// iOS offers to save a typed password through AutoFill (the read-only username field and the
+  /// `.password` content type of the default screens); there is no SDK call.
+  func savePassword(instance: String, username: String, password: String) async throws {
+    _ = try bridged { try self.instance(instance) }
+  }
+
+  // MARK: - Push
+
+  func pushEnrollment(instance: String) async throws -> PushEnrollmentMessage? {
+    try await bridgedAsync { try self.instance(instance).push().enrollment.map(Self.message) }
+  }
+
+  func pushEnroll(instance: String, deviceLabel: String, pushProviderType: String, pushProviderId: String?) async throws -> PushEnrollmentMessage {
+    try await bridgedAsync {
+      Self.message(try await self.instance(instance).push().enroll(deviceLabel: deviceLabel, pushProviderType: pushProviderType, pushProviderId: pushProviderId))
+    }
+  }
+
+  func pushForgetEnrollment(instance: String) async throws {
+    try await bridgedAsync { try self.instance(instance).push().forgetEnrollment() }
+  }
+
+  func pushPendingApprovals(instance: String) async throws -> [PendingApprovalMessage] {
+    try await bridgedAsync {
+      try await self.instance(instance).push().pendingApprovals().map { PendingApprovalMessage(cid: $0.cid, rawJson: Self.json($0.raw)) }
+    }
+  }
+
+  func pushRespond(instance: String, cid: String, approve: Bool, userVerification: String?) async throws -> String {
+    try await bridgedAsync {
+      try await self.instance(instance).push().respond(cid: cid, approve ? .approve(userVerification: userVerification) : .deny)
+    }
+  }
+
+  func pushHandleMessage(instance: String, data: [String: String]) async throws -> PushNotificationMessage? {
+    try await bridgedAsync {
+      let userInfo = Dictionary(uniqueKeysWithValues: data.map { (AnyHashable($0.key), $0.value as Any) })
+      return try self.instance(instance).push().handleNotification(userInfo).map {
+        PushNotificationMessage(cid: $0.cid, credentialId: $0.credentialId, expiresAtMillis: $0.expiresAt.map(Self.millis))
+      }
+    }
+  }
+
+  func pushUpdateProvider(instance: String, type: String, id: String) async throws {
+    try await bridgedAsync { try await self.instance(instance).push().updatePushProvider(type: type, id: id) }
+  }
+
+  func pushRotateKey(instance: String) async throws {
+    try await bridgedAsync { try await self.instance(instance).push().rotateKey() }
+  }
+
+  func pushLockout(instance: String) async throws {
+    try await bridgedAsync { try await self.instance(instance).push().lockout() }
+  }
+
   // MARK: - Helpers
+
+  /// Keeps an error that carries an `auth_session` for `continueAfterTokenChallenge`.
+  private func rememberingTokenChallenge<T>(_ instance: String, _ body: () async throws -> T) async throws -> T {
+    do {
+      return try await body()
+    } catch let error as NativeAuthError {
+      if error.authSession != nil { lock.withLock { tokenChallenges[instance] = error } }
+      throw error
+    }
+  }
+
+  private func pending(_ record: FlowRecord, _ challengeId: String, _ type: ChallengeType) async throws -> Challenge {
+    guard let challenge = await record.flow.pendingChallenges.first(where: { $0.id == challengeId && $0.type == type }) else {
+      throw NativeAuthError(code: NativeAuthError.Code.flowState, description: "Challenge \(type.wire) (\(challengeId)) is not in the pending set")
+    }
+    return challenge
+  }
+
+  private static func message(_ enrollment: PushEnrollment) -> PushEnrollmentMessage {
+    PushEnrollmentMessage(
+      credentialId: enrollment.credentialId, deviceId: enrollment.deviceId, userId: enrollment.userId, username: enrollment.username,
+      deviceLabel: enrollment.deviceLabel, pushProviderType: enrollment.pushProviderType, pushProviderId: enrollment.pushProviderId,
+      deviceApiBase: enrollment.deviceApiBase.absoluteString, keyThumbprint: enrollment.keyThumbprint, enrolledAtMillis: millis(enrollment.enrolledAt))
+  }
 
   private func instance(_ handle: String) throws -> KeycloakNative {
     guard let kc = lock.withLock({ instances[handle] }) else {
@@ -215,7 +381,7 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
   }
 
   /// Dart's `DateTime` ends at 8.64e15 ms; offline tokens carry `Date.distantFuture`, which is earlier, so no clamp is needed.
-  private static func millis(_ date: Date) -> Int64 { Int64((date.timeIntervalSince1970 * 1000).rounded(.down)) }
+  fileprivate static func millis(_ date: Date) -> Int64 { Int64((date.timeIntervalSince1970 * 1000).rounded(.down)) }
 
   private static func message(_ credentials: Credentials, handle: String) -> CredentialsMessage {
     CredentialsMessage(
@@ -296,5 +462,27 @@ extension AnswerMessage {
     case .custom:
       return .custom(type: ChallengeType(wire: try required("type", type)), fields: (fields ?? []).map { FormField($0.name, $0.value) })
     }
+  }
+}
+
+/// Forwards the SDK's redacted flow log to Dart on the main thread.
+private final class FlowLogForwarder: FlowObserver, @unchecked Sendable {
+  private let instance: String
+  private let api: KeycloakNativeFlutterApi
+
+  init(instance: String, api: KeycloakNativeFlutterApi) {
+    self.instance = instance
+    self.api = api
+  }
+
+  func record(_ entry: FlowLogEntry) {
+    let message = FlowLogMessage(
+      id: entry.id.uuidString, timestampMillis: KeycloakNativePlugin.millis(entry.timestamp), method: entry.method, url: entry.url.absoluteString,
+      requestHeaders: entry.requestHeaders, requestBody: entry.requestBody, statusCode: entry.statusCode.map(Int64.init),
+      responseHeaders: entry.responseHeaders, responseBody: entry.responseBody, durationMilliseconds: Int64(entry.durationMilliseconds),
+      errorCode: entry.errorCode)
+    let instance = instance
+    let api = api
+    Task { @MainActor in try? await api.onFlowLog(instance: instance, entry: message) }
   }
 }

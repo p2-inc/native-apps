@@ -4,6 +4,7 @@ import 'credentials.dart';
 import 'errors.dart';
 import 'mapping.dart';
 import 'messages.g.dart';
+import 'push.dart';
 
 /// Parameters of the initial request (spec/03 §2.1).
 final class LoginParameters {
@@ -105,6 +106,24 @@ final class NativeLoginFlow {
     }
     return _step(() => _api.respond(handle, challenge.id, challenge.type.wire, answerToMessage(answer), additionalFields));
   }
+
+  /// Runs the platform passkey sheet for a `passkey` challenge and answers it natively (spec/03
+  /// §4.3). Cancelling is `passkey_cancelled`; the challenge set stays.
+  Future<FlowStep> usePasskey(PasskeyChallenge challenge, {bool preferImmediatelyAvailableCredentials = false}) =>
+      _step(() => _api.usePasskey(handle, challenge.id, preferImmediatelyAvailableCredentials));
+
+  /// Creates a passkey for a `passkey_registration` challenge and answers it natively (spec/03 §4.4).
+  /// Decline a skippable one with `ChallengeAnswer.skip`.
+  Future<FlowStep> registerPasskey(PasskeyRegistrationChallenge challenge, {String? label}) =>
+      _step(() => _api.registerPasskey(handle, challenge.id, label));
+
+  /// Enrolls this device for push from a `push_enrollment` challenge (spec/03 §4.15). The device
+  /// key is the SDK's DPoP key; the enrollment is kept once the server accepted it.
+  Future<FlowStep> enrollPush(
+    PushEnrollmentChallenge challenge, {
+    required String deviceLabel,
+    PushProviderRegistration registration = PushProviderRegistration.none,
+  }) => _step(() => _api.enrollPush(handle, challenge.id, deviceLabel, registration.type, registration.id));
 
   /// `action=cancel`: the server invalidates the session. Safe to call at any point.
   Future<void> cancel() async {

@@ -40,6 +40,9 @@ class ConfigureMessage {
   /// the SDK's default service.
   String? storageNamespace;
   int? metadataCacheTtlSeconds;
+
+  /// Send the SDK's redacted request/response entries to `KeycloakNativeFlutterApi.onFlowLog`.
+  bool? observeFlow;
 }
 
 class LoginParametersMessage {
@@ -191,6 +194,90 @@ class AnswerMessage {
   List<FormFieldMessage>? fields;
 }
 
+class SavedPasswordMessage {
+  SavedPasswordMessage({required this.username, required this.password});
+
+  String username;
+  String password;
+}
+
+class RegisteredPasskeyMessage {
+  RegisteredPasskeyMessage({required this.credentialId});
+
+  String credentialId;
+  String? label;
+}
+
+class PushEnrollmentMessage {
+  PushEnrollmentMessage({
+    required this.credentialId,
+    required this.deviceId,
+    required this.userId,
+    required this.deviceLabel,
+    required this.pushProviderType,
+    required this.deviceApiBase,
+    required this.keyThumbprint,
+    required this.enrolledAtMillis,
+  });
+
+  String credentialId;
+  String deviceId;
+  String userId;
+  String? username;
+  String deviceLabel;
+  String pushProviderType;
+  String? pushProviderId;
+  String deviceApiBase;
+  String keyThumbprint;
+  int enrolledAtMillis;
+}
+
+/// A pending approval of the push device API (`/login/pending`), as JSON text; Dart reads it.
+class PendingApprovalMessage {
+  PendingApprovalMessage({required this.cid, required this.rawJson});
+
+  String cid;
+  String rawJson;
+}
+
+class PushNotificationMessage {
+  PushNotificationMessage({required this.cid});
+
+  String cid;
+  String? credentialId;
+  int? expiresAtMillis;
+}
+
+/// One redacted request/response of the SDK's transport (the native `FlowLogEntry`).
+class FlowLogMessage {
+  FlowLogMessage({
+    required this.id,
+    required this.timestampMillis,
+    required this.method,
+    required this.url,
+    required this.requestHeaders,
+    required this.responseHeaders,
+    required this.durationMilliseconds,
+  });
+
+  String id;
+  int timestampMillis;
+  String method;
+  String url;
+  Map<String, String> requestHeaders;
+  String? requestBody;
+  int? statusCode;
+  Map<String, String> responseHeaders;
+  String? responseBody;
+  int durationMilliseconds;
+  String? errorCode;
+}
+
+@FlutterApi()
+abstract class KeycloakNativeFlutterApi {
+  void onFlowLog(String instance, FlowLogMessage entry);
+}
+
 @HostApi()
 abstract class KeycloakNativeHostApi {
   /// Creates a native SDK instance and returns its handle.
@@ -205,6 +292,11 @@ abstract class KeycloakNativeHostApi {
 
   @async
   FlowStepMessage start(String flow);
+
+  /// A step-up flow over the `auth_session` of the last `reauthentication_required` or
+  /// `insufficient_authorization` error this instance raised (spec/03 §5, §6).
+  @async
+  String continueAfterTokenChallenge(String instance, LoginParametersMessage parameters);
 
   /// Answers the pending challenge `challengeId` of type `challengeType`.
   @async
@@ -258,4 +350,64 @@ abstract class KeycloakNativeHostApi {
   /// The native-auth metadata document as JSON text.
   @async
   String metadataJson(String instance, bool forceRefresh);
+
+  // Ceremonies that answer a challenge natively (spec/18 §5).
+
+  /// Runs the passkey assertion for the pending `passkey` challenge and answers it.
+  @async
+  FlowStepMessage usePasskey(String flow, String challengeId, bool preferImmediatelyAvailableCredentials);
+
+  /// Runs the passkey registration for the pending `passkey_registration` challenge and answers it.
+  @async
+  FlowStepMessage registerPasskey(String flow, String challengeId, String? label);
+
+  /// Enrolls this device for push from the pending `push_enrollment` challenge, answers it and keeps
+  /// the enrollment once the server accepted it.
+  @async
+  FlowStepMessage enrollPush(String flow, String challengeId, String deviceLabel, String pushProviderType, String? pushProviderId);
+
+  // Passkeys and passwords outside a flow.
+
+  /// Registers a new passkey for the signed-in user (spec/03 §6) with the stored credentials.
+  @async
+  RegisteredPasskeyMessage registerNewPasskey(String instance, String? label);
+
+  /// The system sheet of saved passwords.
+  @async
+  SavedPasswordMessage pickSavedPassword(String instance);
+
+  /// Offers to save a typed password (Android Credential Manager; iOS saves through AutoFill).
+  @async
+  void savePassword(String instance, String username, String password);
+
+  // Push MFA device side (spec/03 §7).
+
+  @async
+  PushEnrollmentMessage? pushEnrollment(String instance);
+
+  @async
+  PushEnrollmentMessage pushEnroll(String instance, String deviceLabel, String pushProviderType, String? pushProviderId);
+
+  @async
+  void pushForgetEnrollment(String instance);
+
+  @async
+  List<PendingApprovalMessage> pushPendingApprovals(String instance);
+
+  /// Approves (with the picked number or PIN) or denies; returns the server's status.
+  @async
+  String pushRespond(String instance, String cid, bool approve, String? userVerification);
+
+  /// Reads a push message's data (FCM `data`, APNs `userInfo`); null when it is not a sign-in request.
+  @async
+  PushNotificationMessage? pushHandleMessage(String instance, Map<String, String> data);
+
+  @async
+  void pushUpdateProvider(String instance, String type, String id);
+
+  @async
+  void pushRotateKey(String instance);
+
+  @async
+  void pushLockout(String instance);
 }

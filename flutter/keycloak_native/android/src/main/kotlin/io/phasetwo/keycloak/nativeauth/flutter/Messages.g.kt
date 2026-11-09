@@ -21,6 +21,9 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 private object MessagesPigeonUtils {
 
+  fun createConnectionError(channelName: String): FlutterError {
+    return FlutterError("channel-error",  "Unable to establish connection on channel: '$channelName'.", "")  }
+
   fun wrapResult(result: Any?): List<Any?> {
     return listOf(result)
   }
@@ -265,7 +268,9 @@ data class ConfigureMessage (
    * the SDK's default service.
    */
   val storageNamespace: String? = null,
-  val metadataCacheTtlSeconds: Long? = null
+  val metadataCacheTtlSeconds: Long? = null,
+  /** Send the SDK's redacted request/response entries to `KeycloakNativeFlutterApi.onFlowLog`. */
+  val observeFlow: Boolean? = null
 )
  {
   companion object {
@@ -277,7 +282,8 @@ data class ConfigureMessage (
       val ephemeralWebSession = pigeonVar_list[4] as Boolean
       val storageNamespace = pigeonVar_list[5] as String?
       val metadataCacheTtlSeconds = pigeonVar_list[6] as Long?
-      return ConfigureMessage(issuer, clientId, dpop, allowRpIdMismatch, ephemeralWebSession, storageNamespace, metadataCacheTtlSeconds)
+      val observeFlow = pigeonVar_list[7] as Boolean?
+      return ConfigureMessage(issuer, clientId, dpop, allowRpIdMismatch, ephemeralWebSession, storageNamespace, metadataCacheTtlSeconds, observeFlow)
     }
   }
   fun toList(): List<Any?> {
@@ -289,6 +295,7 @@ data class ConfigureMessage (
       ephemeralWebSession,
       storageNamespace,
       metadataCacheTtlSeconds,
+      observeFlow,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -299,7 +306,7 @@ data class ConfigureMessage (
       return true
     }
     val other = other as ConfigureMessage
-    return MessagesPigeonUtils.deepEquals(this.issuer, other.issuer) && MessagesPigeonUtils.deepEquals(this.clientId, other.clientId) && MessagesPigeonUtils.deepEquals(this.dpop, other.dpop) && MessagesPigeonUtils.deepEquals(this.allowRpIdMismatch, other.allowRpIdMismatch) && MessagesPigeonUtils.deepEquals(this.ephemeralWebSession, other.ephemeralWebSession) && MessagesPigeonUtils.deepEquals(this.storageNamespace, other.storageNamespace) && MessagesPigeonUtils.deepEquals(this.metadataCacheTtlSeconds, other.metadataCacheTtlSeconds)
+    return MessagesPigeonUtils.deepEquals(this.issuer, other.issuer) && MessagesPigeonUtils.deepEquals(this.clientId, other.clientId) && MessagesPigeonUtils.deepEquals(this.dpop, other.dpop) && MessagesPigeonUtils.deepEquals(this.allowRpIdMismatch, other.allowRpIdMismatch) && MessagesPigeonUtils.deepEquals(this.ephemeralWebSession, other.ephemeralWebSession) && MessagesPigeonUtils.deepEquals(this.storageNamespace, other.storageNamespace) && MessagesPigeonUtils.deepEquals(this.metadataCacheTtlSeconds, other.metadataCacheTtlSeconds) && MessagesPigeonUtils.deepEquals(this.observeFlow, other.observeFlow)
   }
 
   override fun hashCode(): Int {
@@ -311,10 +318,11 @@ data class ConfigureMessage (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.ephemeralWebSession)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.storageNamespace)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.metadataCacheTtlSeconds)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.observeFlow)
     return result
   }
   override fun toString(): String {
-    return "ConfigureMessage(issuer=$issuer, clientId=$clientId, dpop=$dpop, allowRpIdMismatch=$allowRpIdMismatch, ephemeralWebSession=$ephemeralWebSession, storageNamespace=$storageNamespace, metadataCacheTtlSeconds=$metadataCacheTtlSeconds)"
+    return "ConfigureMessage(issuer=$issuer, clientId=$clientId, dpop=$dpop, allowRpIdMismatch=$allowRpIdMismatch, ephemeralWebSession=$ephemeralWebSession, storageNamespace=$storageNamespace, metadataCacheTtlSeconds=$metadataCacheTtlSeconds, observeFlow=$observeFlow)"
   }
 }
 
@@ -774,6 +782,332 @@ data class AnswerMessage (
     return "AnswerMessage(kind=$kind, value=$value, confirm=$confirm, credentialId=$credentialId, accepted=$accepted, type=$type, fields=$fields)"
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class SavedPasswordMessage (
+  val username: String,
+  val password: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SavedPasswordMessage {
+      val username = pigeonVar_list[0] as String
+      val password = pigeonVar_list[1] as String
+      return SavedPasswordMessage(username, password)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      username,
+      password,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as SavedPasswordMessage
+    return MessagesPigeonUtils.deepEquals(this.username, other.username) && MessagesPigeonUtils.deepEquals(this.password, other.password)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.username)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.password)
+    return result
+  }
+  override fun toString(): String {
+    return "SavedPasswordMessage(username=$username, password=$password)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class RegisteredPasskeyMessage (
+  val credentialId: String,
+  val label: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): RegisteredPasskeyMessage {
+      val credentialId = pigeonVar_list[0] as String
+      val label = pigeonVar_list[1] as String?
+      return RegisteredPasskeyMessage(credentialId, label)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      credentialId,
+      label,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as RegisteredPasskeyMessage
+    return MessagesPigeonUtils.deepEquals(this.credentialId, other.credentialId) && MessagesPigeonUtils.deepEquals(this.label, other.label)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.credentialId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.label)
+    return result
+  }
+  override fun toString(): String {
+    return "RegisteredPasskeyMessage(credentialId=$credentialId, label=$label)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PushEnrollmentMessage (
+  val credentialId: String,
+  val deviceId: String,
+  val userId: String,
+  val username: String? = null,
+  val deviceLabel: String,
+  val pushProviderType: String,
+  val pushProviderId: String? = null,
+  val deviceApiBase: String,
+  val keyThumbprint: String,
+  val enrolledAtMillis: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PushEnrollmentMessage {
+      val credentialId = pigeonVar_list[0] as String
+      val deviceId = pigeonVar_list[1] as String
+      val userId = pigeonVar_list[2] as String
+      val username = pigeonVar_list[3] as String?
+      val deviceLabel = pigeonVar_list[4] as String
+      val pushProviderType = pigeonVar_list[5] as String
+      val pushProviderId = pigeonVar_list[6] as String?
+      val deviceApiBase = pigeonVar_list[7] as String
+      val keyThumbprint = pigeonVar_list[8] as String
+      val enrolledAtMillis = pigeonVar_list[9] as Long
+      return PushEnrollmentMessage(credentialId, deviceId, userId, username, deviceLabel, pushProviderType, pushProviderId, deviceApiBase, keyThumbprint, enrolledAtMillis)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      credentialId,
+      deviceId,
+      userId,
+      username,
+      deviceLabel,
+      pushProviderType,
+      pushProviderId,
+      deviceApiBase,
+      keyThumbprint,
+      enrolledAtMillis,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PushEnrollmentMessage
+    return MessagesPigeonUtils.deepEquals(this.credentialId, other.credentialId) && MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.userId, other.userId) && MessagesPigeonUtils.deepEquals(this.username, other.username) && MessagesPigeonUtils.deepEquals(this.deviceLabel, other.deviceLabel) && MessagesPigeonUtils.deepEquals(this.pushProviderType, other.pushProviderType) && MessagesPigeonUtils.deepEquals(this.pushProviderId, other.pushProviderId) && MessagesPigeonUtils.deepEquals(this.deviceApiBase, other.deviceApiBase) && MessagesPigeonUtils.deepEquals(this.keyThumbprint, other.keyThumbprint) && MessagesPigeonUtils.deepEquals(this.enrolledAtMillis, other.enrolledAtMillis)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.credentialId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.userId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.username)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceLabel)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.pushProviderType)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.pushProviderId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceApiBase)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.keyThumbprint)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.enrolledAtMillis)
+    return result
+  }
+  override fun toString(): String {
+    return "PushEnrollmentMessage(credentialId=$credentialId, deviceId=$deviceId, userId=$userId, username=$username, deviceLabel=$deviceLabel, pushProviderType=$pushProviderType, pushProviderId=$pushProviderId, deviceApiBase=$deviceApiBase, keyThumbprint=$keyThumbprint, enrolledAtMillis=$enrolledAtMillis)"
+  }
+}
+
+/**
+ * A pending approval of the push device API (`/login/pending`), as JSON text; Dart reads it.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PendingApprovalMessage (
+  val cid: String,
+  val rawJson: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PendingApprovalMessage {
+      val cid = pigeonVar_list[0] as String
+      val rawJson = pigeonVar_list[1] as String
+      return PendingApprovalMessage(cid, rawJson)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      cid,
+      rawJson,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PendingApprovalMessage
+    return MessagesPigeonUtils.deepEquals(this.cid, other.cid) && MessagesPigeonUtils.deepEquals(this.rawJson, other.rawJson)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.cid)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.rawJson)
+    return result
+  }
+  override fun toString(): String {
+    return "PendingApprovalMessage(cid=$cid, rawJson=$rawJson)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PushNotificationMessage (
+  val cid: String,
+  val credentialId: String? = null,
+  val expiresAtMillis: Long? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PushNotificationMessage {
+      val cid = pigeonVar_list[0] as String
+      val credentialId = pigeonVar_list[1] as String?
+      val expiresAtMillis = pigeonVar_list[2] as Long?
+      return PushNotificationMessage(cid, credentialId, expiresAtMillis)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      cid,
+      credentialId,
+      expiresAtMillis,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PushNotificationMessage
+    return MessagesPigeonUtils.deepEquals(this.cid, other.cid) && MessagesPigeonUtils.deepEquals(this.credentialId, other.credentialId) && MessagesPigeonUtils.deepEquals(this.expiresAtMillis, other.expiresAtMillis)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.cid)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.credentialId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.expiresAtMillis)
+    return result
+  }
+  override fun toString(): String {
+    return "PushNotificationMessage(cid=$cid, credentialId=$credentialId, expiresAtMillis=$expiresAtMillis)"
+  }
+}
+
+/**
+ * One redacted request/response of the SDK's transport (the native `FlowLogEntry`).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class FlowLogMessage (
+  val id: String,
+  val timestampMillis: Long,
+  val method: String,
+  val url: String,
+  val requestHeaders: Map<String, String>,
+  val requestBody: String? = null,
+  val statusCode: Long? = null,
+  val responseHeaders: Map<String, String>,
+  val responseBody: String? = null,
+  val durationMilliseconds: Long,
+  val errorCode: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): FlowLogMessage {
+      val id = pigeonVar_list[0] as String
+      val timestampMillis = pigeonVar_list[1] as Long
+      val method = pigeonVar_list[2] as String
+      val url = pigeonVar_list[3] as String
+      val requestHeaders = pigeonVar_list[4] as Map<String, String>
+      val requestBody = pigeonVar_list[5] as String?
+      val statusCode = pigeonVar_list[6] as Long?
+      val responseHeaders = pigeonVar_list[7] as Map<String, String>
+      val responseBody = pigeonVar_list[8] as String?
+      val durationMilliseconds = pigeonVar_list[9] as Long
+      val errorCode = pigeonVar_list[10] as String?
+      return FlowLogMessage(id, timestampMillis, method, url, requestHeaders, requestBody, statusCode, responseHeaders, responseBody, durationMilliseconds, errorCode)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      timestampMillis,
+      method,
+      url,
+      requestHeaders,
+      requestBody,
+      statusCode,
+      responseHeaders,
+      responseBody,
+      durationMilliseconds,
+      errorCode,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as FlowLogMessage
+    return MessagesPigeonUtils.deepEquals(this.id, other.id) && MessagesPigeonUtils.deepEquals(this.timestampMillis, other.timestampMillis) && MessagesPigeonUtils.deepEquals(this.method, other.method) && MessagesPigeonUtils.deepEquals(this.url, other.url) && MessagesPigeonUtils.deepEquals(this.requestHeaders, other.requestHeaders) && MessagesPigeonUtils.deepEquals(this.requestBody, other.requestBody) && MessagesPigeonUtils.deepEquals(this.statusCode, other.statusCode) && MessagesPigeonUtils.deepEquals(this.responseHeaders, other.responseHeaders) && MessagesPigeonUtils.deepEquals(this.responseBody, other.responseBody) && MessagesPigeonUtils.deepEquals(this.durationMilliseconds, other.durationMilliseconds) && MessagesPigeonUtils.deepEquals(this.errorCode, other.errorCode)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.id)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.timestampMillis)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.method)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.url)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.requestHeaders)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.requestBody)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.statusCode)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.responseHeaders)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.responseBody)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.durationMilliseconds)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.errorCode)
+    return result
+  }
+  override fun toString(): String {
+    return "FlowLogMessage(id=$id, timestampMillis=$timestampMillis, method=$method, url=$url, requestHeaders=$requestHeaders, requestBody=$requestBody, statusCode=$statusCode, responseHeaders=$responseHeaders, responseBody=$responseBody, durationMilliseconds=$durationMilliseconds, errorCode=$errorCode)"
+  }
+}
 private open class MessagesPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -832,6 +1166,36 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
           AnswerMessage.fromList(it)
         }
       }
+      140.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          SavedPasswordMessage.fromList(it)
+        }
+      }
+      141.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          RegisteredPasskeyMessage.fromList(it)
+        }
+      }
+      142.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          PushEnrollmentMessage.fromList(it)
+        }
+      }
+      143.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          PendingApprovalMessage.fromList(it)
+        }
+      }
+      144.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          PushNotificationMessage.fromList(it)
+        }
+      }
+      145.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          FlowLogMessage.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -881,12 +1245,64 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(139)
         writeValue(stream, value.toList())
       }
+      is SavedPasswordMessage -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is RegisteredPasskeyMessage -> {
+        stream.write(141)
+        writeValue(stream, value.toList())
+      }
+      is PushEnrollmentMessage -> {
+        stream.write(142)
+        writeValue(stream, value.toList())
+      }
+      is PendingApprovalMessage -> {
+        stream.write(143)
+        writeValue(stream, value.toList())
+      }
+      is PushNotificationMessage -> {
+        stream.write(144)
+        writeValue(stream, value.toList())
+      }
+      is FlowLogMessage -> {
+        stream.write(145)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
 }
 
 
+/** Generated class from Pigeon that represents Flutter messages that can be called from Kotlin. */
+class KeycloakNativeFlutterApi(private val binaryMessenger: BinaryMessenger, private val messageChannelSuffix: String = "") {
+  companion object {
+    /** The codec used by KeycloakNativeFlutterApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      MessagesPigeonCodec()
+    }
+  }
+  suspend fun onFlowLog(instanceArg: String, entryArg: FlowLogMessage)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    return suspendCancellableCoroutine { continuation ->
+      val channelName = "dev.flutter.pigeon.keycloak_native.KeycloakNativeFlutterApi.onFlowLog$separatedMessageChannelSuffix"
+      val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+      channel.send(listOf(instanceArg, entryArg)) {
+        if (it is List<*>) {
+          if (it.size > 1) {
+            continuation.resumeWithException(FlutterError(it[0] as String, it[1] as String, it[2] as String?))
+          } else {
+            continuation.resume(Unit)
+          }
+        } else {
+          continuation.resumeWithException(MessagesPigeonUtils.createConnectionError(channelName))
+        } 
+      }
+    }
+  }
+}
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface KeycloakNativeHostApi {
   /** Creates a native SDK instance and returns its handle. */
@@ -896,6 +1312,11 @@ interface KeycloakNativeHostApi {
   /** A step-up flow over the stored post-login `auth_session` (spec/03 §5). */
   suspend fun stepUp(instance: String, parameters: LoginParametersMessage): String
   suspend fun start(flow: String): FlowStepMessage
+  /**
+   * A step-up flow over the `auth_session` of the last `reauthentication_required` or
+   * `insufficient_authorization` error this instance raised (spec/03 §5, §6).
+   */
+  suspend fun continueAfterTokenChallenge(instance: String, parameters: LoginParametersMessage): String
   /** Answers the pending challenge `challengeId` of type `challengeType`. */
   suspend fun respond(flow: String, challengeId: String, challengeType: String, answer: AnswerMessage, additionalFields: Map<String, String>): FlowStepMessage
   suspend fun cancel(flow: String)
@@ -918,6 +1339,32 @@ interface KeycloakNativeHostApi {
   suspend fun dpopKeyThumbprint(instance: String): String?
   /** The native-auth metadata document as JSON text. */
   suspend fun metadataJson(instance: String, forceRefresh: Boolean): String
+  /** Runs the passkey assertion for the pending `passkey` challenge and answers it. */
+  suspend fun usePasskey(flow: String, challengeId: String, preferImmediatelyAvailableCredentials: Boolean): FlowStepMessage
+  /** Runs the passkey registration for the pending `passkey_registration` challenge and answers it. */
+  suspend fun registerPasskey(flow: String, challengeId: String, label: String?): FlowStepMessage
+  /**
+   * Enrolls this device for push from the pending `push_enrollment` challenge, answers it and keeps
+   * the enrollment once the server accepted it.
+   */
+  suspend fun enrollPush(flow: String, challengeId: String, deviceLabel: String, pushProviderType: String, pushProviderId: String?): FlowStepMessage
+  /** Registers a new passkey for the signed-in user (spec/03 §6) with the stored credentials. */
+  suspend fun registerNewPasskey(instance: String, label: String?): RegisteredPasskeyMessage
+  /** The system sheet of saved passwords. */
+  suspend fun pickSavedPassword(instance: String): SavedPasswordMessage
+  /** Offers to save a typed password (Android Credential Manager; iOS saves through AutoFill). */
+  suspend fun savePassword(instance: String, username: String, password: String)
+  suspend fun pushEnrollment(instance: String): PushEnrollmentMessage?
+  suspend fun pushEnroll(instance: String, deviceLabel: String, pushProviderType: String, pushProviderId: String?): PushEnrollmentMessage
+  suspend fun pushForgetEnrollment(instance: String)
+  suspend fun pushPendingApprovals(instance: String): List<PendingApprovalMessage>
+  /** Approves (with the picked number or PIN) or denies; returns the server's status. */
+  suspend fun pushRespond(instance: String, cid: String, approve: Boolean, userVerification: String?): String
+  /** Reads a push message's data (FCM `data`, APNs `userInfo`); null when it is not a sign-in request. */
+  suspend fun pushHandleMessage(instance: String, data: Map<String, String>): PushNotificationMessage?
+  suspend fun pushUpdateProvider(instance: String, type: String, id: String)
+  suspend fun pushRotateKey(instance: String)
+  suspend fun pushLockout(instance: String)
 
   companion object {
     /** The codec used by KeycloakNativeHostApi. */
@@ -992,6 +1439,26 @@ interface KeycloakNativeHostApi {
             CoroutineScope(Dispatchers.Main).launch {
               val wrapped: List<Any?> = try {
                 listOf(api.start(flowArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.continueAfterTokenChallenge$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            val parametersArg = args[1] as LoginParametersMessage
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.continueAfterTokenChallenge(instanceArg, parametersArg))
               } catch (exception: Throwable) {
                 MessagesPigeonUtils.wrapError(exception)
               }
@@ -1252,6 +1719,316 @@ interface KeycloakNativeHostApi {
             CoroutineScope(Dispatchers.Main).launch {
               val wrapped: List<Any?> = try {
                 listOf(api.metadataJson(instanceArg, forceRefreshArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.usePasskey$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val flowArg = args[0] as String
+            val challengeIdArg = args[1] as String
+            val preferImmediatelyAvailableCredentialsArg = args[2] as Boolean
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.usePasskey(flowArg, challengeIdArg, preferImmediatelyAvailableCredentialsArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.registerPasskey$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val flowArg = args[0] as String
+            val challengeIdArg = args[1] as String
+            val labelArg = args[2] as String?
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.registerPasskey(flowArg, challengeIdArg, labelArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.enrollPush$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val flowArg = args[0] as String
+            val challengeIdArg = args[1] as String
+            val deviceLabelArg = args[2] as String
+            val pushProviderTypeArg = args[3] as String
+            val pushProviderIdArg = args[4] as String?
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.enrollPush(flowArg, challengeIdArg, deviceLabelArg, pushProviderTypeArg, pushProviderIdArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.registerNewPasskey$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            val labelArg = args[1] as String?
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.registerNewPasskey(instanceArg, labelArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pickSavedPassword$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.pickSavedPassword(instanceArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.savePassword$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            val usernameArg = args[1] as String
+            val passwordArg = args[2] as String
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                api.savePassword(instanceArg, usernameArg, passwordArg)
+                listOf(null)
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushEnrollment$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.pushEnrollment(instanceArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushEnroll$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            val deviceLabelArg = args[1] as String
+            val pushProviderTypeArg = args[2] as String
+            val pushProviderIdArg = args[3] as String?
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.pushEnroll(instanceArg, deviceLabelArg, pushProviderTypeArg, pushProviderIdArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushForgetEnrollment$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                api.pushForgetEnrollment(instanceArg)
+                listOf(null)
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushPendingApprovals$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.pushPendingApprovals(instanceArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushRespond$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            val cidArg = args[1] as String
+            val approveArg = args[2] as Boolean
+            val userVerificationArg = args[3] as String?
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.pushRespond(instanceArg, cidArg, approveArg, userVerificationArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushHandleMessage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            val dataArg = args[1] as Map<String, String>
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.pushHandleMessage(instanceArg, dataArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushUpdateProvider$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            val typeArg = args[1] as String
+            val idArg = args[2] as String
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                api.pushUpdateProvider(instanceArg, typeArg, idArg)
+                listOf(null)
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushRotateKey$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                api.pushRotateKey(instanceArg)
+                listOf(null)
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushLockout$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val instanceArg = args[0] as String
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                api.pushLockout(instanceArg)
+                listOf(null)
               } catch (exception: Throwable) {
                 MessagesPigeonUtils.wrapError(exception)
               }

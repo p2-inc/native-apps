@@ -55,6 +55,10 @@ private func wrapError(_ error: Any) -> [Any?] {
   ]
 }
 
+private func createConnectionError(withChannelName channelName: String) -> PigeonError {
+  return PigeonError(code: "channel-error", message: "Unable to establish connection on channel: '\(channelName)'.", details: "")
+}
+
 enum MessagesPigeonInternal {
   static func isNullish(_ value: Any?) -> Bool {
     guard let innerValue = value else {
@@ -230,6 +234,8 @@ struct ConfigureMessage: Hashable, CustomStringConvertible {
   /// the SDK's default service.
   var storageNamespace: String? = nil
   var metadataCacheTtlSeconds: Int64? = nil
+  /// Send the SDK's redacted request/response entries to `KeycloakNativeFlutterApi.onFlowLog`.
+  var observeFlow: Bool? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -241,6 +247,7 @@ struct ConfigureMessage: Hashable, CustomStringConvertible {
     let ephemeralWebSession = pigeonVar_list[4] as! Bool
     let storageNamespace: String? = nilOrValue(pigeonVar_list[5])
     let metadataCacheTtlSeconds: Int64? = nilOrValue(pigeonVar_list[6])
+    let observeFlow: Bool? = nilOrValue(pigeonVar_list[7])
 
     return ConfigureMessage(
       issuer: issuer,
@@ -249,7 +256,8 @@ struct ConfigureMessage: Hashable, CustomStringConvertible {
       allowRpIdMismatch: allowRpIdMismatch,
       ephemeralWebSession: ephemeralWebSession,
       storageNamespace: storageNamespace,
-      metadataCacheTtlSeconds: metadataCacheTtlSeconds
+      metadataCacheTtlSeconds: metadataCacheTtlSeconds,
+      observeFlow: observeFlow
     )
   }
   func toList() -> [Any?] {
@@ -261,13 +269,14 @@ struct ConfigureMessage: Hashable, CustomStringConvertible {
       ephemeralWebSession,
       storageNamespace,
       metadataCacheTtlSeconds,
+      observeFlow,
     ]
   }
   static func == (lhs: ConfigureMessage, rhs: ConfigureMessage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.issuer, rhs.issuer) && MessagesPigeonInternal.deepEquals(lhs.clientId, rhs.clientId) && MessagesPigeonInternal.deepEquals(lhs.dpop, rhs.dpop) && MessagesPigeonInternal.deepEquals(lhs.allowRpIdMismatch, rhs.allowRpIdMismatch) && MessagesPigeonInternal.deepEquals(lhs.ephemeralWebSession, rhs.ephemeralWebSession) && MessagesPigeonInternal.deepEquals(lhs.storageNamespace, rhs.storageNamespace) && MessagesPigeonInternal.deepEquals(lhs.metadataCacheTtlSeconds, rhs.metadataCacheTtlSeconds)
+    return MessagesPigeonInternal.deepEquals(lhs.issuer, rhs.issuer) && MessagesPigeonInternal.deepEquals(lhs.clientId, rhs.clientId) && MessagesPigeonInternal.deepEquals(lhs.dpop, rhs.dpop) && MessagesPigeonInternal.deepEquals(lhs.allowRpIdMismatch, rhs.allowRpIdMismatch) && MessagesPigeonInternal.deepEquals(lhs.ephemeralWebSession, rhs.ephemeralWebSession) && MessagesPigeonInternal.deepEquals(lhs.storageNamespace, rhs.storageNamespace) && MessagesPigeonInternal.deepEquals(lhs.metadataCacheTtlSeconds, rhs.metadataCacheTtlSeconds) && MessagesPigeonInternal.deepEquals(lhs.observeFlow, rhs.observeFlow)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -279,10 +288,11 @@ struct ConfigureMessage: Hashable, CustomStringConvertible {
     MessagesPigeonInternal.deepHash(value: ephemeralWebSession, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: storageNamespace, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: metadataCacheTtlSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: observeFlow, hasher: &hasher)
   }
 
   public var description: String {
-    return "ConfigureMessage(issuer: \(String(describing: issuer)), clientId: \(String(describing: clientId)), dpop: \(String(describing: dpop)), allowRpIdMismatch: \(String(describing: allowRpIdMismatch)), ephemeralWebSession: \(String(describing: ephemeralWebSession)), storageNamespace: \(String(describing: storageNamespace)), metadataCacheTtlSeconds: \(String(describing: metadataCacheTtlSeconds)))"
+    return "ConfigureMessage(issuer: \(String(describing: issuer)), clientId: \(String(describing: clientId)), dpop: \(String(describing: dpop)), allowRpIdMismatch: \(String(describing: allowRpIdMismatch)), ephemeralWebSession: \(String(describing: ephemeralWebSession)), storageNamespace: \(String(describing: storageNamespace)), metadataCacheTtlSeconds: \(String(describing: metadataCacheTtlSeconds)), observeFlow: \(String(describing: observeFlow)))"
   }
 }
 
@@ -764,6 +774,340 @@ struct AnswerMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct SavedPasswordMessage: Hashable, CustomStringConvertible {
+  var username: String
+  var password: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> SavedPasswordMessage? {
+    let username = pigeonVar_list[0] as! String
+    let password = pigeonVar_list[1] as! String
+
+    return SavedPasswordMessage(
+      username: username,
+      password: password
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      username,
+      password,
+    ]
+  }
+  static func == (lhs: SavedPasswordMessage, rhs: SavedPasswordMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.username, rhs.username) && MessagesPigeonInternal.deepEquals(lhs.password, rhs.password)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("SavedPasswordMessage")
+    MessagesPigeonInternal.deepHash(value: username, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: password, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "SavedPasswordMessage(username: \(String(describing: username)), password: \(String(describing: password)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct RegisteredPasskeyMessage: Hashable, CustomStringConvertible {
+  var credentialId: String
+  var label: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> RegisteredPasskeyMessage? {
+    let credentialId = pigeonVar_list[0] as! String
+    let label: String? = nilOrValue(pigeonVar_list[1])
+
+    return RegisteredPasskeyMessage(
+      credentialId: credentialId,
+      label: label
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      credentialId,
+      label,
+    ]
+  }
+  static func == (lhs: RegisteredPasskeyMessage, rhs: RegisteredPasskeyMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.credentialId, rhs.credentialId) && MessagesPigeonInternal.deepEquals(lhs.label, rhs.label)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("RegisteredPasskeyMessage")
+    MessagesPigeonInternal.deepHash(value: credentialId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: label, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "RegisteredPasskeyMessage(credentialId: \(String(describing: credentialId)), label: \(String(describing: label)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct PushEnrollmentMessage: Hashable, CustomStringConvertible {
+  var credentialId: String
+  var deviceId: String
+  var userId: String
+  var username: String? = nil
+  var deviceLabel: String
+  var pushProviderType: String
+  var pushProviderId: String? = nil
+  var deviceApiBase: String
+  var keyThumbprint: String
+  var enrolledAtMillis: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PushEnrollmentMessage? {
+    let credentialId = pigeonVar_list[0] as! String
+    let deviceId = pigeonVar_list[1] as! String
+    let userId = pigeonVar_list[2] as! String
+    let username: String? = nilOrValue(pigeonVar_list[3])
+    let deviceLabel = pigeonVar_list[4] as! String
+    let pushProviderType = pigeonVar_list[5] as! String
+    let pushProviderId: String? = nilOrValue(pigeonVar_list[6])
+    let deviceApiBase = pigeonVar_list[7] as! String
+    let keyThumbprint = pigeonVar_list[8] as! String
+    let enrolledAtMillis = pigeonVar_list[9] as! Int64
+
+    return PushEnrollmentMessage(
+      credentialId: credentialId,
+      deviceId: deviceId,
+      userId: userId,
+      username: username,
+      deviceLabel: deviceLabel,
+      pushProviderType: pushProviderType,
+      pushProviderId: pushProviderId,
+      deviceApiBase: deviceApiBase,
+      keyThumbprint: keyThumbprint,
+      enrolledAtMillis: enrolledAtMillis
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      credentialId,
+      deviceId,
+      userId,
+      username,
+      deviceLabel,
+      pushProviderType,
+      pushProviderId,
+      deviceApiBase,
+      keyThumbprint,
+      enrolledAtMillis,
+    ]
+  }
+  static func == (lhs: PushEnrollmentMessage, rhs: PushEnrollmentMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.credentialId, rhs.credentialId) && MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.userId, rhs.userId) && MessagesPigeonInternal.deepEquals(lhs.username, rhs.username) && MessagesPigeonInternal.deepEquals(lhs.deviceLabel, rhs.deviceLabel) && MessagesPigeonInternal.deepEquals(lhs.pushProviderType, rhs.pushProviderType) && MessagesPigeonInternal.deepEquals(lhs.pushProviderId, rhs.pushProviderId) && MessagesPigeonInternal.deepEquals(lhs.deviceApiBase, rhs.deviceApiBase) && MessagesPigeonInternal.deepEquals(lhs.keyThumbprint, rhs.keyThumbprint) && MessagesPigeonInternal.deepEquals(lhs.enrolledAtMillis, rhs.enrolledAtMillis)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PushEnrollmentMessage")
+    MessagesPigeonInternal.deepHash(value: credentialId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: deviceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: userId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: username, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: deviceLabel, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: pushProviderType, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: pushProviderId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: deviceApiBase, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: keyThumbprint, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: enrolledAtMillis, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PushEnrollmentMessage(credentialId: \(String(describing: credentialId)), deviceId: \(String(describing: deviceId)), userId: \(String(describing: userId)), username: \(String(describing: username)), deviceLabel: \(String(describing: deviceLabel)), pushProviderType: \(String(describing: pushProviderType)), pushProviderId: \(String(describing: pushProviderId)), deviceApiBase: \(String(describing: deviceApiBase)), keyThumbprint: \(String(describing: keyThumbprint)), enrolledAtMillis: \(String(describing: enrolledAtMillis)))"
+  }
+}
+
+/// A pending approval of the push device API (`/login/pending`), as JSON text; Dart reads it.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PendingApprovalMessage: Hashable, CustomStringConvertible {
+  var cid: String
+  var rawJson: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PendingApprovalMessage? {
+    let cid = pigeonVar_list[0] as! String
+    let rawJson = pigeonVar_list[1] as! String
+
+    return PendingApprovalMessage(
+      cid: cid,
+      rawJson: rawJson
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      cid,
+      rawJson,
+    ]
+  }
+  static func == (lhs: PendingApprovalMessage, rhs: PendingApprovalMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.cid, rhs.cid) && MessagesPigeonInternal.deepEquals(lhs.rawJson, rhs.rawJson)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PendingApprovalMessage")
+    MessagesPigeonInternal.deepHash(value: cid, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: rawJson, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PendingApprovalMessage(cid: \(String(describing: cid)), rawJson: \(String(describing: rawJson)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct PushNotificationMessage: Hashable, CustomStringConvertible {
+  var cid: String
+  var credentialId: String? = nil
+  var expiresAtMillis: Int64? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PushNotificationMessage? {
+    let cid = pigeonVar_list[0] as! String
+    let credentialId: String? = nilOrValue(pigeonVar_list[1])
+    let expiresAtMillis: Int64? = nilOrValue(pigeonVar_list[2])
+
+    return PushNotificationMessage(
+      cid: cid,
+      credentialId: credentialId,
+      expiresAtMillis: expiresAtMillis
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      cid,
+      credentialId,
+      expiresAtMillis,
+    ]
+  }
+  static func == (lhs: PushNotificationMessage, rhs: PushNotificationMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.cid, rhs.cid) && MessagesPigeonInternal.deepEquals(lhs.credentialId, rhs.credentialId) && MessagesPigeonInternal.deepEquals(lhs.expiresAtMillis, rhs.expiresAtMillis)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PushNotificationMessage")
+    MessagesPigeonInternal.deepHash(value: cid, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: credentialId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: expiresAtMillis, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PushNotificationMessage(cid: \(String(describing: cid)), credentialId: \(String(describing: credentialId)), expiresAtMillis: \(String(describing: expiresAtMillis)))"
+  }
+}
+
+/// One redacted request/response of the SDK's transport (the native `FlowLogEntry`).
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct FlowLogMessage: Hashable, CustomStringConvertible {
+  var id: String
+  var timestampMillis: Int64
+  var method: String
+  var url: String
+  var requestHeaders: [String: String]
+  var requestBody: String? = nil
+  var statusCode: Int64? = nil
+  var responseHeaders: [String: String]
+  var responseBody: String? = nil
+  var durationMilliseconds: Int64
+  var errorCode: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> FlowLogMessage? {
+    let id = pigeonVar_list[0] as! String
+    let timestampMillis = pigeonVar_list[1] as! Int64
+    let method = pigeonVar_list[2] as! String
+    let url = pigeonVar_list[3] as! String
+    let requestHeaders = pigeonVar_list[4] as! [String: String]
+    let requestBody: String? = nilOrValue(pigeonVar_list[5])
+    let statusCode: Int64? = nilOrValue(pigeonVar_list[6])
+    let responseHeaders = pigeonVar_list[7] as! [String: String]
+    let responseBody: String? = nilOrValue(pigeonVar_list[8])
+    let durationMilliseconds = pigeonVar_list[9] as! Int64
+    let errorCode: String? = nilOrValue(pigeonVar_list[10])
+
+    return FlowLogMessage(
+      id: id,
+      timestampMillis: timestampMillis,
+      method: method,
+      url: url,
+      requestHeaders: requestHeaders,
+      requestBody: requestBody,
+      statusCode: statusCode,
+      responseHeaders: responseHeaders,
+      responseBody: responseBody,
+      durationMilliseconds: durationMilliseconds,
+      errorCode: errorCode
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      id,
+      timestampMillis,
+      method,
+      url,
+      requestHeaders,
+      requestBody,
+      statusCode,
+      responseHeaders,
+      responseBody,
+      durationMilliseconds,
+      errorCode,
+    ]
+  }
+  static func == (lhs: FlowLogMessage, rhs: FlowLogMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.id, rhs.id) && MessagesPigeonInternal.deepEquals(lhs.timestampMillis, rhs.timestampMillis) && MessagesPigeonInternal.deepEquals(lhs.method, rhs.method) && MessagesPigeonInternal.deepEquals(lhs.url, rhs.url) && MessagesPigeonInternal.deepEquals(lhs.requestHeaders, rhs.requestHeaders) && MessagesPigeonInternal.deepEquals(lhs.requestBody, rhs.requestBody) && MessagesPigeonInternal.deepEquals(lhs.statusCode, rhs.statusCode) && MessagesPigeonInternal.deepEquals(lhs.responseHeaders, rhs.responseHeaders) && MessagesPigeonInternal.deepEquals(lhs.responseBody, rhs.responseBody) && MessagesPigeonInternal.deepEquals(lhs.durationMilliseconds, rhs.durationMilliseconds) && MessagesPigeonInternal.deepEquals(lhs.errorCode, rhs.errorCode)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("FlowLogMessage")
+    MessagesPigeonInternal.deepHash(value: id, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: timestampMillis, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: method, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: url, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: requestHeaders, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: requestBody, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: statusCode, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: responseHeaders, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: responseBody, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: durationMilliseconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: errorCode, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "FlowLogMessage(id: \(String(describing: id)), timestampMillis: \(String(describing: timestampMillis)), method: \(String(describing: method)), url: \(String(describing: url)), requestHeaders: \(String(describing: requestHeaders)), requestBody: \(String(describing: requestBody)), statusCode: \(String(describing: statusCode)), responseHeaders: \(String(describing: responseHeaders)), responseBody: \(String(describing: responseBody)), durationMilliseconds: \(String(describing: durationMilliseconds)), errorCode: \(String(describing: errorCode)))"
+  }
+}
+
 private class MessagesPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -801,6 +1145,18 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       return FormFieldMessage.fromList(self.readValue() as! [Any?])
     case 139:
       return AnswerMessage.fromList(self.readValue() as! [Any?])
+    case 140:
+      return SavedPasswordMessage.fromList(self.readValue() as! [Any?])
+    case 141:
+      return RegisteredPasskeyMessage.fromList(self.readValue() as! [Any?])
+    case 142:
+      return PushEnrollmentMessage.fromList(self.readValue() as! [Any?])
+    case 143:
+      return PendingApprovalMessage.fromList(self.readValue() as! [Any?])
+    case 144:
+      return PushNotificationMessage.fromList(self.readValue() as! [Any?])
+    case 145:
+      return FlowLogMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -842,6 +1198,24 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? AnswerMessage {
       super.writeByte(139)
       super.writeValue(value.toList())
+    } else if let value = value as? SavedPasswordMessage {
+      super.writeByte(140)
+      super.writeValue(value.toList())
+    } else if let value = value as? RegisteredPasskeyMessage {
+      super.writeByte(141)
+      super.writeValue(value.toList())
+    } else if let value = value as? PushEnrollmentMessage {
+      super.writeByte(142)
+      super.writeValue(value.toList())
+    } else if let value = value as? PendingApprovalMessage {
+      super.writeByte(143)
+      super.writeValue(value.toList())
+    } else if let value = value as? PushNotificationMessage {
+      super.writeByte(144)
+      super.writeValue(value.toList())
+    } else if let value = value as? FlowLogMessage {
+      super.writeByte(145)
+      super.writeValue(value.toList())
     } else {
       super.writeValue(value)
     }
@@ -863,6 +1237,42 @@ class MessagesPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
 }
 
 
+
+/// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
+protocol KeycloakNativeFlutterApiProtocol {
+  @MainActor func onFlowLog(instance instanceArg: String, entry entryArg: FlowLogMessage) async throws
+}
+class KeycloakNativeFlutterApi: KeycloakNativeFlutterApiProtocol {
+  private let binaryMessenger: FlutterBinaryMessenger
+  private let messageChannelSuffix: String
+  init(binaryMessenger: FlutterBinaryMessenger, messageChannelSuffix: String = "") {
+    self.binaryMessenger = binaryMessenger
+    self.messageChannelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+  }
+  var codec: MessagesPigeonCodec {
+    return MessagesPigeonCodec.shared
+  }
+  @MainActor func onFlowLog(instance instanceArg: String, entry entryArg: FlowLogMessage) async throws {
+    return try await withCheckedThrowingContinuation { continuation in
+      let channelName: String = "dev.flutter.pigeon.keycloak_native.KeycloakNativeFlutterApi.onFlowLog\(messageChannelSuffix)"
+      let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+      channel.sendMessage([instanceArg, entryArg] as [Any?]) { response in
+        guard let listResponse = response as? [Any?] else {
+          continuation.resume(throwing: createConnectionError(withChannelName: channelName))
+          return
+        }
+        if listResponse.count > 1 {
+          let code: String = listResponse[0] as! String
+          let message: String? = nilOrValue(listResponse[1])
+          let details: String? = nilOrValue(listResponse[2])
+          continuation.resume(throwing: PigeonError(code: code, message: message, details: details))
+        } else {
+          continuation.resume()
+        }
+      }
+    }
+  }
+}
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol KeycloakNativeHostApi {
   /// Creates a native SDK instance and returns its handle.
@@ -872,6 +1282,9 @@ protocol KeycloakNativeHostApi {
   /// A step-up flow over the stored post-login `auth_session` (spec/03 §5).
   func stepUp(instance: String, parameters: LoginParametersMessage) async throws -> String
   func start(flow: String) async throws -> FlowStepMessage
+  /// A step-up flow over the `auth_session` of the last `reauthentication_required` or
+  /// `insufficient_authorization` error this instance raised (spec/03 §5, §6).
+  func continueAfterTokenChallenge(instance: String, parameters: LoginParametersMessage) async throws -> String
   /// Answers the pending challenge `challengeId` of type `challengeType`.
   func respond(flow: String, challengeId: String, challengeType: String, answer: AnswerMessage, additionalFields: [String: String]) async throws -> FlowStepMessage
   func cancel(flow: String) async throws
@@ -894,6 +1307,30 @@ protocol KeycloakNativeHostApi {
   func dpopKeyThumbprint(instance: String) async throws -> String?
   /// The native-auth metadata document as JSON text.
   func metadataJson(instance: String, forceRefresh: Bool) async throws -> String
+  /// Runs the passkey assertion for the pending `passkey` challenge and answers it.
+  func usePasskey(flow: String, challengeId: String, preferImmediatelyAvailableCredentials: Bool) async throws -> FlowStepMessage
+  /// Runs the passkey registration for the pending `passkey_registration` challenge and answers it.
+  func registerPasskey(flow: String, challengeId: String, label: String?) async throws -> FlowStepMessage
+  /// Enrolls this device for push from the pending `push_enrollment` challenge, answers it and keeps
+  /// the enrollment once the server accepted it.
+  func enrollPush(flow: String, challengeId: String, deviceLabel: String, pushProviderType: String, pushProviderId: String?) async throws -> FlowStepMessage
+  /// Registers a new passkey for the signed-in user (spec/03 §6) with the stored credentials.
+  func registerNewPasskey(instance: String, label: String?) async throws -> RegisteredPasskeyMessage
+  /// The system sheet of saved passwords.
+  func pickSavedPassword(instance: String) async throws -> SavedPasswordMessage
+  /// Offers to save a typed password (Android Credential Manager; iOS saves through AutoFill).
+  func savePassword(instance: String, username: String, password: String) async throws
+  func pushEnrollment(instance: String) async throws -> PushEnrollmentMessage?
+  func pushEnroll(instance: String, deviceLabel: String, pushProviderType: String, pushProviderId: String?) async throws -> PushEnrollmentMessage
+  func pushForgetEnrollment(instance: String) async throws
+  func pushPendingApprovals(instance: String) async throws -> [PendingApprovalMessage]
+  /// Approves (with the picked number or PIN) or denies; returns the server's status.
+  func pushRespond(instance: String, cid: String, approve: Bool, userVerification: String?) async throws -> String
+  /// Reads a push message's data (FCM `data`, APNs `userInfo`); null when it is not a sign-in request.
+  func pushHandleMessage(instance: String, data: [String: String]) async throws -> PushNotificationMessage?
+  func pushUpdateProvider(instance: String, type: String, id: String) async throws
+  func pushRotateKey(instance: String) async throws
+  func pushLockout(instance: String) async throws
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -970,6 +1407,26 @@ class KeycloakNativeHostApiSetup {
       }
     } else {
       startChannel.setMessageHandler(nil)
+    }
+    /// A step-up flow over the `auth_session` of the last `reauthentication_required` or
+    /// `insufficient_authorization` error this instance raised (spec/03 §5, §6).
+    let continueAfterTokenChallengeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.continueAfterTokenChallenge\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      continueAfterTokenChallengeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        let parametersArg = args[1] as! LoginParametersMessage
+        Task { @MainActor in
+          do {
+            let result = try await api.continueAfterTokenChallenge(instance: instanceArg, parameters: parametersArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      continueAfterTokenChallengeChannel.setMessageHandler(nil)
     }
     /// Answers the pending challenge `challengeId` of type `challengeType`.
     let respondChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.respond\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
@@ -1208,6 +1665,290 @@ class KeycloakNativeHostApiSetup {
       }
     } else {
       metadataJsonChannel.setMessageHandler(nil)
+    }
+    /// Runs the passkey assertion for the pending `passkey` challenge and answers it.
+    let usePasskeyChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.usePasskey\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      usePasskeyChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let flowArg = args[0] as! String
+        let challengeIdArg = args[1] as! String
+        let preferImmediatelyAvailableCredentialsArg = args[2] as! Bool
+        Task { @MainActor in
+          do {
+            let result = try await api.usePasskey(flow: flowArg, challengeId: challengeIdArg, preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentialsArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      usePasskeyChannel.setMessageHandler(nil)
+    }
+    /// Runs the passkey registration for the pending `passkey_registration` challenge and answers it.
+    let registerPasskeyChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.registerPasskey\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      registerPasskeyChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let flowArg = args[0] as! String
+        let challengeIdArg = args[1] as! String
+        let labelArg: String? = nilOrValue(args[2])
+        Task { @MainActor in
+          do {
+            let result = try await api.registerPasskey(flow: flowArg, challengeId: challengeIdArg, label: labelArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      registerPasskeyChannel.setMessageHandler(nil)
+    }
+    /// Enrolls this device for push from the pending `push_enrollment` challenge, answers it and keeps
+    /// the enrollment once the server accepted it.
+    let enrollPushChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.enrollPush\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      enrollPushChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let flowArg = args[0] as! String
+        let challengeIdArg = args[1] as! String
+        let deviceLabelArg = args[2] as! String
+        let pushProviderTypeArg = args[3] as! String
+        let pushProviderIdArg: String? = nilOrValue(args[4])
+        Task { @MainActor in
+          do {
+            let result = try await api.enrollPush(flow: flowArg, challengeId: challengeIdArg, deviceLabel: deviceLabelArg, pushProviderType: pushProviderTypeArg, pushProviderId: pushProviderIdArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      enrollPushChannel.setMessageHandler(nil)
+    }
+    /// Registers a new passkey for the signed-in user (spec/03 §6) with the stored credentials.
+    let registerNewPasskeyChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.registerNewPasskey\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      registerNewPasskeyChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        let labelArg: String? = nilOrValue(args[1])
+        Task { @MainActor in
+          do {
+            let result = try await api.registerNewPasskey(instance: instanceArg, label: labelArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      registerNewPasskeyChannel.setMessageHandler(nil)
+    }
+    /// The system sheet of saved passwords.
+    let pickSavedPasswordChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pickSavedPassword\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pickSavedPasswordChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        Task { @MainActor in
+          do {
+            let result = try await api.pickSavedPassword(instance: instanceArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pickSavedPasswordChannel.setMessageHandler(nil)
+    }
+    /// Offers to save a typed password (Android Credential Manager; iOS saves through AutoFill).
+    let savePasswordChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.savePassword\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      savePasswordChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        let usernameArg = args[1] as! String
+        let passwordArg = args[2] as! String
+        Task { @MainActor in
+          do {
+            try await api.savePassword(instance: instanceArg, username: usernameArg, password: passwordArg)
+            reply(wrapResult(nil))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      savePasswordChannel.setMessageHandler(nil)
+    }
+    let pushEnrollmentChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushEnrollment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pushEnrollmentChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        Task { @MainActor in
+          do {
+            let result = try await api.pushEnrollment(instance: instanceArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pushEnrollmentChannel.setMessageHandler(nil)
+    }
+    let pushEnrollChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushEnroll\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pushEnrollChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        let deviceLabelArg = args[1] as! String
+        let pushProviderTypeArg = args[2] as! String
+        let pushProviderIdArg: String? = nilOrValue(args[3])
+        Task { @MainActor in
+          do {
+            let result = try await api.pushEnroll(instance: instanceArg, deviceLabel: deviceLabelArg, pushProviderType: pushProviderTypeArg, pushProviderId: pushProviderIdArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pushEnrollChannel.setMessageHandler(nil)
+    }
+    let pushForgetEnrollmentChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushForgetEnrollment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pushForgetEnrollmentChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        Task { @MainActor in
+          do {
+            try await api.pushForgetEnrollment(instance: instanceArg)
+            reply(wrapResult(nil))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pushForgetEnrollmentChannel.setMessageHandler(nil)
+    }
+    let pushPendingApprovalsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushPendingApprovals\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pushPendingApprovalsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        Task { @MainActor in
+          do {
+            let result = try await api.pushPendingApprovals(instance: instanceArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pushPendingApprovalsChannel.setMessageHandler(nil)
+    }
+    /// Approves (with the picked number or PIN) or denies; returns the server's status.
+    let pushRespondChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushRespond\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pushRespondChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        let cidArg = args[1] as! String
+        let approveArg = args[2] as! Bool
+        let userVerificationArg: String? = nilOrValue(args[3])
+        Task { @MainActor in
+          do {
+            let result = try await api.pushRespond(instance: instanceArg, cid: cidArg, approve: approveArg, userVerification: userVerificationArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pushRespondChannel.setMessageHandler(nil)
+    }
+    /// Reads a push message's data (FCM `data`, APNs `userInfo`); null when it is not a sign-in request.
+    let pushHandleMessageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushHandleMessage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pushHandleMessageChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        let dataArg = args[1] as! [String: String]
+        Task { @MainActor in
+          do {
+            let result = try await api.pushHandleMessage(instance: instanceArg, data: dataArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pushHandleMessageChannel.setMessageHandler(nil)
+    }
+    let pushUpdateProviderChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushUpdateProvider\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pushUpdateProviderChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        let typeArg = args[1] as! String
+        let idArg = args[2] as! String
+        Task { @MainActor in
+          do {
+            try await api.pushUpdateProvider(instance: instanceArg, type: typeArg, id: idArg)
+            reply(wrapResult(nil))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pushUpdateProviderChannel.setMessageHandler(nil)
+    }
+    let pushRotateKeyChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushRotateKey\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pushRotateKeyChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        Task { @MainActor in
+          do {
+            try await api.pushRotateKey(instance: instanceArg)
+            reply(wrapResult(nil))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pushRotateKeyChannel.setMessageHandler(nil)
+    }
+    let pushLockoutChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushLockout\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pushLockoutChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceArg = args[0] as! String
+        Task { @MainActor in
+          do {
+            try await api.pushLockout(instance: instanceArg)
+            reply(wrapResult(nil))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pushLockoutChannel.setMessageHandler(nil)
     }
   }
 }

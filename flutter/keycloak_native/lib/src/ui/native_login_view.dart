@@ -4,6 +4,7 @@ import '../answers.dart';
 import '../challenges.dart';
 import '../client.dart';
 import '../flow.dart';
+import '../push.dart';
 import 'default_screens.dart';
 import 'native_login_controller.dart';
 import 'strings.dart';
@@ -25,7 +26,30 @@ final class ChallengePresentation {
   /// A message not attached to the challenge (network error, browser failure).
   String? get message => _controller.message;
 
+  /// "Use a saved password" is offered on the username and password screens.
+  bool get offersSavedPasswords => _controller.offersSavedPasswords;
+
   void submit(ChallengeAnswer answer) => _controller.submit(answer, challenge);
+
+  /// `passkey`: runs the passkey sheet and answers natively.
+  void usePasskey({bool preferImmediatelyAvailableCredentials = false}) {
+    if (challenge case final PasskeyChallenge c) {
+      _controller.usePasskey(c, preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials);
+    }
+  }
+
+  /// `passkey_registration`: creates the passkey and answers natively.
+  void registerPasskey({String? label}) {
+    if (challenge case final PasskeyRegistrationChallenge c) _controller.registerPasskey(c, label: label);
+  }
+
+  /// `push_enrollment`: enrolls this device with the view's `pushRegistration`.
+  void enrollPush(String deviceLabel) {
+    if (challenge case final PushEnrollmentChallenge c) _controller.enrollPush(c, deviceLabel);
+  }
+
+  /// The saved-password sheet, on the username or password step.
+  void useSavedPassword() => _controller.useSavedPassword(challenge);
   void switchTo(Challenge other) => _controller.select(other);
   void cancel() => _controller.cancel();
 }
@@ -40,9 +64,9 @@ typedef ChallengeChooser = Widget Function(BuildContext context, ChallengePresen
 /// app's from [presenters]), offers the alternatives, runs the browser fallback and reports one
 /// [NativeLoginResult]. It does not store credentials or navigate: [onResult] does.
 ///
-/// Pass an unstarted flow and create a new one for each attempt. The default screens cover
-/// `username`, `password` and `totp` in this version; every other type shows an "update required"
-/// screen unless [presenters] has one for it.
+/// Pass an unstarted flow and create a new one for each attempt. Every spec/03 challenge type and
+/// required action has a default screen; a type this version does not know shows "update required"
+/// unless [presenters] has a screen for it.
 class NativeLoginView extends StatefulWidget {
   const NativeLoginView({
     super.key,
@@ -52,7 +76,11 @@ class NativeLoginView extends StatefulWidget {
     this.presenters = const {},
     this.chooser,
     this.header,
-    this.strings = const NativeLoginStrings(),
+    this.strings,
+    this.autoSelectPasskey = false,
+    this.offerSavedPasswords = true,
+    this.offerToSavePassword = true,
+    this.pushRegistration,
   });
 
   final KeycloakNative kc;
@@ -67,14 +95,36 @@ class NativeLoginView extends StatefulWidget {
 
   /// Shown above every screen, for a logo.
   final Widget? header;
-  final NativeLoginStrings strings;
+
+  /// The texts; by default English or German after the app's locale ([NativeLoginStrings.of]).
+  final NativeLoginStrings? strings;
+
+  /// Run the passkey sheet as soon as a set offers `passkey`.
+  final bool autoSelectPasskey;
+
+  /// "Use a saved password" on the username and password screens.
+  final bool offerSavedPasswords;
+
+  /// Offer a typed password to the password manager after success (Android; iOS AutoFill offers it).
+  final bool offerToSavePassword;
+
+  /// The FCM or APNs token a `push_enrollment` registers; without it the device enrolls as `none`.
+  final Future<PushProviderRegistration> Function()? pushRegistration;
 
   @override
   State<NativeLoginView> createState() => _NativeLoginViewState();
 }
 
 class _NativeLoginViewState extends State<NativeLoginView> {
-  late final NativeLoginController _controller = NativeLoginController(kc: widget.kc, flow: widget.flow, onResult: widget.onResult)
+  late final NativeLoginController _controller = NativeLoginController(
+    kc: widget.kc,
+    flow: widget.flow,
+    onResult: widget.onResult,
+    autoSelectPasskey: widget.autoSelectPasskey,
+    offersSavedPasswords: widget.offerSavedPasswords,
+    offerToSavePassword: widget.offerToSavePassword,
+    pushRegistration: widget.pushRegistration,
+  )
     ..addListener(_changed)
     ..start();
 
@@ -89,7 +139,7 @@ class _NativeLoginViewState extends State<NativeLoginView> {
 
   @override
   Widget build(BuildContext context) {
-    final strings = widget.strings;
+    final strings = widget.strings ?? NativeLoginStrings.of(context);
     final phase = _controller.phase;
     final Widget body = switch (phase) {
       NativeLoginStarting() || NativeLoginFinished() => Column(

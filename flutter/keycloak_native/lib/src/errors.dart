@@ -99,6 +99,15 @@ abstract final class NativeAuthErrorCode {
   static const webFallbackFailed = 'web_fallback_failed';
   static const savedPasswordCancelled = 'saved_password_cancelled';
   static const savedPasswordUnavailable = 'saved_password_unavailable';
+
+  // Push MFA device side
+  static const deviceTokenUnavailable = 'device_token_unavailable';
+  static const pushNotEnrolled = 'push_not_enrolled';
+  static const pushUnavailable = 'push_unavailable';
+  static const pushConflict = 'push_conflict';
+
+  /// The number or PIN picked on an approval did not match; the approval stays pending.
+  static const userVerificationMismatch = 'user_verification_mismatch';
 }
 
 /// Runs a host call, turning a `PlatformException` into a [NativeAuthException].

@@ -70,6 +70,9 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
   /// Requests consumed so far.
   int get consumed => _cursor;
 
+  /// Continues the replay at the exchange with [seq] (another device's part of a scenario).
+  void skipTo(int seq) => _cursor = _exchanges.indexWhere((e) => e['seq'] == seq);
+
   @override
   Future<String> configure(ConfigureMessage config) async {
     _clientId = config.clientId;
@@ -124,6 +127,25 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
     return _challengeExchange(expected);
   }
 
+  /// A native ceremony (passkey, push enrollment): its fields come from the platform, so only the
+  /// routing and the field names are compared; the recorded values stand in for the platform's.
+  Future<FlowStepMessage> _ceremony(String challengeId, String challengeType, Set<String> required, {Set<String> optional = const {}}) {
+    final recorded = _form(_exchanges[_cursor < _exchanges.length ? _cursor : _exchanges.length - 1]);
+    final answer = recorded.keys.toSet().difference({'auth_session', 'challenge_type', 'challenge_id'});
+    if (!answer.containsAll(required) || !optional.union(required).containsAll(answer)) {
+      throw TranscriptMismatch('Ceremony fields: recorded $answer, the native SDK sends $required + optional $optional');
+    }
+    final expected = <(String, String)>[
+      ('auth_session', _authSession ?? '<none>'),
+      ('challenge_type', challengeType),
+      ('challenge_id', challengeId),
+      for (final name in answer) (name, recorded[name]!),
+    ];
+    return _challengeExchange(expected);
+  }
+
+  final List<String> calls = [];
+
   Future<FlowStepMessage> _challengeExchange(List<(String, String)> expected) async {
     final exchange = _next('/native-auth/challenge');
     _compare(expected, _form(exchange));
@@ -165,10 +187,22 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
   }
 
   CredentialsMessage _tokenExchange(String code) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final upcoming = _cursor < _exchanges.length ? ((_exchanges[_cursor]['request'] as Map)['path'] as String) : '';
+    if (!upcoming.endsWith('/protocol/openid-connect/token')) {
+      // Some tests stop at the code; the native SDK's exchange is covered by its own replay suites.
+      return CredentialsMessage(
+        handle: 'credentials-$_cursor',
+        accessToken: 'unrecorded',
+        tokenType: 'Bearer',
+        expiresAtMillis: now + 300000,
+        issuedAtMillis: now,
+        hasRefreshToken: true,
+      );
+    }
     final exchange = _next('/protocol/openid-connect/token');
     _compare([('grant_type', 'authorization_code'), ('client_id', _clientId!), ('code', code), ('code_verifier', '***')], _form(exchange));
     final body = ((exchange['response'] as Map)['json'] as Map).cast<String, Object?>();
-    final now = DateTime.now().millisecondsSinceEpoch;
     return CredentialsMessage(
       handle: 'credentials-$_cursor',
       accessToken: body['access_token'] as String,
@@ -228,7 +262,85 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
 
   static bool _sameSet(Set<String> a, Set<String> b) => a.length == b.length && a.containsAll(b);
 
+  @override
+  Future<FlowStepMessage> usePasskey(String flow, String challengeId, bool preferImmediatelyAvailableCredentials) async {
+    calls.add('usePasskey');
+    return _ceremony(challengeId, 'passkey', {'credential_id', 'client_data_json', 'authenticator_data', 'signature'}, optional: {'user_handle'});
+  }
+
+  @override
+  Future<FlowStepMessage> registerPasskey(String flow, String challengeId, String? label) async {
+    calls.add('registerPasskey:$label');
+    return _ceremony(challengeId, 'passkey_registration', {'credential_id', 'client_data_json', 'attestation_object'}, optional: {'transports', 'label'});
+  }
+
+  @override
+  Future<FlowStepMessage> enrollPush(String flow, String challengeId, String deviceLabel, String pushProviderType, String? pushProviderId) async {
+    calls.add('enrollPush:$deviceLabel:$pushProviderType');
+    return _ceremony(challengeId, 'push_enrollment', {'token'});
+  }
+
+  @override
+  Future<List<PendingApprovalMessage>> pushPendingApprovals(String instance) async {
+    final exchange = _next('/push-mfa/login/pending');
+    final body = ((exchange['response'] as Map)['json'] as Map).cast<String, Object?>();
+    return [
+      for (final c in body['challenges'] as List) PendingApprovalMessage(cid: (c as Map)['cid'] as String, rawJson: jsonEncode(c)),
+    ];
+  }
+
+  @override
+  Future<String> pushRespond(String instance, String cid, bool approve, String? userVerification) async {
+    calls.add('pushRespond:$cid:$approve:$userVerification');
+    final exchange = _next('/login/challenges/$cid/respond');
+    final response = (exchange['response'] as Map).cast<String, Object?>();
+    final body = ((response['json'] as Map?) ?? const {}).cast<String, Object?>();
+    if (response['status'] != 200) {
+      // The SDKs map ba-itsys' 403 sentence to their own code (spec/17 §6 step 9).
+      throw PlatformException(code: response['status'] == 403 ? 'user_verification_mismatch' : 'invalid_response', message: body['error'] as String?);
+    }
+    return body['status'] as String? ?? 'ok';
+  }
+
   // Calls a replay does not reach.
+
+  @override
+  Future<String> continueAfterTokenChallenge(String instance, LoginParametersMessage parameters) async => startLogin(instance, parameters);
+
+  @override
+  Future<RegisteredPasskeyMessage> registerNewPasskey(String instance, String? label) async => RegisteredPasskeyMessage(credentialId: 'c', label: label);
+
+  SavedPasswordMessage? savedPassword;
+  final List<(String, String)> savedPasswords = [];
+
+  @override
+  Future<SavedPasswordMessage> pickSavedPassword(String instance) async =>
+      savedPassword ?? (throw PlatformException(code: 'saved_password_cancelled', message: 'Closed'));
+
+  @override
+  Future<void> savePassword(String instance, String username, String password) async => savedPasswords.add((username, password));
+
+  @override
+  Future<PushEnrollmentMessage?> pushEnrollment(String instance) async => null;
+
+  @override
+  Future<PushEnrollmentMessage> pushEnroll(String instance, String deviceLabel, String pushProviderType, String? pushProviderId) async =>
+      throw PlatformException(code: 'push_unavailable');
+
+  @override
+  Future<void> pushForgetEnrollment(String instance) async {}
+
+  @override
+  Future<PushNotificationMessage?> pushHandleMessage(String instance, Map<String, String> data) async => null;
+
+  @override
+  Future<void> pushUpdateProvider(String instance, String type, String id) async {}
+
+  @override
+  Future<void> pushRotateKey(String instance) async {}
+
+  @override
+  Future<void> pushLockout(String instance) async {}
 
   @override
   Future<String> stepUp(String instance, LoginParametersMessage parameters) async => startLogin(instance, parameters);

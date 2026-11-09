@@ -21,7 +21,11 @@ import io.phasetwo.keycloak.nativeauth.sdk.challenge.NativeLoginFlow
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.RedirectToWebRequest
 import io.phasetwo.keycloak.nativeauth.sdk.dpop.DPoPMode
 import io.phasetwo.keycloak.nativeauth.sdk.errors.NativeAuthError
+import io.phasetwo.keycloak.nativeauth.sdk.push.PushApprovalAction
+import io.phasetwo.keycloak.nativeauth.sdk.push.PushEnrollment
 import io.phasetwo.keycloak.nativeauth.sdk.tokens.Credentials
+import io.phasetwo.keycloak.nativeauth.sdk.transport.FlowLogEntry
+import io.phasetwo.keycloak.nativeauth.sdk.transport.FlowObserver
 import io.phasetwo.keycloak.nativeauth.sdk.web.WebAuthenticationPresenter
 import java.lang.ref.WeakReference
 import java.net.URI
@@ -30,6 +34,10 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * The Android side of the Flutter plugin (spec/18): a thin bridge from the Pigeon host API to the
@@ -61,6 +69,16 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
   }
 
   private val instances = ConcurrentHashMap<String, KeycloakNative>()
+
+  /**
+   * Per instance, the last error that handed back an `auth_session` (`reauthentication_required`,
+   * `insufficient_authorization`): `continueAfterTokenChallenge` steps up with it, so the session
+   * value never reaches Dart.
+   */
+  private val tokenChallenges = ConcurrentHashMap<String, NativeAuthError>()
+
+  private var flutterApi: KeycloakNativeFlutterApi? = null
+  private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
   private val flows = ConcurrentHashMap<String, Flow>()
 
   /** Credentials a flow produced that Dart has not stored yet, by handle. */
@@ -71,10 +89,12 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     context = binding.applicationContext
     KeycloakNativeHostApi.setUp(binding.binaryMessenger, this)
+    flutterApi = KeycloakNativeFlutterApi(binding.binaryMessenger)
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     KeycloakNativeHostApi.setUp(binding.binaryMessenger, null)
+    flutterApi = null
     flows.clear()
     pendingCredentials.clear()
   }
@@ -141,8 +161,14 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
       metadataCacheTtl = config.metadataCacheTtlSeconds?.seconds ?: KeycloakNative.Options().metadataCacheTtl,
     )
     val handle = UUID.randomUUID().toString()
-    instances[handle] = KeycloakNative.configure(issuer, config.clientId, options)
+    val observed = if (config.observeFlow == true) options.copy(flowObserver = flowObserver(handle)) else options
+    instances[handle] = KeycloakNative.configure(issuer, config.clientId, observed)
     handle
+  }
+
+  /** Forwards the SDK's redacted flow log to Dart, on the main thread the channel needs. */
+  private fun flowObserver(instance: String) = FlowObserver { entry ->
+    mainScope.launch { runCatching { flutterApi?.onFlowLog(instance, entry.message()) } }
   }
 
   override fun startLogin(instance: String, parameters: LoginParametersMessage): String = bridged {
@@ -153,6 +179,13 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
   override suspend fun stepUp(instance: String, parameters: LoginParametersMessage): String = bridgedSuspend {
     val kc = instance(instance)
     register(kc, kc.authentication().stepUp(parameters.toSdk()))
+  }
+
+  override suspend fun continueAfterTokenChallenge(instance: String, parameters: LoginParametersMessage): String = bridgedSuspend {
+    val kc = instance(instance)
+    val error = tokenChallenges.remove(instance)
+      ?: throw NativeAuthError(NativeAuthError.Code.REAUTHENTICATION_REQUIRED, errorDescription = "No token challenge with an auth_session is pending; start a new login")
+    register(kc, kc.authentication().continueAfterTokenChallenge(error, parameters.toSdk()))
   }
 
   override suspend fun start(flow: String): FlowStepMessage = bridgedSuspend {
@@ -200,7 +233,7 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
   }
 
   override suspend fun credentials(instance: String, minTtlSeconds: Long): CredentialsMessage = bridgedSuspend {
-    message(instance(instance).credentialsManager().credentials(minTtlSeconds.seconds), handle = "")
+    rememberingTokenChallenge(instance) { message(instance(instance).credentialsManager().credentials(minTtlSeconds.seconds), handle = "") }
   }
 
   override suspend fun hasValidCredentials(instance: String, minTtlSeconds: Long): Boolean = bridgedSuspend {
@@ -213,7 +246,7 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
 
   override suspend fun resourceRequestHeaders(instance: String, method: String, url: String): Map<String, String> = bridgedSuspend {
     val kc = instance(instance)
-    kc.resourceRequestHeaders(kc.credentialsManager().credentials(), method, URI(url))
+    rememberingTokenChallenge(instance) { kc.resourceRequestHeaders(kc.credentialsManager().credentials(), method, URI(url)) }
   }
 
   override suspend fun dpopKeyThumbprint(instance: String): String? = bridgedSuspend { instance(instance).dpopKeyThumbprint() }
@@ -222,7 +255,103 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
     instance(instance).metadata(forceRefresh).raw?.toString() ?: "{}"
   }
 
+  // Ceremonies that answer a challenge natively
+
+  override suspend fun usePasskey(flow: String, challengeId: String, preferImmediatelyAvailableCredentials: Boolean): FlowStepMessage = bridgedSuspend {
+    val record = flow(flow)
+    val challenge = record.pending(challengeId, ChallengeType.Passkey)
+    val params = challenge.passkeyParams ?: throw NativeAuthError(NativeAuthError.Code.INVALID_RESPONSE, errorDescription = "passkey challenge without usable params")
+    val assertion = record.instance.passkeys().assert(params, preferImmediatelyAvailableCredentials)
+    record.message(record.flow.respond(ChallengeAnswer.Passkey(assertion), challenge))
+  }
+
+  override suspend fun registerPasskey(flow: String, challengeId: String, label: String?): FlowStepMessage = bridgedSuspend {
+    val record = flow(flow)
+    val challenge = record.pending(challengeId, ChallengeType.PasskeyRegistration)
+    val params = challenge.passkeyRegistrationParams
+      ?: throw NativeAuthError(NativeAuthError.Code.INVALID_RESPONSE, errorDescription = "passkey_registration challenge without usable params")
+    val attestation = record.instance.passkeys().register(params)
+    record.message(record.flow.respond(ChallengeAnswer.PasskeyRegistration(attestation, label), challenge))
+  }
+
+  override suspend fun enrollPush(
+    flow: String,
+    challengeId: String,
+    deviceLabel: String,
+    pushProviderType: String,
+    pushProviderId: String?,
+  ): FlowStepMessage = bridgedSuspend {
+    val record = flow(flow)
+    val challenge = record.pending(challengeId, ChallengeType.PushEnrollment)
+    val params = challenge.pushEnrollmentParams ?: throw NativeAuthError(NativeAuthError.Code.INVALID_RESPONSE, errorDescription = "push_enrollment challenge without params")
+    val push = record.instance.push()
+    val prepared = push.prepareEnrollment(params, deviceLabel, pushProviderType, pushProviderId)
+    val step = record.flow.respond(prepared.answer, challenge)
+    // Kept only once the server moved on from the challenge (the iOS and Android UI models do the same).
+    if (step.challenges.orEmpty().none { it.type == ChallengeType.PushEnrollment && it.error != null }) push.commit(prepared)
+    record.message(step)
+  }
+
+  // Passkeys and passwords outside a flow
+
+  override suspend fun registerNewPasskey(instance: String, label: String?): RegisteredPasskeyMessage = bridgedSuspend {
+    val kc = instance(instance)
+    rememberingTokenChallenge(instance) {
+      val registered = kc.passkeys().registerNewPasskey(label, kc.credentialsManager().credentials())
+      RegisteredPasskeyMessage(registered.credentialId, registered.label)
+    }
+  }
+
+  override suspend fun pickSavedPassword(instance: String): SavedPasswordMessage = bridgedSuspend {
+    val saved = instance(instance).pickSavedPassword()
+    SavedPasswordMessage(saved.username, saved.password)
+  }
+
+  override suspend fun savePassword(instance: String, username: String, password: String) = bridgedSuspend {
+    instance(instance).savePassword(username, password)
+  }
+
+  // Push
+
+  override suspend fun pushEnrollment(instance: String): PushEnrollmentMessage? = bridgedSuspend { instance(instance).push().enrollment()?.message() }
+
+  override suspend fun pushEnroll(instance: String, deviceLabel: String, pushProviderType: String, pushProviderId: String?): PushEnrollmentMessage = bridgedSuspend {
+    instance(instance).push().enroll(deviceLabel, pushProviderType, pushProviderId).message()
+  }
+
+  override suspend fun pushForgetEnrollment(instance: String) = bridgedSuspend { instance(instance).push().forgetEnrollment() }
+
+  override suspend fun pushPendingApprovals(instance: String): List<PendingApprovalMessage> = bridgedSuspend {
+    instance(instance).push().pendingApprovals().map { PendingApprovalMessage(it.cid, it.raw.toString()) }
+  }
+
+  override suspend fun pushRespond(instance: String, cid: String, approve: Boolean, userVerification: String?): String = bridgedSuspend {
+    instance(instance).push().respond(cid, if (approve) PushApprovalAction.Approve(userVerification) else PushApprovalAction.Deny)
+  }
+
+  override suspend fun pushHandleMessage(instance: String, data: Map<String, String>): PushNotificationMessage? = bridgedSuspend {
+    instance(instance).push().handleMessage(data)?.let { PushNotificationMessage(it.cid, it.credentialId, it.expiresAt?.dartMillis()) }
+  }
+
+  override suspend fun pushUpdateProvider(instance: String, type: String, id: String) = bridgedSuspend { instance(instance).push().updatePushProvider(type, id) }
+
+  override suspend fun pushRotateKey(instance: String) = bridgedSuspend { instance(instance).push().rotateKey() }
+
+  override suspend fun pushLockout(instance: String) = bridgedSuspend { instance(instance).push().lockout() }
+
   // ---
+
+  /** Keeps an error that carries an `auth_session` for `continueAfterTokenChallenge`. */
+  private suspend fun <T> rememberingTokenChallenge(instance: String, body: suspend () -> T): T = try {
+    body()
+  } catch (e: NativeAuthError) {
+    if (e.authSession != null) tokenChallenges[instance] = e
+    throw e
+  }
+
+  private fun Flow.pending(challengeId: String, type: ChallengeType) =
+    flow.pendingChallenges.firstOrNull { it.id == challengeId && it.type == type }
+      ?: throw NativeAuthError(NativeAuthError.Code.FLOW_STATE, errorDescription = "Challenge ${type.wire} ($challengeId) is not in the pending set")
 
   private fun instance(handle: String): KeycloakNative =
     instances[handle] ?: throw NativeAuthError(NativeAuthError.Code.FLOW_STATE, errorDescription = "Unknown KeycloakNative instance; call configure first")
@@ -346,7 +475,7 @@ internal fun RedirectToWebRequest.message(): RedirectToWebMessage = RedirectToWe
 /** Dart's `DateTime` ends at 8.64e15 ms; offline tokens carry `Instant.MAX`. */
 private const val MAX_DART_MILLIS = 8_640_000_000_000_000L
 
-private fun Instant.dartMillis(): Long = if (epochSecond >= MAX_DART_MILLIS / 1000) MAX_DART_MILLIS else toEpochMilli()
+internal fun Instant.dartMillis(): Long = if (epochSecond >= MAX_DART_MILLIS / 1000) MAX_DART_MILLIS else toEpochMilli()
 
 internal fun message(credentials: Credentials, handle: String): CredentialsMessage = CredentialsMessage(
   handle = handle,
@@ -358,4 +487,31 @@ internal fun message(credentials: Credentials, handle: String): CredentialsMessa
   refreshExpiresAtMillis = credentials.refreshExpiresAt?.dartMillis(),
   issuedAtMillis = credentials.issuedAt.dartMillis(),
   hasRefreshToken = credentials.refreshToken != null,
+)
+
+internal fun PushEnrollment.message(): PushEnrollmentMessage = PushEnrollmentMessage(
+  credentialId = credentialId,
+  deviceId = deviceId,
+  userId = userId,
+  username = username,
+  deviceLabel = deviceLabel,
+  pushProviderType = pushProviderType,
+  pushProviderId = pushProviderId,
+  deviceApiBase = deviceApiBase.toString(),
+  keyThumbprint = keyThumbprint,
+  enrolledAtMillis = enrolledAt.dartMillis(),
+)
+
+internal fun FlowLogEntry.message(): FlowLogMessage = FlowLogMessage(
+  id = id.toString(),
+  timestampMillis = timestamp.dartMillis(),
+  method = method,
+  url = url.toString(),
+  requestHeaders = requestHeaders,
+  requestBody = requestBody,
+  statusCode = statusCode?.toLong(),
+  responseHeaders = responseHeaders,
+  responseBody = responseBody,
+  durationMilliseconds = durationMilliseconds,
+  errorCode = errorCode,
 )

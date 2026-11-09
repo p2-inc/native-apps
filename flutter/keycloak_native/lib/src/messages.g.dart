@@ -34,6 +34,16 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
+
+List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+  if (empty) {
+    return <Object?>[];
+  }
+  if (error == null) {
+    return <Object?>[result];
+  }
+  return <Object?>[error.code, error.message, error.details];
+}
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -140,6 +150,7 @@ class ConfigureMessage {
     required this.ephemeralWebSession,
     this.storageNamespace,
     this.metadataCacheTtlSeconds,
+    this.observeFlow,
   });
 
   String issuer;
@@ -159,6 +170,9 @@ class ConfigureMessage {
 
   int? metadataCacheTtlSeconds;
 
+  /// Send the SDK's redacted request/response entries to `KeycloakNativeFlutterApi.onFlowLog`.
+  bool? observeFlow;
+
   List<Object?> _toList() {
     return <Object?>[
       issuer,
@@ -168,6 +182,7 @@ class ConfigureMessage {
       ephemeralWebSession,
       storageNamespace,
       metadataCacheTtlSeconds,
+      observeFlow,
     ];
   }
 
@@ -184,6 +199,7 @@ class ConfigureMessage {
       ephemeralWebSession: result[4]! as bool,
       storageNamespace: result[5] as String?,
       metadataCacheTtlSeconds: result[6] as int?,
+      observeFlow: result[7] as bool?,
     );
   }
 
@@ -196,7 +212,7 @@ class ConfigureMessage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(issuer, other.issuer) && _deepEquals(clientId, other.clientId) && _deepEquals(dpop, other.dpop) && _deepEquals(allowRpIdMismatch, other.allowRpIdMismatch) && _deepEquals(ephemeralWebSession, other.ephemeralWebSession) && _deepEquals(storageNamespace, other.storageNamespace) && _deepEquals(metadataCacheTtlSeconds, other.metadataCacheTtlSeconds);
+    return _deepEquals(issuer, other.issuer) && _deepEquals(clientId, other.clientId) && _deepEquals(dpop, other.dpop) && _deepEquals(allowRpIdMismatch, other.allowRpIdMismatch) && _deepEquals(ephemeralWebSession, other.ephemeralWebSession) && _deepEquals(storageNamespace, other.storageNamespace) && _deepEquals(metadataCacheTtlSeconds, other.metadataCacheTtlSeconds) && _deepEquals(observeFlow, other.observeFlow);
   }
 
   @override
@@ -205,7 +221,7 @@ class ConfigureMessage {
 
   @override
   String toString() {
-    return 'ConfigureMessage(issuer: $issuer, clientId: $clientId, dpop: $dpop, allowRpIdMismatch: $allowRpIdMismatch, ephemeralWebSession: $ephemeralWebSession, storageNamespace: $storageNamespace, metadataCacheTtlSeconds: $metadataCacheTtlSeconds)';
+    return 'ConfigureMessage(issuer: $issuer, clientId: $clientId, dpop: $dpop, allowRpIdMismatch: $allowRpIdMismatch, ephemeralWebSession: $ephemeralWebSession, storageNamespace: $storageNamespace, metadataCacheTtlSeconds: $metadataCacheTtlSeconds, observeFlow: $observeFlow)';
   }
 }
 
@@ -756,6 +772,398 @@ class AnswerMessage {
   }
 }
 
+class SavedPasswordMessage {
+  SavedPasswordMessage({
+    required this.username,
+    required this.password,
+  });
+
+  String username;
+
+  String password;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      username,
+      password,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SavedPasswordMessage decode(Object result) {
+    result as List<Object?>;
+    return SavedPasswordMessage(
+      username: result[0]! as String,
+      password: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SavedPasswordMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(username, other.username) && _deepEquals(password, other.password);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SavedPasswordMessage(username: $username, password: $password)';
+  }
+}
+
+class RegisteredPasskeyMessage {
+  RegisteredPasskeyMessage({
+    required this.credentialId,
+    this.label,
+  });
+
+  String credentialId;
+
+  String? label;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      credentialId,
+      label,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static RegisteredPasskeyMessage decode(Object result) {
+    result as List<Object?>;
+    return RegisteredPasskeyMessage(
+      credentialId: result[0]! as String,
+      label: result[1] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! RegisteredPasskeyMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(credentialId, other.credentialId) && _deepEquals(label, other.label);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'RegisteredPasskeyMessage(credentialId: $credentialId, label: $label)';
+  }
+}
+
+class PushEnrollmentMessage {
+  PushEnrollmentMessage({
+    required this.credentialId,
+    required this.deviceId,
+    required this.userId,
+    this.username,
+    required this.deviceLabel,
+    required this.pushProviderType,
+    this.pushProviderId,
+    required this.deviceApiBase,
+    required this.keyThumbprint,
+    required this.enrolledAtMillis,
+  });
+
+  String credentialId;
+
+  String deviceId;
+
+  String userId;
+
+  String? username;
+
+  String deviceLabel;
+
+  String pushProviderType;
+
+  String? pushProviderId;
+
+  String deviceApiBase;
+
+  String keyThumbprint;
+
+  int enrolledAtMillis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      credentialId,
+      deviceId,
+      userId,
+      username,
+      deviceLabel,
+      pushProviderType,
+      pushProviderId,
+      deviceApiBase,
+      keyThumbprint,
+      enrolledAtMillis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PushEnrollmentMessage decode(Object result) {
+    result as List<Object?>;
+    return PushEnrollmentMessage(
+      credentialId: result[0]! as String,
+      deviceId: result[1]! as String,
+      userId: result[2]! as String,
+      username: result[3] as String?,
+      deviceLabel: result[4]! as String,
+      pushProviderType: result[5]! as String,
+      pushProviderId: result[6] as String?,
+      deviceApiBase: result[7]! as String,
+      keyThumbprint: result[8]! as String,
+      enrolledAtMillis: result[9]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PushEnrollmentMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(credentialId, other.credentialId) && _deepEquals(deviceId, other.deviceId) && _deepEquals(userId, other.userId) && _deepEquals(username, other.username) && _deepEquals(deviceLabel, other.deviceLabel) && _deepEquals(pushProviderType, other.pushProviderType) && _deepEquals(pushProviderId, other.pushProviderId) && _deepEquals(deviceApiBase, other.deviceApiBase) && _deepEquals(keyThumbprint, other.keyThumbprint) && _deepEquals(enrolledAtMillis, other.enrolledAtMillis);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PushEnrollmentMessage(credentialId: $credentialId, deviceId: $deviceId, userId: $userId, username: $username, deviceLabel: $deviceLabel, pushProviderType: $pushProviderType, pushProviderId: $pushProviderId, deviceApiBase: $deviceApiBase, keyThumbprint: $keyThumbprint, enrolledAtMillis: $enrolledAtMillis)';
+  }
+}
+
+/// A pending approval of the push device API (`/login/pending`), as JSON text; Dart reads it.
+class PendingApprovalMessage {
+  PendingApprovalMessage({
+    required this.cid,
+    required this.rawJson,
+  });
+
+  String cid;
+
+  String rawJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      cid,
+      rawJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PendingApprovalMessage decode(Object result) {
+    result as List<Object?>;
+    return PendingApprovalMessage(
+      cid: result[0]! as String,
+      rawJson: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PendingApprovalMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(cid, other.cid) && _deepEquals(rawJson, other.rawJson);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PendingApprovalMessage(cid: $cid, rawJson: $rawJson)';
+  }
+}
+
+class PushNotificationMessage {
+  PushNotificationMessage({
+    required this.cid,
+    this.credentialId,
+    this.expiresAtMillis,
+  });
+
+  String cid;
+
+  String? credentialId;
+
+  int? expiresAtMillis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      cid,
+      credentialId,
+      expiresAtMillis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PushNotificationMessage decode(Object result) {
+    result as List<Object?>;
+    return PushNotificationMessage(
+      cid: result[0]! as String,
+      credentialId: result[1] as String?,
+      expiresAtMillis: result[2] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PushNotificationMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(cid, other.cid) && _deepEquals(credentialId, other.credentialId) && _deepEquals(expiresAtMillis, other.expiresAtMillis);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PushNotificationMessage(cid: $cid, credentialId: $credentialId, expiresAtMillis: $expiresAtMillis)';
+  }
+}
+
+/// One redacted request/response of the SDK's transport (the native `FlowLogEntry`).
+class FlowLogMessage {
+  FlowLogMessage({
+    required this.id,
+    required this.timestampMillis,
+    required this.method,
+    required this.url,
+    required this.requestHeaders,
+    this.requestBody,
+    this.statusCode,
+    required this.responseHeaders,
+    this.responseBody,
+    required this.durationMilliseconds,
+    this.errorCode,
+  });
+
+  String id;
+
+  int timestampMillis;
+
+  String method;
+
+  String url;
+
+  Map<String, String> requestHeaders;
+
+  String? requestBody;
+
+  int? statusCode;
+
+  Map<String, String> responseHeaders;
+
+  String? responseBody;
+
+  int durationMilliseconds;
+
+  String? errorCode;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      timestampMillis,
+      method,
+      url,
+      requestHeaders,
+      requestBody,
+      statusCode,
+      responseHeaders,
+      responseBody,
+      durationMilliseconds,
+      errorCode,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static FlowLogMessage decode(Object result) {
+    result as List<Object?>;
+    return FlowLogMessage(
+      id: result[0]! as String,
+      timestampMillis: result[1]! as int,
+      method: result[2]! as String,
+      url: result[3]! as String,
+      requestHeaders: (result[4]! as Map<Object?, Object?>).cast<String, String>(),
+      requestBody: result[5] as String?,
+      statusCode: result[6] as int?,
+      responseHeaders: (result[7]! as Map<Object?, Object?>).cast<String, String>(),
+      responseBody: result[8] as String?,
+      durationMilliseconds: result[9]! as int,
+      errorCode: result[10] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! FlowLogMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(id, other.id) && _deepEquals(timestampMillis, other.timestampMillis) && _deepEquals(method, other.method) && _deepEquals(url, other.url) && _deepEquals(requestHeaders, other.requestHeaders) && _deepEquals(requestBody, other.requestBody) && _deepEquals(statusCode, other.statusCode) && _deepEquals(responseHeaders, other.responseHeaders) && _deepEquals(responseBody, other.responseBody) && _deepEquals(durationMilliseconds, other.durationMilliseconds) && _deepEquals(errorCode, other.errorCode);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'FlowLogMessage(id: $id, timestampMillis: $timestampMillis, method: $method, url: $url, requestHeaders: $requestHeaders, requestBody: $requestBody, statusCode: $statusCode, responseHeaders: $responseHeaders, responseBody: $responseBody, durationMilliseconds: $durationMilliseconds, errorCode: $errorCode)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -797,6 +1205,24 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is AnswerMessage) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
+    }    else if (value is SavedPasswordMessage) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is RegisteredPasskeyMessage) {
+      buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    }    else if (value is PushEnrollmentMessage) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    }    else if (value is PendingApprovalMessage) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    }    else if (value is PushNotificationMessage) {
+      buffer.putUint8(144);
+      writeValue(buffer, value.encode());
+    }    else if (value is FlowLogMessage) {
+      buffer.putUint8(145);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -830,8 +1256,56 @@ class _PigeonCodec extends StandardMessageCodec {
         return FormFieldMessage.decode(readValue(buffer)!);
       case 139:
         return AnswerMessage.decode(readValue(buffer)!);
+      case 140:
+        return SavedPasswordMessage.decode(readValue(buffer)!);
+      case 141:
+        return RegisteredPasskeyMessage.decode(readValue(buffer)!);
+      case 142:
+        return PushEnrollmentMessage.decode(readValue(buffer)!);
+      case 143:
+        return PendingApprovalMessage.decode(readValue(buffer)!);
+      case 144:
+        return PushNotificationMessage.decode(readValue(buffer)!);
+      case 145:
+        return FlowLogMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
+    }
+  }
+}
+
+abstract class KeycloakNativeFlutterApi {
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  void onFlowLog(String instance, FlowLogMessage entry);
+
+  static void setUp(KeycloakNativeFlutterApi? api, {
+    BinaryMessenger? binaryMessenger, 
+    String messageChannelSuffix = '',
+  }) 
+{
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.keycloak_native.KeycloakNativeFlutterApi.onFlowLog$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final String arg_instance = args[0]! as String;
+          final FlowLogMessage arg_entry = args[1]! as FlowLogMessage;
+          try {
+            api.onFlowLog(arg_instance, arg_entry);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
     }
   }
 }
@@ -930,6 +1404,27 @@ class KeycloakNativeHostApi {
     )
     ;
     return pigeonVar_replyValue! as FlowStepMessage;
+  }
+
+  /// A step-up flow over the `auth_session` of the last `reauthentication_required` or
+  /// `insufficient_authorization` error this instance raised (spec/03 §5, §6).
+  Future<String> continueAfterTokenChallenge(String instance, LoginParametersMessage parameters) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.continueAfterTokenChallenge$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance, parameters]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
   }
 
   /// Answers the pending challenge `challengeId` of type `challengeType`.
@@ -1181,5 +1676,294 @@ class KeycloakNativeHostApi {
     )
     ;
     return pigeonVar_replyValue! as String;
+  }
+
+  /// Runs the passkey assertion for the pending `passkey` challenge and answers it.
+  Future<FlowStepMessage> usePasskey(String flow, String challengeId, bool preferImmediatelyAvailableCredentials) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.usePasskey$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[flow, challengeId, preferImmediatelyAvailableCredentials]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as FlowStepMessage;
+  }
+
+  /// Runs the passkey registration for the pending `passkey_registration` challenge and answers it.
+  Future<FlowStepMessage> registerPasskey(String flow, String challengeId, String? label) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.registerPasskey$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[flow, challengeId, label]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as FlowStepMessage;
+  }
+
+  /// Enrolls this device for push from the pending `push_enrollment` challenge, answers it and keeps
+  /// the enrollment once the server accepted it.
+  Future<FlowStepMessage> enrollPush(String flow, String challengeId, String deviceLabel, String pushProviderType, String? pushProviderId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.enrollPush$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[flow, challengeId, deviceLabel, pushProviderType, pushProviderId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as FlowStepMessage;
+  }
+
+  /// Registers a new passkey for the signed-in user (spec/03 §6) with the stored credentials.
+  Future<RegisteredPasskeyMessage> registerNewPasskey(String instance, String? label) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.registerNewPasskey$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance, label]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as RegisteredPasskeyMessage;
+  }
+
+  /// The system sheet of saved passwords.
+  Future<SavedPasswordMessage> pickSavedPassword(String instance) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pickSavedPassword$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as SavedPasswordMessage;
+  }
+
+  /// Offers to save a typed password (Android Credential Manager; iOS saves through AutoFill).
+  Future<void> savePassword(String instance, String username, String password) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.savePassword$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance, username, password]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<PushEnrollmentMessage?> pushEnrollment(String instance) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushEnrollment$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as PushEnrollmentMessage?;
+  }
+
+  Future<PushEnrollmentMessage> pushEnroll(String instance, String deviceLabel, String pushProviderType, String? pushProviderId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushEnroll$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance, deviceLabel, pushProviderType, pushProviderId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as PushEnrollmentMessage;
+  }
+
+  Future<void> pushForgetEnrollment(String instance) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushForgetEnrollment$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<List<PendingApprovalMessage>> pushPendingApprovals(String instance) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushPendingApprovals$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<PendingApprovalMessage>();
+  }
+
+  /// Approves (with the picked number or PIN) or denies; returns the server's status.
+  Future<String> pushRespond(String instance, String cid, bool approve, String? userVerification) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushRespond$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance, cid, approve, userVerification]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  /// Reads a push message's data (FCM `data`, APNs `userInfo`); null when it is not a sign-in request.
+  Future<PushNotificationMessage?> pushHandleMessage(String instance, Map<String, String> data) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushHandleMessage$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance, data]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as PushNotificationMessage?;
+  }
+
+  Future<void> pushUpdateProvider(String instance, String type, String id) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushUpdateProvider$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance, type, id]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> pushRotateKey(String instance) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushRotateKey$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> pushLockout(String instance) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.keycloak_native.KeycloakNativeHostApi.pushLockout$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instance]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 }

@@ -1,6 +1,6 @@
 // swift-tools-version: 5.9
 // The iOS half of the Flutter plugin (spec/18 §3): a bridge from the Pigeon host API to the iOS SDK
-// (products KeycloakNativeCore of the Swift package at the root of p2-inc/native-apps).
+// (products KeycloakNativeCore and KeycloakNativePush of the Swift package at the root of p2-inc/native-apps).
 //
 // Inside the repository the SDK is the local package four directories up, so a change there is
 // picked up without a release (spec/18 §8). Flutter reaches this manifest through a symlink, so the
@@ -43,6 +43,8 @@ let package = Package(
       dependencies: [
         .product(name: "FlutterFramework", package: "FlutterFramework"),
         .product(name: "KeycloakNativeCore", package: sdkIdentity),
+        // Push MFA device side (no Firebase or APNs registration of its own: the app hands in its token).
+        .product(name: "KeycloakNativePush", package: sdkIdentity),
       ],
       resources: [
         .process("PrivacyInfo.xcprivacy")
