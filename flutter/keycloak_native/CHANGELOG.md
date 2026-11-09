@@ -1,3 +1,3 @@
-## 0.0.1
+## 0.3.0-dev
 
-* TODO: Describe initial release.
+- First slice (spec/18 phase A): configure, login and step-up flows, `username`, `password` and `totp` default widgets, the browser fallback, stored credentials with refresh and logout, over the iOS and Android SDKs.

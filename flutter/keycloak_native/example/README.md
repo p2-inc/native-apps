@@ -1,17 +1,7 @@
-# keycloak_native_example
+# keycloak_native example
 
-Demonstrates how to use the keycloak_native plugin.
+Signs in to the demo realm of [`keycloak-native-auth/demo`](../../../keycloak-native-auth/demo) with `NativeLoginView`, then shows the token's subject, refreshes and logs out.
 
-## Getting Started
+Start the stack (`docker compose up` in `keycloak-native-auth/demo`), then `flutter run` here. The Android emulator reaches the host as `10.0.2.2`, the iOS simulator as `localhost`; override with `--dart-define=ISSUER=https://…/realms/demo` and `--dart-define=CLIENT_ID=…`. Users: alice (password, then TOTP), bob (password only); see [the sample app guide](../../../docs/sample-app.md).
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The Android build includes the Android SDK from `../../../android` (a Gradle composite build) and the iOS build the Swift package at the repository root, so SDK changes are picked up directly.
