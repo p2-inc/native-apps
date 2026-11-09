@@ -15,9 +15,18 @@ allprojects {
 }
 
 // The libraries publish to a Maven repository under build/maven-repo, which the release workflow
-// zips and attaches to the GitHub release (README "Releases").
+// zips, attaches to the GitHub release and uploads to Maven Central (README "Releases"). Central
+// requires signatures: with SIGNING_KEY (an ASCII-armored private key) set, every publication is signed.
 subprojects {
   plugins.withId("maven-publish") {
+    val signingKey = providers.environmentVariable("SIGNING_KEY")
+    if (signingKey.isPresent) {
+      apply(plugin = "signing")
+      extensions.configure<SigningExtension> {
+        useInMemoryPgpKeys(signingKey.get(), providers.environmentVariable("SIGNING_PASSWORD").getOrElse(""))
+        sign(extensions.getByType<PublishingExtension>().publications)
+      }
+    }
     extensions.configure<PublishingExtension> {
       repositories {
         maven {
@@ -36,12 +45,22 @@ subprojects {
               url = "https://www.apache.org/licenses/LICENSE-2.0"
             }
           }
+          developers {
+            developer {
+              name = "Phase Two"
+              email = "support@phasetwo.io"
+              organization = "Phase Two, Inc."
+              organizationUrl = "https://phasetwo.io"
+            }
+          }
           organization {
             name = "Phase Two, Inc."
             url = "https://phasetwo.io"
           }
           scm {
             url = "https://github.com/p2-inc/native-apps"
+            connection = "scm:git:https://github.com/p2-inc/native-apps.git"
+            developerConnection = "scm:git:git@github.com:p2-inc/native-apps.git"
           }
         }
       }
