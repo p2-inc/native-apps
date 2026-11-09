@@ -1,7 +1,8 @@
 [versions]
 kotlin = "2.4.21"
 coroutines = "1.11.0"
-serialization = "1.12.0"
+# 1.11 is the newest line built with Kotlin 2.3, whose metadata Kotlin 2.2 consumers can read (docs/android-integration.md).
+serialization = "1.11.0"
 junit = "6.1.3"
 agp = "9.5.0"
 credentials = "1.6.0"
