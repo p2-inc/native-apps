@@ -5,8 +5,9 @@ plugins {
 }
 
 android {
-    namespace = "io.phasetwo.keycloak.nativeauth.keycloak_native_example"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "io.phasetwo.keycloak.nativeauth.flutterexample"
+    // The Android SDK compiles against 37 and its AARs require at least that.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -15,11 +16,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "io.phasetwo.keycloak.nativeauth.keycloak_native_example"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        applicationId = "io.phasetwo.keycloak.nativeauth.flutterexample"
+        // The plugin's minimum (Credential Manager passkeys, Keystore StrongBox).
+        minSdk = 28
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)

@@ -1,16 +1,22 @@
-group = "io.phasetwo.keycloak.nativeauth.keycloak_native"
-version = "1.0-SNAPSHOT"
+// The Android half of the Flutter plugin (spec/18 §3): a bridge from the Pigeon host API to the
+// Android SDK (io.phasetwo.keycloak.nativeauth:keycloak-native-android). Inside this repository the
+// example app substitutes the SDK from ../../../android with a Gradle composite build
+// (example/android/settings.gradle.kts), so nothing waits on a published artifact; apps that use the
+// plugin from pub.dev resolve it from Maven Central.
+group = "io.phasetwo.keycloak.nativeauth.flutter"
+version = "0.3.0-SNAPSHOT"
 
 buildscript {
-    val kotlinVersion = "2.4.0"
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:9.1.0")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        // The versions of the Android SDK's build (android/gradle/libs.versions.toml): one build may
+        // load each Gradle plugin in one version only, and the composite build loads both.
+        classpath("com.android.tools.build:gradle:9.5.0")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21")
     }
 }
 
@@ -25,10 +31,14 @@ plugins {
     id("com.android.library")
 }
 
-android {
-    namespace = "io.phasetwo.keycloak.nativeauth.keycloak_native"
+/** The SDK version this plugin release is built against; the plugin and the SDKs share one version line. */
+val keycloakNativeVersion = "0.3.0-SNAPSHOT"
 
-    compileSdk = 36
+android {
+    namespace = "io.phasetwo.keycloak.nativeauth.flutter"
+
+    // The Android SDK compiles against 37 and its AARs require at least that.
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -39,29 +49,11 @@ android {
         getByName("main") {
             java.srcDirs("src/main/kotlin")
         }
-        getByName("test") {
-            java.srcDirs("src/test/kotlin")
-        }
     }
 
     defaultConfig {
-        minSdk = 24
-    }
-
-    testOptions {
-        unitTests {
-            isIncludeAndroidResources = true
-            all {
-                it.useJUnitPlatform()
-
-                it.outputs.upToDateWhen { false }
-
-                it.testLogging {
-                    events("passed", "skipped", "failed", "standardOut", "standardError")
-                    showStandardStreams = true
-                }
-            }
-        }
+        // Credential Manager passkeys and Keystore StrongBox start at API 28, like the Android SDK.
+        minSdk = 28
     }
 }
 
@@ -72,6 +64,9 @@ kotlin {
 }
 
 dependencies {
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.mockito:mockito-core:5.0.0")
+    implementation("io.phasetwo.keycloak.nativeauth:keycloak-native-android:$keycloakNativeVersion")
+    // AuthTabWebPresenter takes a ComponentActivity (FlutterFragmentActivity).
+    implementation("androidx.activity:activity:1.13.0")
+    // Pigeon's suspend host methods run on Dispatchers.Main.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 }

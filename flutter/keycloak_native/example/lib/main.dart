@@ -1,58 +1,153 @@
-import 'package:flutter/material.dart';
-import 'dart:async';
+import 'dart:io' show Platform;
 
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:keycloak_native/keycloak_native.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+/// The demo realm of keycloak-native-auth/demo (docker compose up). The Android emulator reaches the
+/// host as 10.0.2.2; override with --dart-define=ISSUER=… and --dart-define=CLIENT_ID=….
+final Uri issuer = Uri.parse(
+  const String.fromEnvironment('ISSUER').isNotEmpty
+      ? const String.fromEnvironment('ISSUER')
+      : Platform.isAndroid
+      ? 'http://10.0.2.2:8080/realms/demo'
+      : 'http://localhost:8080/realms/demo',
+);
+const String clientId = String.fromEnvironment('CLIENT_ID', defaultValue: 'demo-native');
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+void main() => runApp(const ExampleApp());
+
+class ExampleApp extends StatelessWidget {
+  const ExampleApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'Keycloak Native',
+    theme: ThemeData(colorSchemeSeed: Colors.indigo),
+    home: const HomePage(),
+  );
 }
 
-class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
-  final _keycloakNativePlugin = KeycloakNative();
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  KeycloakNative? _kc;
+  NativeLoginFlow? _flow;
+  Credentials? _credentials;
+  String? _message;
 
   @override
   void initState() {
     super.initState();
-    initPlatformState();
+    _configure();
   }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
+  Future<void> _configure() async {
     try {
-      platformVersion =
-          await _keycloakNativePlugin.getPlatformVersion() ?? 'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
+      // One instance per issuer and client for the life of the app.
+      final kc = await KeycloakNative.configure(issuer: issuer, clientId: clientId);
+      final stored = await kc.credentialsManager.stored();
+      setState(() {
+        _kc = kc;
+        _credentials = stored;
+      });
+    } on NativeAuthException catch (e) {
+      setState(() => _message = e.toString());
     }
+  }
 
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
+  Future<void> _signIn() async {
+    final kc = _kc!;
+    final flow = await kc.authentication.startLogin(const LoginParameters(scope: 'openid profile', deviceName: 'Flutter example'));
     setState(() {
-      _platformVersion = platformVersion;
+      _message = null;
+      _flow = flow;
     });
+  }
+
+  Future<void> _onResult(NativeLoginResult result) async {
+    final flow = _flow;
+    switch (result) {
+      case NativeLoginAuthorized(:final credentials):
+        try {
+          await _kc!.credentialsManager.store(credentials);
+          setState(() => _credentials = credentials);
+        } on NativeAuthException catch (e) {
+          setState(() => _message = e.code);
+        }
+      case NativeLoginCancelled():
+        break;
+      case NativeLoginFailed(:final error):
+        setState(() => _message = error.code);
+    }
+    await flow?.dispose();
+    setState(() => _flow = null);
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    try {
+      await action();
+    } on NativeAuthException catch (e) {
+      setState(() => _message = e.code);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('Plugin example app')),
-        body: Center(child: Text('Running on: $_platformVersion\n')),
+    final kc = _kc;
+    final flow = _flow;
+    final credentials = _credentials;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Keycloak Native')),
+      body: SafeArea(
+        child: switch ((kc, flow, credentials)) {
+          (null, _, _) => Center(child: Text(_message ?? 'Configuring…')),
+          (final kc?, final flow?, _) => NativeLoginView(
+            kc: kc,
+            flow: flow,
+            onResult: _onResult,
+            header: Text(issuer.toString(), style: Theme.of(context).textTheme.labelSmall),
+          ),
+          (final kc?, null, final credentials?) => ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Text('Signed in', style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              Text('Subject: ${credentials.idTokenClaims?['preferred_username'] ?? credentials.accessTokenClaims?['sub']}'),
+              Text('Token type: ${credentials.tokenType}'),
+              Text('Expires: ${credentials.expiresAt.toLocal()}'),
+              if (_message case final message?) Text(message, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => _run(() async {
+                  final refreshed = await kc.credentialsManager.credentials(minTtl: const Duration(days: 1));
+                  setState(() => _credentials = refreshed);
+                }),
+                child: const Text('Refresh'),
+              ),
+              OutlinedButton(
+                onPressed: () => _run(() async {
+                  await kc.credentialsManager.logout();
+                  setState(() => _credentials = null);
+                }),
+                child: const Text('Log out'),
+              ),
+            ],
+          ),
+          (_, null, null) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FilledButton(onPressed: _signIn, child: const Text('Sign in')),
+                if (_message case final message?) Text(message, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              ],
+            ),
+          ),
+        },
       ),
     );
   }

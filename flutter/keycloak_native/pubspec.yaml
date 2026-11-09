@@ -16,6 +16,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  pigeon: ^29.1.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -35,7 +36,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: io.phasetwo.keycloak.nativeauth.keycloak_native
+        package: io.phasetwo.keycloak.nativeauth.flutter
         pluginClass: KeycloakNativePlugin
       ios:
         pluginClass: KeycloakNativePlugin

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="keycloak_native_example"
+        android:label="Keycloak Native Flutter"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -23,6 +23,19 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- The browser fallback's callback when the browser has no Auth Tab (Custom Tab): the
+             realm's demo clients register demoapp://auth/callback (docs/android-integration.md). -->
+        <activity
+            android:name="io.phasetwo.keycloak.nativeauth.sdk.android.NativeAuthRedirectActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="demoapp" android:host="auth" android:path="/callback" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
