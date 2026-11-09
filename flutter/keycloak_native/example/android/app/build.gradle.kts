@@ -8,7 +8,6 @@ android {
     namespace = "io.phasetwo.keycloak.nativeauth.flutterexample"
     // The Android SDK compiles against 37 and its AARs require at least that.
     compileSdk = 37
-    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
