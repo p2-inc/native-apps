@@ -1,0 +1,24 @@
+buildscript {
+    ext {
+        buildToolsVersion = "36.0.0"
+        // The Android SDK needs API 28 (Credential Manager passkeys, Keystore StrongBox).
+        minSdkVersion = 28
+        compileSdkVersion = 37
+        targetSdkVersion = 36
+        ndkVersion = "27.1.12297006"
+        // The same Kotlin and Android Gradle plugin as the SDK's build (../../../../android/gradle/libs.versions.toml):
+        // the composite build in settings.gradle loads both builds' plugins into one Gradle run.
+        kotlinVersion = "2.4.21"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:9.5.0")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"

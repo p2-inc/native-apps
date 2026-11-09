@@ -20,6 +20,7 @@ See the [roadmap](ROADMAP.md) for what comes next. Start with the [developer doc
 | `ios/KeycloakNative/` | Swift package, products `KeycloakNativeCore` (challenge state machine, PKCE, DPoP, passkeys, step-up, browser fallback, OTP, recovery codes, required actions, tokens, Keychain credentials), `KeycloakNativePush` (push enrolment, approvals with number match, APNs token, key rotation, lockout; the DPoP key is the device key) and `KeycloakNativeUI` (default SwiftUI screens with a string catalogue, replaceable per challenge type, plus the approvals list). Tests replay the recorded transcripts; the UI product has its own tests. See its `README.md`. |
 | `ios/KeycloakNativeDemo/` | Example iOS app (scenarios S1–S14, passkey and push enrolment, the required actions, recovery codes, Diagnostics log) with XCUITests for the simulator and local-setup notes for real passkeys. |
 | `android/` | Android SDK (spec/17): Gradle build with the plain Kotlin/JVM `core` module (the port of `KeycloakNativeCore`), whose tests replay the same transcripts as the iOS SDK (`cd android && ./gradlew :core:test`, needs only a JDK 21), the `android` library module with the platform pieces, the `ui` module with the Compose screens, the `push` module with Firebase Cloud Messaging, and the `demo` app (all four need the Android SDK; see `android/demo/README.md`). |
+| `react-native/keycloak-native/` | React Native module (spec/19, first slice): a TurboModule over both SDKs with a typed challenge model, default React screens replaceable per challenge type, and Jest tests that replay the same transcripts; an example app. See its `README.md`. |
 | `.github/workflows/ci.yml` | Build + unit + integration tests; docker compose + curl walkthrough; Swift package build + tests and app build-for-testing on macOS. |
 
 Quick start:
@@ -44,7 +45,7 @@ The SDKs, the protocol and the demo assets are under the [Apache License 2.0](LI
 
 | Path | License |
 |---|---|
-| `Package.swift`, `ios/`, `android/`, `spec/`, `docs/` | Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)) |
+| `Package.swift`, `ios/`, `android/`, `react-native/`, `spec/`, `docs/` | Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)) |
 | `keycloak-native-auth/demo/` except `src/`: the compose files, realm export, resource server, scripts and the recorded transcripts (the conformance fixtures for any client) | Apache-2.0 ([LICENSE](keycloak-native-auth/demo/LICENSE)) |
 | `keycloak-native-auth/push-mfa-extension-java21/` | Apache-2.0 ([LICENSE](keycloak-native-auth/push-mfa-extension-java21/LICENSE), [NOTICE](keycloak-native-auth/push-mfa-extension-java21/NOTICE)): ba-itsys' push MFA extension, recompiled for Java 21 |
 | Everything else in `keycloak-native-auth/`: `native-auth-core`, `-authenticators`, `-endpoint`, `-required-actions`, `-otp-sender`, `-push`, `-push-apns`, and the integration tests in `demo/src/` | ELv2 ([COPYING](keycloak-native-auth/COPYING)) |

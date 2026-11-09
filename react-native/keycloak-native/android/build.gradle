@@ -1,0 +1,53 @@
+// The React Native module's Android side (spec/19): a TurboModule over the Android SDK
+// (io.phasetwo.keycloak.nativeauth, on the repository's version line). Inside this repository the
+// example app replaces the artifacts with a Gradle composite build of ../../android, so nothing waits
+// on a published release (example/android/settings.gradle).
+def packageJson = new groovy.json.JsonSlurper().parse(file("../package.json"))
+
+ext.ReactNativeKeycloakNative = [
+  // Credential Manager passkeys and Keystore StrongBox start at API 28; the SDK compiles against 37.
+  minSdkVersion: 28,
+  compileSdkVersion: 37,
+  // An app may pin another SDK release with keycloakNativeVersion in its root project's ext.
+  keycloakNativeVersion: packageJson.keycloakNativeSdkVersion,
+]
+
+ext.getExtOrDefault = { prop ->
+  if (rootProject.ext.has(prop)) {
+    return rootProject.ext.get(prop)
+  }
+
+  return ReactNativeKeycloakNative[prop]
+}
+
+apply plugin: "com.android.library"
+
+if (project.extensions.findByName("kotlin") == null) {
+  apply plugin: "kotlin-android"
+}
+
+apply plugin: "com.facebook.react"
+
+android {
+  namespace "io.phasetwo.keycloak.nativeauth.reactnative"
+
+  compileSdkVersion getExtOrDefault("compileSdkVersion")
+
+  defaultConfig {
+    minSdkVersion getExtOrDefault("minSdkVersion")
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+  // The Android SDK: core (state machine, tokens, DPoP) comes in through android (Keystore, Credential
+  // Manager, Auth Tab).
+  implementation "io.phasetwo.keycloak.nativeauth:keycloak-native-android:${getExtOrDefault("keycloakNativeVersion")}"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0"
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0"
+}
