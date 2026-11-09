@@ -6,7 +6,7 @@
 
 The [Gradle build](../android/settings.gradle.kts) has four library modules. `core` is plain Kotlin/JVM (coroutines, kotlinx.serialization): the challenge state machine, PKCE, DPoP, tokens and credentials, passkey and saved-password models, and the push protocol. `android` adds the platform pieces: `KeystoreSecureStore`, `KeystoreDPoPKeys`, `CredentialManagerPasskeyPlatform`, `CredentialManagerSavedPasswordPlatform` and `AuthTabWebPresenter`. `ui` holds the default Jetpack Compose (Material 3) screens and `PushApprovalsScreen`. `push` adds Firebase Cloud Messaging. The Android modules need minSdk 28 (Android 9) and compile against SDK 37; the libraries target Java 17 bytecode.
 
-From 0.2.0 each [GitHub release](../README.md#releases) carries `keycloak-native-android-<version>-maven-repo.zip`, a Maven repository with all four modules under the group `io.phasetwo.keycloak.nativeauth`. There is no public Maven repository before 1.0. Unzip the file into your project, for instance into `third_party/keycloak-native/`, and add it as a repository:
+From 0.3.0 the four modules are on Maven Central under the group `io.phasetwo.keycloak.nativeauth`, so `mavenCentral()` is the only repository you need:
 
 ```kotlin
 // settings.gradle.kts
@@ -14,7 +14,6 @@ dependencyResolutionManagement {
   repositories {
     google()
     mavenCentral()
-    maven { url = uri("third_party/keycloak-native") }
   }
 }
 ```
@@ -22,13 +21,13 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-  implementation("io.phasetwo.keycloak.nativeauth:keycloak-native-android:0.2.0")
-  implementation("io.phasetwo.keycloak.nativeauth:keycloak-native-ui:0.2.0")    // default Compose screens
-  implementation("io.phasetwo.keycloak.nativeauth:keycloak-native-push:0.2.0")  // push MFA over FCM
+  implementation("io.phasetwo.keycloak.nativeauth:keycloak-native-android:0.3.0")
+  implementation("io.phasetwo.keycloak.nativeauth:keycloak-native-ui:0.3.0")    // default Compose screens
+  implementation("io.phasetwo.keycloak.nativeauth:keycloak-native-push:0.3.0")  // push MFA over FCM
 }
 ```
 
-`keycloak-native-core` comes in transitively. Before 1.0 any release may change the API, so pin exact versions. The SDKs and the server share one version line (see [Releases](../README.md#releases)).
+`keycloak-native-core` comes in transitively. Each [GitHub release](../README.md#releases) also carries `keycloak-native-android-<version>-maven-repo.zip`, the same artifacts as a Maven repository you can unzip and add with `maven { url = uri(...) }`; 0.2.0 is only available that way. Before 1.0 any release may change the API, so pin exact versions. The SDKs and the server share one version line (see [Releases](../README.md#releases)).
 
 Configure a public Keycloak client using the [server setup](README.md#practical-quick-start). Use the **issuer URL including `/realms/<realm>`**, not the challenge endpoint; the client ID is separate. PKCE S256 must be required on the client. Register a callback such as `demoapp://auth/callback` for browser fallback; native success itself does not redirect. Use HTTPS outside the local demo; debug builds of the demo allow plain HTTP only to `10.0.2.2` and `localhost` through a network security config. Keep one SDK instance per issuer/client so credentials, DPoP key, metadata cache and refresh coordination remain consistent.
 
