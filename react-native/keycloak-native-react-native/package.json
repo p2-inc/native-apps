@@ -1,6 +1,6 @@
 {
   "name": "@phasetwo/keycloak-native-react-native",
-  "version": "0.3.0-dev",
+  "version": "0.4.0-dev",
   "description": "React Native module for native authentication with Keycloak (wraps the iOS and Android SDKs)",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",

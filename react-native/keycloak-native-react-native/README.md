@@ -2,7 +2,7 @@
 
 `@phasetwo/keycloak-native-react-native` signs users in to Keycloak with your app's own React Native screens instead of a browser. It wraps the [iOS SDK](../../ios/KeycloakNative) and the [Android SDK](../../android): the native side runs the challenge protocol, keeps credentials in the Keychain or Android Keystore, holds the DPoP key in the Secure Enclave or Keystore and runs the passkey, saved-password, browser and push ceremonies; JavaScript gets the challenge loop as a typed model and default React screens for every challenge type, each replaceable on its own. An Expo config plugin does the native setup.
 
-**Status:** below 1.0 and not yet on npm.
+**Status:** below 1.0, published on npm; pin an exact version.
 
 - Integration guide: [docs/react-native-integration.md](../../docs/react-native-integration.md)
 - Design and plan: [spec/19](../../spec/19-react-native-plan.md)

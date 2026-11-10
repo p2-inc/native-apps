@@ -2,7 +2,7 @@
 
 [Index](README.md) · [Protocol](protocol-and-flows.md) · [iOS integration](ios-integration.md) · [Android integration](android-integration.md) · [Plan (spec/18)](../spec/18-flutter-plugin-plan.md)
 
-`keycloak_native_flutter` (in [`flutter/keycloak_native_flutter/`](../flutter/keycloak_native_flutter/)) signs users in to Keycloak with your app's Flutter screens instead of a browser. It is a plugin over the iOS and Android SDKs, connected through Pigeon platform channels: the native side runs the challenge protocol, keeps credentials in the Keychain or Android Keystore, holds the DPoP key in the Secure Enclave or Keystore and runs the passkey, saved-password, browser and push ceremonies; Dart gets the challenge loop as sealed classes and default Flutter widgets that can be replaced one challenge type at a time. The plugin is below 1.0; it will be published on pub.dev under the phasetwo.io verified publisher.
+`keycloak_native_flutter` (in [`flutter/keycloak_native_flutter/`](../flutter/keycloak_native_flutter/)) signs users in to Keycloak with your app's Flutter screens instead of a browser. It is a plugin over the iOS and Android SDKs, connected through Pigeon platform channels: the native side runs the challenge protocol, keeps credentials in the Keychain or Android Keystore, holds the DPoP key in the Secure Enclave or Keystore and runs the passkey, saved-password, browser and push ceremonies; Dart gets the challenge loop as sealed classes and default Flutter widgets that can be replaced one challenge type at a time. The plugin is below 1.0 and published on pub.dev by the phasetwo.io verified publisher.
 
 ## Requirements
 

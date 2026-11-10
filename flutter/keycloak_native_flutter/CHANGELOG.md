@@ -1,4 +1,8 @@
-## 0.3.0-dev
+## 0.4.0-dev
+
+- Nothing yet.
+
+## 0.3.0
 
 - Every challenge type and required action has a default screen; German strings (spec/18 phase B).
 - Passkeys and passkey registration answered natively, saved passwords, `continueAfterTokenChallenge` (phase C).

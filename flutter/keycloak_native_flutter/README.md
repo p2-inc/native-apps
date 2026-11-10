@@ -2,7 +2,7 @@
 
 Native authentication for Keycloak in Flutter apps: your own screens instead of a browser or webview. The plugin wraps the [iOS and Android SDKs](../../README.md) of this repository, which run the challenge protocol, keep tokens in the Keychain or the Android Keystore, hold the DPoP key in secure hardware and open the system browser when a login must finish on the web. Dart gets the challenge flow as typed classes and default Flutter widgets you can replace per challenge type. Integration guide: [docs/flutter-integration.md](../../docs/flutter-integration.md); design and status: [spec/18](../../spec/18-flutter-plugin-plan.md).
 
-**Status:** 0.3.0-dev, not on pub.dev yet. Every challenge type and required action has a default screen (username, password, TOTP, email and SMS codes, recovery codes, passkeys, passkey registration, update password, verify email, terms, push approval, push enrollment), with saved passwords, the browser fallback, push approvals and a diagnostics flow log. Verified with the transcript replay and widget tests and live on the iOS simulator; passkeys with a real RP ID and push delivery still need a device pass.
+**Status:** below 1.0 (pin an exact version), published on pub.dev by the phasetwo.io verified publisher. Every challenge type and required action has a default screen (username, password, TOTP, email and SMS codes, recovery codes, passkeys, passkey registration, update password, verify email, terms, push approval, push enrollment), with saved passwords, the browser fallback, push approvals and a diagnostics flow log. Verified with the transcript replay and widget tests and live on the iOS simulator; passkeys with a real RP ID and push delivery still need a device pass.
 
 ## Requirements
 
