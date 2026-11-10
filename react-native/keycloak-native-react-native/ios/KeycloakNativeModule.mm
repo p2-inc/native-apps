@@ -1,10 +1,10 @@
 #import "KeycloakNativeModule.h"
 
 // The Swift half of the module (KeycloakNativeBridge.swift), through the pod's generated header.
-#if __has_include("ReactNativeKeycloakNative/ReactNativeKeycloakNative-Swift.h")
-#import "ReactNativeKeycloakNative/ReactNativeKeycloakNative-Swift.h"
+#if __has_include("KeycloakNativeReactNative/KeycloakNativeReactNative-Swift.h")
+#import "KeycloakNativeReactNative/KeycloakNativeReactNative-Swift.h"
 #else
-#import "ReactNativeKeycloakNative-Swift.h"
+#import "KeycloakNativeReactNative-Swift.h"
 #endif
 
 @implementation KeycloakNativeModule {

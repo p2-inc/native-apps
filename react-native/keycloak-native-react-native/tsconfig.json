@@ -2,14 +2,14 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "@phasetwo/react-native-keycloak-native": [
+      "@phasetwo/keycloak-native-react-native": [
         "./src/index"
       ]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "customConditions": [
-      "phasetwo-react-native-keycloak-native-source",
+      "phasetwo-keycloak-native-react-native-source",
       "react-native-strict-api"
     ],
     "esModuleInterop": true,

@@ -11,7 +11,7 @@ Where the project stands and what comes next. The design record behind it, inclu
 
 ## In progress
 
-- **React Native module** ([spec/19](spec/19-react-native-plan.md), `react-native/keycloak-native/`): a TurboModule over both SDKs with a typed challenge model, default React screens for every challenge type, passkeys, saved passwords, push enrollment and approvals, and an Expo config plugin. Not yet on npm.
+- **React Native module** ([spec/19](spec/19-react-native-plan.md), `react-native/keycloak-native-react-native/`): a TurboModule over both SDKs with a typed challenge model, default React screens for every challenge type, passkeys, saved passwords, push enrollment and approvals, and an Expo config plugin. Not yet on npm.
 
 - **Real-device verification on Android**: passkeys and saved passwords behind a public hostname with `assetlinks.json`, the browser fallback, and real FCM delivery on a phone.
 - **Android integration guide** in `docs/`, alongside the iOS one.

@@ -16,7 +16,7 @@ import {
   type Credentials,
   type NativeLoginFlow,
   type NativeLoginResult,
-} from '@phasetwo/react-native-keycloak-native';
+} from '@phasetwo/keycloak-native-react-native';
 
 // The compose stack of keycloak-native-auth/demo: the host's localhost is 10.0.2.2 on the Android
 // emulator. The demo realm's clients register demoapp://auth/callback for the browser fallback

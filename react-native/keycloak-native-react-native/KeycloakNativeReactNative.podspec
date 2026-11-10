@@ -11,7 +11,7 @@ local_package = File.exist?(File.join(repo_root, "Package.swift")) && ENV["KEYCL
 sdk_version = ENV["KEYCLOAK_NATIVE_SDK_VERSION"] || package["keycloakNativeSdkVersion"]
 
 Pod::Spec.new do |s|
-  s.name         = "ReactNativeKeycloakNative"
+  s.name         = "KeycloakNativeReactNative"
   s.version      = package["version"]
   s.summary      = package["description"]
   s.homepage     = package["homepage"]

@@ -13,7 +13,7 @@ const root = path.resolve(__dirname, '..');
 const config = withMetroConfig(getDefaultConfig(__dirname), {
   root,
   dirname: __dirname,
-  conditions: ['phasetwo-react-native-keycloak-native-source'],
+  conditions: ['phasetwo-keycloak-native-react-native-source'],
 });
 
 module.exports = config;

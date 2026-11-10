@@ -1,4 +1,4 @@
-# 19 — React Native module plan (`react-native/keycloak-native`)
+# 19 — React Native module plan (`react-native/keycloak-native-react-native`)
 
 **Date:** 9 November 2026
 **Status:** implemented through §10 step 8 (every challenge type, passkeys, saved passwords, push enrollment and approvals, the Expo config plugin). Publication (step 9) waits on the package name (§11). Replaces "React Native wrapper" in ROADMAP "Later".
@@ -18,7 +18,7 @@ A React Native app gets native authentication by **wrapping the two native SDK c
 
 ## 2. Package layout
 
-npm package `@phasetwo/react-native-keycloak-native` (name to confirm, §11), Apache-2.0 like the SDKs, in `react-native/keycloak-native/`:
+npm package `@phasetwo/keycloak-native-react-native` (name to confirm, §11), Apache-2.0 like the SDKs, in `react-native/keycloak-native-react-native/`:
 
 | Path | Content |
 |---|---|
@@ -30,7 +30,7 @@ npm package `@phasetwo/react-native-keycloak-native` (name to confirm, §11), Ap
 | `ios/` | `KeycloakNativeModule.mm` (ObjC++, conforms to the generated protocol) forwarding to `KeycloakNativeBridge.swift`; `BridgeJSON.swift` |
 | `android/` | `KeycloakNativeModule.kt` (extends the generated spec), `BridgeJson.kt`, `KeycloakNativeActivity.kt`, the package |
 | `app.plugin.js`, `plugin/` | the Expo config plugin (§3) |
-| `ReactNativeKeycloakNative.podspec` | the pod, with `spm_dependency` on `KeycloakNativeCore` and `KeycloakNativePush` (§8) |
+| `KeycloakNativeReactNative.podspec` | the pod, with `spm_dependency` on `KeycloakNativeCore` and `KeycloakNativePush` (§8) |
 | `example/` | React Native app against the compose stack (login, step-up, passkey registration, push enrollment and approvals), with the composite build of `../../android` and the local Swift package |
 
 The Flutter plugin (spec/18) is planned in parallel; the shapes here (one instance per issuer + client, `startLogin` / `start` / `respond(answer, challenge)`, answers named like the native cases, results `authorized` / `cancelled` / `failed`) are the native SDKs' shapes, so both wrappers stay symmetric with each other through them.
@@ -136,7 +136,7 @@ The UI layer mirrors the native ones: `<NativeLoginScreen kc flow onResult prese
 
 ## 8. Distribution
 
-- **npm.** `@phasetwo/react-native-keycloak-native` on the repository's version line, published from the release tag once the SDKs it pins are public. `package.json` names the SDK release it wraps (`keycloakNativeSdkVersion`), read by the podspec and the Gradle file, so one bump moves both platforms. npm versions cannot carry `-SNAPSHOT`; the development version is `0.3.0-dev`. Peer dependencies: `react-native` 0.88 or later and `react` 19.2 or later; `@expo/config-plugins` is an optional peer for the plugin.
+- **npm.** `@phasetwo/keycloak-native-react-native` on the repository's version line, published from the release tag once the SDKs it pins are public. `package.json` names the SDK release it wraps (`keycloakNativeSdkVersion`), read by the podspec and the Gradle file, so one bump moves both platforms. npm versions cannot carry `-SNAPSHOT`; the development version is `0.3.0-dev`. Peer dependencies: `react-native` 0.88 or later and `react` 19.2 or later; `@expo/config-plugins` is an optional peer for the plugin.
 - **iOS: SPM through the pod, not a second pod.** React Native still links native modules with CocoaPods. Three ways to bring in the Swift SDK: (a) React Native's `spm_dependency` in the podspec, which adds the Swift package to the pod's target in the Pods project; (b) publish `KeycloakNativeCore` as its own pod; (c) vendor the Swift sources into this pod. **Implemented: (a).** The SDK keeps one distribution channel (the Swift package iOS apps already use, from this repository by tag), the pod builds the same sources the Swift tests verify, and React Native supports local package paths, so inside the repository the podspec points at the repository root and the module and the SDK change together. (b) would add a second release artifact on a channel whose central trunk is winding down to read-only, and (c) duplicates the sources. Costs of (a): React Native prints a static-linking warning for pods with Swift packages and builds such pods into the shared products directory to avoid duplicate module maps (the example builds and runs with static linking; `USE_FRAMEWORKS=dynamic` is the documented fallback if an app hits linker errors); the package resolves on every `pod install`. `KEYCLOAK_NATIVE_SPM_REMOTE=1` forces the remote package inside the repository to test what npm users get. When React Native links modules through SPM natively, the podspec drops out and nothing else changes.
 - **Android: Maven Central artifacts, composite build in the repository.** The module depends on `io.phasetwo.keycloak.nativeauth:keycloak-native-android:<keycloakNativeSdkVersion>` (with `core` transitively), which apps resolve from Maven Central. The example's `settings.gradle` includes `../../../../android` as a composite build and substitutes `keycloak-native-core` and `keycloak-native-android` with its projects, so in-repo work never waits on a publication. Pins this forces on the example (documented there): the SDK's AGP 9.5.0 and Kotlin 2.4.21 (a composite build loads both builds' plugins into one Gradle run, and AGP refuses two versions), and Gradle 9.6.1, the one line that is new enough for AGP 9.5 and still embeds a Kotlin that React Native 0.88's Gradle plugin can read.
 - **Consumer requirements (Android).** minSdk 28, compileSdk 37 and **Kotlin 2.2 or later** (React Native 0.88's default). The SDK libraries compile at Kotlin language and API level 2.2, declare `kotlin-stdlib` 2.2.20 and use kotlinx.serialization 1.11 (built with Kotlin 2.3), so a 2.2 compiler reads all of them; before that change they carried Kotlin 2.4 metadata, which stock React Native apps could not read. The change is a separate pull request on the SDK ("Android SDK: readable by apps on Kotlin 2.2", docs/android-integration.md "Kotlin version"); it must be in the SDK release the module pins.
@@ -172,5 +172,5 @@ Decided while building (kept here for the record):
 
 Open for the product owner:
 
-- **Package name.** `@phasetwo/react-native-keycloak-native` assumes the `@phasetwo` npm scope; confirm it, or choose a shorter name before the first publication.
+- **Package name.** `@phasetwo/keycloak-native-react-native` assumes the `@phasetwo` npm scope; confirm it, or choose a shorter name before the first publication.
 - **Refresh token in JavaScript.** Withheld by design; some apps sync sessions to a web view or a backend and will ask for it. An explicit `exportRefreshToken()` would be the escape hatch if wanted.

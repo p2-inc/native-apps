@@ -4,7 +4,7 @@
 // on a published release (example/android/settings.gradle).
 def packageJson = new groovy.json.JsonSlurper().parse(file("../package.json"))
 
-ext.ReactNativeKeycloakNative = [
+ext.KeycloakNativeReactNative = [
   // Credential Manager passkeys and Keystore StrongBox start at API 28; the SDK compiles against 37.
   minSdkVersion: 28,
   compileSdkVersion: 37,
@@ -17,7 +17,7 @@ ext.getExtOrDefault = { prop ->
     return rootProject.ext.get(prop)
   }
 
-  return ReactNativeKeycloakNative[prop]
+  return KeycloakNativeReactNative[prop]
 }
 
 apply plugin: "com.android.library"

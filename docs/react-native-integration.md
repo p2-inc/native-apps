@@ -2,7 +2,7 @@
 
 [Index](README.md) · [Protocol](protocol-and-flows.md) · [iOS integration](ios-integration.md) · [Android integration](android-integration.md) · [Plan (spec/19)](../spec/19-react-native-plan.md)
 
-`@phasetwo/react-native-keycloak-native` (in [`react-native/keycloak-native/`](../react-native/keycloak-native/)) signs users in to Keycloak with your app's React Native screens instead of a browser. It is a New Architecture TurboModule over the iOS and Android SDKs: the native side runs the challenge protocol, keeps credentials in the Keychain or Android Keystore, holds the DPoP key in the Secure Enclave or Keystore and runs the passkey, saved-password, browser and push ceremonies; JavaScript gets the challenge loop as a typed model and default React screens that can be replaced one challenge type at a time. The module is below 1.0 and not yet on npm.
+`@phasetwo/keycloak-native-react-native` (in [`react-native/keycloak-native-react-native/`](../react-native/keycloak-native-react-native/)) signs users in to Keycloak with your app's React Native screens instead of a browser. It is a New Architecture TurboModule over the iOS and Android SDKs: the native side runs the challenge protocol, keeps credentials in the Keychain or Android Keystore, holds the DPoP key in the Secure Enclave or Keystore and runs the passkey, saved-password, browser and push ceremonies; JavaScript gets the challenge loop as a typed model and default React screens that can be replaced one challenge type at a time. The module is below 1.0 and not yet on npm.
 
 ## Requirements
 
@@ -50,7 +50,7 @@ The package ships a config plugin that does both platforms' setup during `npx ex
 {
   "expo": {
     "plugins": [
-      ["@phasetwo/react-native-keycloak-native", {
+      ["@phasetwo/keycloak-native-react-native", {
         "redirectUri": "demoapp://auth/callback",
         "associatedDomains": ["idp.example.com"]
       }]
@@ -66,7 +66,7 @@ It adds the `register` call to `MainActivity.onCreate`, declares `NativeAuthRedi
 Keep one instance per issuer and client for the life of the app, so credentials, the DPoP key, the metadata cache and refreshes stay consistent:
 
 ```ts
-import { KeycloakNative } from '@phasetwo/react-native-keycloak-native';
+import { KeycloakNative } from '@phasetwo/keycloak-native-react-native';
 
 export const kc = KeycloakNative.configure({
   issuer: 'https://idp.example.com/realms/demo', // including /realms/<realm>
@@ -79,7 +79,7 @@ Options: `dpop` (`automatic` by default: Secure Enclave or Keystore when availab
 ## Sign in with the default screens
 
 ```tsx
-import { NativeLoginScreen, type NativeLoginFlow } from '@phasetwo/react-native-keycloak-native';
+import { NativeLoginScreen, type NativeLoginFlow } from '@phasetwo/keycloak-native-react-native';
 
 function Login({ onSignedIn }: { onSignedIn(): void }) {
   const [flow, setFlow] = useState<NativeLoginFlow>();
@@ -176,10 +176,10 @@ On iOS pass the APNs device token as hex with `type: 'apns'`, and forward the no
 
 ## Example and tests
 
-The [example app](../react-native/keycloak-native/example/) runs against the compose stack in `keycloak-native-auth/demo` (the Android emulator reaches the host at `10.0.2.2`): sign in on `demo-native`, `demo-native-passkey` or `demo-native-otp`, step up, create a passkey, enroll for push and answer sign-in requests. Inside this repository it builds the native SDKs from source: Android through a Gradle composite build of `../../android`, iOS through the Swift package at the repository root.
+The [example app](../react-native/keycloak-native-react-native/example/) runs against the compose stack in `keycloak-native-auth/demo` (the Android emulator reaches the host at `10.0.2.2`): sign in on `demo-native`, `demo-native-passkey` or `demo-native-otp`, step up, create a passkey, enroll for push and answer sign-in requests. Inside this repository it builds the native SDKs from source: Android through a Gradle composite build of `../../android`, iOS through the Swift package at the repository root.
 
 ```sh
-cd react-native/keycloak-native
+cd react-native/keycloak-native-react-native
 yarn                 # the module and the example (Yarn 4 workspaces)
 yarn typecheck && yarn lint && yarn test
 yarn example android # or: cd example/android && ./gradlew :app:assembleDebug

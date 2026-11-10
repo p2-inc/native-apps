@@ -141,12 +141,12 @@ jobs:
     timeout-minutes: 40
     defaults:
       run:
-        working-directory: react-native/keycloak-native
+        working-directory: react-native/keycloak-native-react-native
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version-file: react-native/keycloak-native/.nvmrc
+          node-version-file: react-native/keycloak-native-react-native/.nvmrc
       - name: Install (Yarn 4 from .yarn/releases, workspaces with the example app)
         run: yarn install --immutable
       - name: Typecheck
@@ -162,5 +162,5 @@ jobs:
           java-version: "21"
           cache: gradle
       - name: Example app (assembleDebug; the Android SDK is built from ../../android through a composite build)
-        working-directory: react-native/keycloak-native/example/android
+        working-directory: react-native/keycloak-native-react-native/example/android
         run: ./gradlew --no-daemon --console=plain :app:assembleDebug -PreactNativeArchitectures=x86_64

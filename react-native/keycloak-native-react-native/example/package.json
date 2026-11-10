@@ -1,5 +1,5 @@
 {
-  "name": "@phasetwo/react-native-keycloak-native-example",
+  "name": "@phasetwo/keycloak-native-react-native-example",
   "version": "0.0.1",
   "private": true,
   "scripts": {
