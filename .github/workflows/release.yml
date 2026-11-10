@@ -1,6 +1,6 @@
 # Attaches the build outputs to a GitHub release when it is published (README "Releases"):
 #   keycloak-native-auth-providers-<tag>.zip   the Keycloak provider jars for /opt/keycloak/providers
-#   keycloak-native-android-<tag>-maven-repo.zip   the Android SDK as a Maven repository
+#   keycloak-native-android-<tag>-maven-repo.zip   the Android SDK as a Maven repository, also published to Maven Central
 # Swift packages need nothing here: SwiftPM resolves the tag itself.
 name: Release
 
@@ -44,6 +44,18 @@ jobs:
           cp push-mfa-extension-java21/LICENSE ../dist/providers/LICENSE-keycloak-push-mfa-extension
           cp push-mfa-extension-java21/NOTICE ../dist/providers/NOTICE-keycloak-push-mfa-extension
           (cd ../dist/providers && zip -q -r "../keycloak-native-auth-providers-$TAG.zip" .)
+      # The org's Maven Central signing key, stored base64-encoded for the Maven extension releases;
+      # Gradle's in-memory signing wants it ASCII-armored.
+      - name: Signing key
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+        run: |
+          echo "$GPG_KEY" | base64 -d | gpg --batch --import
+          {
+            echo "SIGNING_KEY<<EOF"
+            gpg --batch --armor --export-secret-keys
+            echo "EOF"
+          } >> "$GITHUB_ENV"
       # The runner image has the Android SDK with its licenses accepted.
       - name: Android SDK Maven repository
         working-directory: android
@@ -52,3 +64,26 @@ jobs:
           (cd build/maven-repo && zip -q -r "../../../dist/keycloak-native-android-$TAG-maven-repo.zip" .)
       - name: Upload to the release
         run: gh release upload "$TAG" dist/*.zip --clobber
+      # Central Portal publisher API: a bundle of the signed repository layout, published automatically once it
+      # validates. Central keeps every version forever, so this runs last, after the GitHub assets are attached.
+      - name: Publish the Android SDK to Maven Central
+        working-directory: android/build/maven-repo
+        env:
+          CENTRAL_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: |
+          zip -q -r ../central-bundle.zip . -x '*maven-metadata*'
+          auth="Authorization: Bearer $(printf '%s:%s' "$CENTRAL_USERNAME" "$CENTRAL_PASSWORD" | base64 -w0)"
+          id=$(curl -sSf -H "$auth" -F "bundle=@../central-bundle.zip" \
+            "https://central.sonatype.com/api/v1/publisher/upload?name=keycloak-native-android-$TAG&publishingType=AUTOMATIC")
+          echo "Deployment $id"
+          for _ in $(seq 60); do
+            state=$(curl -sSf -X POST -H "$auth" "https://central.sonatype.com/api/v1/publisher/status?id=$id" | jq -r .deploymentState)
+            echo "$state"
+            case "$state" in
+              PUBLISHING|PUBLISHED) exit 0 ;;
+              FAILED) curl -sS -X POST -H "$auth" "https://central.sonatype.com/api/v1/publisher/status?id=$id" | jq .errors; exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "Timed out waiting for validation"; exit 1

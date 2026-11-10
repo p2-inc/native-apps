@@ -19,7 +19,7 @@ Where the project stands and what comes next. The design record behind it, inclu
 - **Real-device verification on iOS**: passkeys behind a public hostname, real APNs delivery and the notification service extension. Everything so far ran on the simulator.
 - **Push on multi-tenant Keycloak**: the push senders read one APNs key and one Firebase project from server configuration, so every realm on a Keycloak instance shares them. Apps from different organizations on one instance need a sender that takes its credentials from the realm or the client.
 - **Hardening for 1.0**: app attestation as client authentication (`client_attestation_required`), rate limiting at the challenge endpoint, a risk-evaluation hook, custom event types and metrics, a security review against [spec/07](spec/07-security-considerations.md), and a load test.
-- **Distribution**: the Android libraries are attached to each release as a zip of a Maven repository; a public Maven repository comes with 1.0.
+- **Distribution**: from 0.3.0 the Android libraries are published to Maven Central, and each release still attaches them as a zipped Maven repository.
 - **Upstream to ba-itsys**: a Java 21 build, the programmatic enrollment service, the APNs sender, and a challenge issuer for non-HTML authenticators.
 
 ## Later

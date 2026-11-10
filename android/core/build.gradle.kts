@@ -20,6 +20,7 @@ kotlin {
 
 java {
   withSourcesJar()
+  withJavadocJar()
 }
 
 publishing {
