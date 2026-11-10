@@ -1,8 +1,3 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/media/banner-dark.png">
-  <img alt="Native login for Keycloak: your app's screens, Keycloak's login flow" src="docs/media/banner-light.png">
-</picture>
-
 # Native login for Keycloak
 
 [![CI](https://github.com/p2-inc/native-apps/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/p2-inc/native-apps/actions/workflows/ci.yml)
@@ -14,6 +9,11 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0%20%2B%20ELv2-blue)](#-license)
 
 Sign users in to Keycloak with your app's own screens. Keycloak keeps running the login flow, with its passwords, passkeys, one-time codes, push approvals, required actions and brute-force protection. These extensions hand each step to your app as JSON, and the SDKs for iOS, Android, React Native and Flutter turn it into native screens.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/banner-dark.png">
+  <img alt="Native login for Keycloak: your app's screens, Keycloak's login flow" src="docs/media/banner-light.png">
+</picture>
 
 <!-- Demo GIF goes here: docs/media/native-login.gif (username → password → TOTP on the default screens). -->
 
