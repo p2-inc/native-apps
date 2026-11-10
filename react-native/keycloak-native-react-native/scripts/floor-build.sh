@@ -21,7 +21,7 @@ echo "React Native $RN_VERSION in $WORK/$APP"
 
 # The module as npm users get it.
 (cd "$MODULE_DIR" && yarn install --immutable && yarn prepare && npm pack --pack-destination "$WORK")
-TARBALL="$(ls "$WORK"/phasetwo-keycloak-native-react-native-*.tgz | head -1)"
+TARBALL="$(ls "$WORK"/*keycloak-native-react-native-*.tgz | head -1)"
 
 # The SDK artifacts: this checkout's SDK published to a local Maven repository, or KEYCLOAK_NATIVE_MAVEN_REPO.
 if [ -z "${KEYCLOAK_NATIVE_MAVEN_REPO:-}" ]; then
