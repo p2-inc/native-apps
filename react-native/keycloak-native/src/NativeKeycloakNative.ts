@@ -42,6 +42,39 @@ export interface Spec extends TurboModule {
     additionalFields: string
   ): Promise<string>;
 
+  /**
+   * Runs the platform passkey prompt for the pending `passkey` challenge (`kc.passkeys().assert`) and
+   * answers it with the assertion, in one call: WebAuthn material never crosses the bridge.
+   */
+  respondWithPasskey(
+    flowId: string,
+    challengeId: string,
+    preferImmediatelyAvailableCredentials: boolean
+  ): Promise<string>;
+
+  /**
+   * Runs the platform registration for the pending `passkey_registration` challenge
+   * (`kc.passkeys().register`) and answers it. `label`: the passkey's name, empty for none.
+   */
+  respondWithPasskeyRegistration(
+    flowId: string,
+    challengeId: string,
+    label: string
+  ): Promise<string>;
+
+  /**
+   * Answers the pending `push_enrollment` challenge with a device JWT signed by the DPoP key
+   * (`push.prepareEnrollment`) and stores the enrollment once the server accepted it. `pushProviderId`
+   * is empty for the `none` provider.
+   */
+  respondWithPushEnrollment(
+    flowId: string,
+    challengeId: string,
+    deviceLabel: string,
+    pushProviderType: string,
+    pushProviderId: string
+  ): Promise<string>;
+
   /** `flow.cancel()`: best-effort server cancellation. */
   cancel(flowId: string): Promise<void>;
 
@@ -85,6 +118,75 @@ export interface Spec extends TurboModule {
 
   /** RFC 7638 thumbprint of the DPoP key (`jkt`), null when DPoP is disabled. */
   dpopKeyThumbprint(instanceId: string): Promise<string | null>;
+
+  // Passwords and passkeys outside a flow
+
+  /** The system sheet of saved passwords; resolves to `{username, password}` JSON. */
+  pickSavedPassword(instanceId: string): Promise<string>;
+
+  /**
+   * Offers a login to the password manager (Android Credential Manager). iOS saves through AutoFill
+   * and resolves without doing anything.
+   */
+  savePassword(
+    instanceId: string,
+    username: string,
+    password: string
+  ): Promise<void>;
+
+  /**
+   * Registers a passkey for the signed-in user through the authenticated registration endpoints
+   * (`passkeys().registerNewPasskey`); resolves to `{credentialId, label}` JSON. `label` empty for none.
+   */
+  registerNewPasskey(instanceId: string, label: string): Promise<string>;
+
+  // Push MFA (spec/03 §7), the device side (`kc.push()`)
+
+  /** The stored enrollment of this device as JSON, or null. */
+  pushEnrollment(instanceId: string): Promise<string | null>;
+
+  /** In-app enrollment (`push.enroll`); resolves to the enrollment JSON. `pushProviderId` empty for `none`. */
+  pushEnroll(
+    instanceId: string,
+    deviceLabel: string,
+    pushProviderType: string,
+    pushProviderId: string
+  ): Promise<string>;
+
+  pushForgetEnrollment(instanceId: string): Promise<void>;
+
+  /** `GET …/login/pending`: a JSON array of the pending approvals as the server sent them. */
+  pushPendingApprovals(instanceId: string): Promise<string>;
+
+  /**
+   * Approves (`approve`) or denies (`deny`) a pending approval; `userVerification` is the picked number
+   * or the PIN, empty for none. Resolves to the server's status.
+   */
+  pushRespond(
+    instanceId: string,
+    cid: string,
+    action: string,
+    userVerification: string
+  ): Promise<string>;
+
+  /**
+   * Decodes a push-MFA message (the data map of an FCM message, or the APNs `userInfo`) as a JSON
+   * object of strings; resolves to the payload JSON, or null when it is not one for this device.
+   */
+  pushHandleMessage(instanceId: string, data: string): Promise<string | null>;
+
+  /** `PUT …/device/push-provider` (`fcm` + registration token, `apns` + hex device token, `none`). */
+  pushUpdateProvider(
+    instanceId: string,
+    pushProviderType: string,
+    pushProviderId: string
+  ): Promise<void>;
+
+  /** `PUT …/device/rotate-key`; clears the stored credentials (a new login binds the new key). */
+  pushRotateKey(instanceId: string): Promise<void>;
+
+  /** `POST …/login/lockout`: the panic button; the server disables the account. */
+  pushLockout(instanceId: string): Promise<void>;
 }
 
 // `get`, not `getEnforcing`: the package can be imported where the binary is absent (Jest, the web)

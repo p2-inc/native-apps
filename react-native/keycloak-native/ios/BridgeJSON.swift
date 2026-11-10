@@ -1,5 +1,6 @@
 import Foundation
 import KeycloakNativeCore
+import KeycloakNativePush
 
 /// The JSON the module exchanges with JavaScript (spec/19 §4), the twin of `BridgeJson.kt`. Every
 /// shape here has a TypeScript reader in `src/model.ts` / `src/KeycloakNative.ts`.
@@ -147,6 +148,30 @@ enum BridgeJSON {
   private static func millis(_ date: Date?) -> JSONValue {
     guard let date, date < Date.distantFuture else { return .null }
     return .number((date.timeIntervalSince1970 * 1000).rounded())
+  }
+
+  /// `PushEnrollment` of `src/model.ts`; instants in epoch milliseconds.
+  static func enrollment(_ e: PushEnrollment) -> JSONValue {
+    .object([
+      "credentialId": .string(e.credentialId),
+      "deviceId": .string(e.deviceId),
+      "userId": .string(e.userId),
+      "username": e.username.map(JSONValue.string) ?? .null,
+      "deviceLabel": .string(e.deviceLabel),
+      "pushProviderType": .string(e.pushProviderType),
+      "pushProviderId": e.pushProviderId.map(JSONValue.string) ?? .null,
+      "deviceApiBase": .string(e.deviceApiBase.absoluteString),
+      "keyThumbprint": .string(e.keyThumbprint),
+      "enrolledAt": millis(e.enrolledAt),
+    ])
+  }
+
+  static func payload(_ p: PushNotificationPayload) -> JSONValue {
+    .object([
+      "cid": .string(p.cid),
+      "credentialId": p.credentialId.map(JSONValue.string) ?? .null,
+      "expiresAt": millis(p.expiresAt),
+    ])
   }
 
   static func string(_ value: JSONValue) throws -> String {

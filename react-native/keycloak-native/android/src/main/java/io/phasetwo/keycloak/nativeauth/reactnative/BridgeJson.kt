@@ -7,6 +7,9 @@ import io.phasetwo.keycloak.nativeauth.sdk.challenge.FormField
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.LoginParameters
 import io.phasetwo.keycloak.nativeauth.sdk.dpop.DPoPMode
 import io.phasetwo.keycloak.nativeauth.sdk.errors.NativeAuthError
+import io.phasetwo.keycloak.nativeauth.sdk.push.PendingApproval
+import io.phasetwo.keycloak.nativeauth.sdk.push.PushEnrollment
+import io.phasetwo.keycloak.nativeauth.sdk.push.PushNotificationPayload
 import io.phasetwo.keycloak.nativeauth.sdk.tokens.Credentials
 import java.time.Instant
 import kotlinx.serialization.json.Json
@@ -157,6 +160,43 @@ internal object BridgeJson {
     if (instant == null || instant.isAfter(FAR_FUTURE)) JsonNull else JsonPrimitive(instant.toEpochMilli())
 
   private val FAR_FUTURE: Instant = Instant.parse("9999-12-31T23:59:59Z")
+
+  fun savedPassword(username: String, password: String): String =
+    buildJsonObject {
+      put("username", username)
+      put("password", password)
+    }.toString()
+
+  fun registeredPasskey(credentialId: String, label: String?): String =
+    buildJsonObject {
+      put("credentialId", credentialId)
+      put("label", label?.let(::JsonPrimitive) ?: JsonNull)
+    }.toString()
+
+  /** `PushEnrollment` of `src/model.ts`; instants in epoch milliseconds. */
+  fun enrollment(e: PushEnrollment): String =
+    buildJsonObject {
+      put("credentialId", e.credentialId)
+      put("deviceId", e.deviceId)
+      put("userId", e.userId)
+      put("username", e.username?.let(::JsonPrimitive) ?: JsonNull)
+      put("deviceLabel", e.deviceLabel)
+      put("pushProviderType", e.pushProviderType)
+      put("pushProviderId", e.pushProviderId?.let(::JsonPrimitive) ?: JsonNull)
+      put("deviceApiBase", e.deviceApiBase.toString())
+      put("keyThumbprint", e.keyThumbprint)
+      put("enrolledAt", e.enrolledAt.toEpochMilli())
+    }.toString()
+
+  /** The pending approvals as the server sent them; `src/model.ts` reads them. */
+  fun approvals(list: List<PendingApproval>): String = JsonArray(list.map { it.raw }).toString()
+
+  fun payload(p: PushNotificationPayload): String =
+    buildJsonObject {
+      put("cid", p.cid)
+      put("credentialId", p.credentialId?.let(::JsonPrimitive) ?: JsonNull)
+      put("expiresAt", millis(p.expiresAt))
+    }.toString()
 
   fun headers(headers: Map<String, String>): String = JsonObject(headers.mapValues { JsonPrimitive(it.value) }).toString()
 

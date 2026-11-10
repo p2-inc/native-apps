@@ -675,8 +675,8 @@ export function parseFlowStep(json: JsonValue): FlowStep {
 
 /**
  * The client's answer to one challenge (spec/03 §4), named like the native `ChallengeAnswer` cases.
- * The native side turns it into the form fields. Ceremonies (`passkey`, `passkey_registration`,
- * `push_enrollment`) run natively and are added in a later phase (spec/19 §9).
+ * The native side turns it into the form fields. Ceremonies run natively in one call instead:
+ * `flow.usePasskey`, `flow.registerPasskey` and `flow.enrollPush` (spec/19 §3).
  */
 export type ChallengeAnswer =
   | { kind: 'username'; username: string }
@@ -754,6 +754,16 @@ export const NativeAuthErrorCode = {
   webFallbackFailed: 'web_fallback_failed',
   savedPasswordCancelled: 'saved_password_cancelled',
   savedPasswordUnavailable: 'saved_password_unavailable',
+  /** Push: no usable native login for the device API (sign in with DPoP first). */
+  deviceTokenUnavailable: 'device_token_unavailable',
+  /** Push: this device is not enrolled. */
+  pushNotEnrolled: 'push_not_enrolled',
+  /** Push: the server advertises no push block (the extension is not installed). */
+  pushUnavailable: 'push_unavailable',
+  /** Push: the approval was resolved meanwhile. */
+  pushConflict: 'push_conflict',
+  /** Push: the picked number or the PIN was wrong; one more try. */
+  userVerificationMismatch: 'user_verification_mismatch',
   /** The module is used before `configure`, or the native module is missing. */
   notConfigured: 'not_configured',
 } as const;
@@ -812,3 +822,150 @@ export class NativeAuthError extends Error {
     );
   }
 }
+
+// MARK: - Passwords and passkeys outside a flow
+
+/** A password picked from the system sheet (`kc.pickSavedPassword()`). */
+export interface SavedPassword {
+  username: string;
+  password: string;
+}
+
+/** A passkey registered through the authenticated endpoints (`kc.registerNewPasskey`). */
+export interface RegisteredPasskey {
+  credentialId: string;
+  label?: string;
+}
+
+// MARK: - Push MFA (spec/03 §7)
+
+/**
+ * Where push messages reach this device: the server's sender and the token it addresses. `fcm` with
+ * the FCM registration token, `apns` with the hex APNs device token, `none` (no delivery: the app reads
+ * its pending approvals itself).
+ */
+export interface PushProviderRegistration {
+  type: 'fcm' | 'apns' | 'none' | (string & {});
+  id?: string;
+}
+
+/** The stored push enrollment of this device. */
+export interface PushEnrollment {
+  credentialId: string;
+  deviceId: string;
+  userId: string;
+  username?: string;
+  deviceLabel: string;
+  pushProviderType: string;
+  pushProviderId?: string;
+  deviceApiBase: string;
+  keyThumbprint: string;
+  /** Epoch milliseconds. */
+  enrolledAt?: number;
+}
+
+export function parsePushEnrollment(
+  json: JsonValue | undefined
+): PushEnrollment | undefined {
+  const o = asObject(json);
+  const credentialId = str(o?.credentialId);
+  const deviceId = str(o?.deviceId);
+  const userId = str(o?.userId);
+  if (o === undefined || !credentialId || !deviceId || !userId)
+    return undefined;
+  return {
+    credentialId,
+    deviceId,
+    userId,
+    username: str(o.username),
+    deviceLabel: str(o.deviceLabel) ?? '',
+    pushProviderType: str(o.pushProviderType) ?? 'none',
+    pushProviderId: str(o.pushProviderId),
+    deviceApiBase: str(o.deviceApiBase) ?? '',
+    keyThumbprint: str(o.keyThumbprint) ?? '',
+    enrolledAt: num(o.enrolledAt),
+  };
+}
+
+/** One entry of `GET /push-mfa/login/pending` (spec/03 §7). */
+export interface PendingApproval {
+  cid: string;
+  userId?: string;
+  username?: string;
+  clientId?: string;
+  clientName?: string;
+  /** Epoch milliseconds. */
+  createdAt?: number;
+  expiresAt?: number;
+  /** Number match: the numbers to offer; the other screen shows one of them. */
+  numbers: string[];
+  /** `pin` user verification: the user types the PIN the other side shows. */
+  requiresPin: boolean;
+  /** The client's display name, else its id. */
+  clientDisplayName: string;
+  raw: JsonObject;
+}
+
+export function parsePendingApproval(
+  json: JsonValue
+): PendingApproval | undefined {
+  const o = asObject(json);
+  const cid = str(o?.cid);
+  if (o === undefined || cid === undefined) return undefined;
+  const verification = asObject(o.userVerification);
+  const clientName = str(o.clientName);
+  const clientId = str(o.clientId);
+  return {
+    cid,
+    userId: str(o.userId),
+    username: str(o.username),
+    clientId,
+    clientName,
+    createdAt: epochMillis(o.createdAt),
+    expiresAt: epochMillis(o.expiresAt),
+    numbers: arr(verification?.numbers).flatMap((n) =>
+      typeof n === 'number' ? [String(n)] : typeof n === 'string' ? [n] : []
+    ),
+    requiresPin: str(verification?.type) === 'pin',
+    clientDisplayName: clientName ?? clientId ?? '?',
+    raw: o,
+  };
+}
+
+/** Whether an approval has expired (`expiresAt` passed). */
+export function isApprovalExpired(
+  approval: PendingApproval,
+  now: number = Date.now()
+): boolean {
+  return approval.expiresAt !== undefined && approval.expiresAt <= now;
+}
+
+/** The push-MFA keys of a notification (`push.handleMessage`). */
+export interface PushNotificationPayload {
+  cid: string;
+  credentialId?: string;
+  /** Epoch milliseconds. */
+  expiresAt?: number;
+}
+
+export function parsePushNotificationPayload(
+  json: JsonValue | undefined
+): PushNotificationPayload | undefined {
+  const o = asObject(json);
+  const cid = str(o?.cid);
+  if (o === undefined || cid === undefined) return undefined;
+  return {
+    cid,
+    credentialId: str(o.credentialId),
+    expiresAt: num(o.expiresAt),
+  };
+}
+
+/** The device's answer to a pending approval. */
+export type PushApprovalAction =
+  | {
+      kind: 'approve';
+      /** The picked number (number match) or the typed PIN. */
+      userVerification?: string;
+    }
+  | { kind: 'deny' };

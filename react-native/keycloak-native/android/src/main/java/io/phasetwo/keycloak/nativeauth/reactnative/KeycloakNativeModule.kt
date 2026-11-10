@@ -12,7 +12,9 @@ import io.phasetwo.keycloak.nativeauth.sdk.challenge.ChallengeType
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.FlowStep
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.NativeLoginFlow
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.RedirectToWebRequest
+import io.phasetwo.keycloak.nativeauth.sdk.challenge.ChallengeAnswer
 import io.phasetwo.keycloak.nativeauth.sdk.errors.NativeAuthError
+import io.phasetwo.keycloak.nativeauth.sdk.push.PushApprovalAction
 import io.phasetwo.keycloak.nativeauth.sdk.tokens.Credentials
 import io.phasetwo.keycloak.nativeauth.sdk.web.WebAuthenticationPresenter
 import java.net.URI
@@ -40,6 +42,14 @@ class KeycloakNativeModule(private val reactContext: ReactApplicationContext) : 
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
   private val instances = ConcurrentHashMap<String, KeycloakNative>()
   private val flows = ConcurrentHashMap<String, FlowHandle>()
+
+  /**
+   * Credentials of released flows that were not stored yet, so `credentialsManager.store` works after
+   * `flow.release()`; the last few only.
+   */
+  private val releasedCredentials = object : LinkedHashMap<String, Pair<KeycloakNative, Credentials>>() {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<KeycloakNative, Credentials>>?) = size > 4
+  }
 
   /** A flow and what it ended with, for the browser fallback and `storeCredentials`. */
   private class FlowHandle(val kc: KeycloakNative, val flow: NativeLoginFlow) {
@@ -92,6 +102,45 @@ class KeycloakNativeModule(private val reactContext: ReactApplicationContext) : 
       handle.encode(step)
     }
 
+  override fun respondWithPasskey(flowId: String, challengeId: String, preferImmediatelyAvailableCredentials: Boolean, promise: Promise) =
+    settle(promise) {
+      val handle = flow(flowId)
+      val challenge = handle.pending(challengeId, ChallengeType.Passkey)
+      val params = challenge.passkeyParams
+        ?: throw NativeAuthError(NativeAuthError.Code.INVALID_RESPONSE, errorDescription = "passkey challenge without usable params")
+      val assertion = handle.kc.passkeys().assert(params, preferImmediatelyAvailableCredentials)
+      handle.encode(handle.flow.respond(ChallengeAnswer.Passkey(assertion), challenge))
+    }
+
+  override fun respondWithPasskeyRegistration(flowId: String, challengeId: String, label: String, promise: Promise) = settle(promise) {
+    val handle = flow(flowId)
+    val challenge = handle.pending(challengeId, ChallengeType.PasskeyRegistration)
+    val params = challenge.passkeyRegistrationParams
+      ?: throw NativeAuthError(NativeAuthError.Code.INVALID_RESPONSE, errorDescription = "passkey_registration challenge without usable params")
+    val attestation = handle.kc.passkeys().register(params)
+    handle.encode(handle.flow.respond(ChallengeAnswer.PasskeyRegistration(attestation, label.ifEmpty { null }), challenge))
+  }
+
+  override fun respondWithPushEnrollment(
+    flowId: String,
+    challengeId: String,
+    deviceLabel: String,
+    pushProviderType: String,
+    pushProviderId: String,
+    promise: Promise,
+  ) = settle(promise) {
+    val handle = flow(flowId)
+    val challenge = handle.pending(challengeId, ChallengeType.PushEnrollment)
+    val params = challenge.pushEnrollmentParams
+      ?: throw NativeAuthError(NativeAuthError.Code.INVALID_RESPONSE, errorDescription = "push_enrollment challenge without params")
+    val push = handle.kc.push()
+    val prepared = push.prepareEnrollment(params, deviceLabel, pushProviderType, pushProviderId.ifEmpty { null })
+    val step = handle.flow.respond(prepared.answer, challenge)
+    // Stored once the server moved on from the challenge (an error on it means it was refused).
+    if (step.challenges.orEmpty().none { it.type == ChallengeType.PushEnrollment && it.error != null }) push.commit(prepared)
+    handle.encode(step)
+  }
+
   override fun cancel(flowId: String, promise: Promise) = settle(promise) {
     flows[flowId]?.flow?.cancel()
     null
@@ -107,15 +156,16 @@ class KeycloakNativeModule(private val reactContext: ReactApplicationContext) : 
   }
 
   override fun storeCredentials(flowId: String, promise: Promise) = settle(promise) {
-    val handle = flow(flowId)
-    val credentials = handle.credentials
+    val (kc, credentials) = flows[flowId]?.let { handle -> handle.credentials?.let { handle.kc to it } }
+      ?: synchronized(releasedCredentials) { releasedCredentials.remove(flowId) }
       ?: throw NativeAuthError(NativeAuthError.Code.FLOW_STATE, errorDescription = "This flow has not produced credentials")
-    handle.kc.credentialsManager().store(credentials)
+    kc.credentialsManager().store(credentials)
     null
   }
 
   override fun releaseFlow(flowId: String) {
-    flows.remove(flowId)
+    val handle = flows.remove(flowId) ?: return
+    handle.credentials?.let { synchronized(releasedCredentials) { releasedCredentials[flowId] = handle.kc to it } }
   }
 
   override fun credentials(instanceId: String, minTtlSeconds: Double, promise: Promise) = settle(promise) {
@@ -153,6 +203,68 @@ class KeycloakNativeModule(private val reactContext: ReactApplicationContext) : 
     instance(instanceId).dpopKeyThumbprint()
   }
 
+  override fun pickSavedPassword(instanceId: String, promise: Promise) = settle(promise) {
+    val saved = instance(instanceId).pickSavedPassword()
+    BridgeJson.savedPassword(saved.username, saved.password)
+  }
+
+  override fun savePassword(instanceId: String, username: String, password: String, promise: Promise) = settle(promise) {
+    instance(instanceId).savePassword(username, password)
+    null
+  }
+
+  override fun registerNewPasskey(instanceId: String, label: String, promise: Promise) = settle(promise) {
+    val kc = instance(instanceId)
+    val registered = kc.passkeys().registerNewPasskey(label.ifEmpty { null }, kc.credentialsManager().credentials())
+    BridgeJson.registeredPasskey(registered.credentialId, registered.label)
+  }
+
+  override fun pushEnrollment(instanceId: String, promise: Promise) = settle(promise) {
+    instance(instanceId).push().enrollment()?.let(BridgeJson::enrollment)
+  }
+
+  override fun pushEnroll(instanceId: String, deviceLabel: String, pushProviderType: String, pushProviderId: String, promise: Promise) =
+    settle(promise) {
+      BridgeJson.enrollment(instance(instanceId).push().enroll(deviceLabel, pushProviderType, pushProviderId.ifEmpty { null }))
+    }
+
+  override fun pushForgetEnrollment(instanceId: String, promise: Promise) = settle(promise) {
+    instance(instanceId).push().forgetEnrollment()
+    null
+  }
+
+  override fun pushPendingApprovals(instanceId: String, promise: Promise) = settle(promise) {
+    BridgeJson.approvals(instance(instanceId).push().pendingApprovals())
+  }
+
+  override fun pushRespond(instanceId: String, cid: String, action: String, userVerification: String, promise: Promise) = settle(promise) {
+    val approval = when (action) {
+      "approve" -> PushApprovalAction.Approve(userVerification.ifEmpty { null })
+      "deny" -> PushApprovalAction.Deny
+      else -> throw NativeAuthError(NativeAuthError.Code.INVALID_PARAMETER, errorDescription = "Unknown push action '$action'")
+    }
+    instance(instanceId).push().respond(cid, approval)
+  }
+
+  override fun pushHandleMessage(instanceId: String, data: String, promise: Promise) = settle(promise) {
+    instance(instanceId).push().handleMessage(BridgeJson.stringMap(BridgeJson.parseObject(data)))?.let(BridgeJson::payload)
+  }
+
+  override fun pushUpdateProvider(instanceId: String, pushProviderType: String, pushProviderId: String, promise: Promise) = settle(promise) {
+    instance(instanceId).push().updatePushProvider(pushProviderType, pushProviderId)
+    null
+  }
+
+  override fun pushRotateKey(instanceId: String, promise: Promise) = settle(promise) {
+    instance(instanceId).push().rotateKey()
+    null
+  }
+
+  override fun pushLockout(instanceId: String, promise: Promise) = settle(promise) {
+    instance(instanceId).push().lockout()
+    null
+  }
+
   override fun invalidate() {
     scope.cancel()
     flows.clear()
@@ -169,6 +281,11 @@ class KeycloakNativeModule(private val reactContext: ReactApplicationContext) : 
     }
     return BridgeJson.step(step, flow.expiresIn)
   }
+
+  /** The pending challenge with this id and type; JavaScript checks too, the native flow is the authority. */
+  private fun FlowHandle.pending(challengeId: String, type: ChallengeType) =
+    flow.pendingChallenges.firstOrNull { it.id == challengeId && it.type == type }
+      ?: throw NativeAuthError(NativeAuthError.Code.FLOW_STATE, errorDescription = "Challenge ${type.wire} is not in the pending set")
 
   private fun instance(id: String): KeycloakNative =
     instances[id] ?: throw NativeAuthError(NOT_CONFIGURED, errorDescription = "KeycloakNative instance $id is not configured")

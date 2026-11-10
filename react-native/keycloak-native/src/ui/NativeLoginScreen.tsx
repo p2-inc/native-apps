@@ -25,10 +25,18 @@ import {
   type ChallengePresentationProps,
   type ChallengePresenters,
 } from './DefaultScreens';
-import { LoginController, type NativeLoginResult } from './LoginController';
-import { defaultStrings, type NativeLoginStrings } from './strings';
+import {
+  LoginController,
+  type LoginControllerOptions,
+  type NativeLoginResult,
+} from './LoginController';
+import {
+  deviceLocale,
+  stringsForLocale,
+  type NativeLoginStrings,
+} from './strings';
 
-export interface NativeLoginScreenProps {
+export interface NativeLoginScreenProps extends LoginControllerOptions {
   kc: KeycloakNative;
   /** A flow from `authentication.startLogin(...)` or `stepUp(...)`, not yet started. */
   flow: NativeLoginFlow;
@@ -39,7 +47,10 @@ export interface NativeLoginScreenProps {
   chooser?: React.ComponentType<ChallengeChooserProps>;
   /** Shown above every screen (a logo). */
   header?: ReactNode;
-  /** Replaces some or all of the English strings. */
+  /**
+   * Replaces some or all strings of the catalogue for the device locale (English or German; pass a
+   * whole catalogue for another language).
+   */
   strings?: Partial<NativeLoginStrings>;
   style?: StyleProp<ViewStyle>;
 }
@@ -59,11 +70,26 @@ export function NativeLoginScreen({
   header,
   strings: stringOverrides,
   style,
+  autoSelectPasskey,
+  offerSavedPasswords,
+  offerToSavePassword,
+  pushRegistration,
 }: NativeLoginScreenProps) {
   const onResultRef = useRef(onResult);
   onResultRef.current = onResult;
+  const pushRegistrationRef = useRef(pushRegistration);
+  pushRegistrationRef.current = pushRegistration;
   const [controller] = useState(
-    () => new LoginController(kc, flow, (r) => onResultRef.current(r))
+    () =>
+      new LoginController(kc, flow, (r) => onResultRef.current(r), {
+        autoSelectPasskey,
+        offerSavedPasswords,
+        offerToSavePassword,
+        pushRegistration:
+          pushRegistration === undefined
+            ? undefined
+            : () => pushRegistrationRef.current!(),
+      })
   );
   const state = useSyncExternalStore(
     controller.subscribe,
@@ -73,7 +99,8 @@ export function NativeLoginScreen({
     controller.startIfNeeded();
   }, [controller]);
 
-  const strings: NativeLoginStrings = { ...defaultStrings, ...stringOverrides };
+  const [baseStrings] = useState(() => stringsForLocale(deviceLocale()));
+  const strings: NativeLoginStrings = { ...baseStrings, ...stringOverrides };
   const phase = state.phase;
 
   switch (phase.kind) {
@@ -94,9 +121,22 @@ export function NativeLoginScreen({
         flowContext: phase.context,
         isSubmitting: state.isSubmitting,
         isStepUp: phase.context.stepUp,
+        offersSavedPasswords: controller.offersSavedPasswords,
         strings,
         submit: (answer) => {
           controller.submit(answer, selected);
+        },
+        usePasskey: (prefer) => {
+          controller.usePasskey(selected, prefer);
+        },
+        registerPasskey: (label) => {
+          controller.registerPasskey(selected, label);
+        },
+        enrollPush: (deviceLabel) => {
+          controller.enrollPush(selected, deviceLabel);
+        },
+        useSavedPassword: () => {
+          controller.useSavedPassword(selected);
         },
         switchTo: (other: Challenge) => controller.select(other),
         cancel: () => {

@@ -14,6 +14,8 @@
   },
   "files": [
     "src",
+    "plugin",
+    "app.plugin.js",
     "lib",
     "android",
     "ios",
@@ -36,7 +38,7 @@
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
     "typecheck": "tsc",
-    "lint": "eslint \"src/**/*.{js,ts,tsx}\" \"example/src/**/*.{js,ts,tsx}\"",
+    "lint": "eslint \"src/**/*.{js,ts,tsx}\" \"example/src/**/*.{js,ts,tsx}\" \"plugin/**/*.js\" app.plugin.js",
     "test": "jest"
   },
   "keywords": [
@@ -66,6 +68,7 @@
     "@eslint/compat": "^2.1.1",
     "@eslint/eslintrc": "^3.3.7",
     "@eslint/js": "^9.39.5",
+    "@expo/config-plugins": "58.0.10",
     "@react-native/babel-preset": "0.88.0",
     "@react-native/eslint-config": "0.88.0",
     "@react-native/jest-preset": "0.88.0",
@@ -88,8 +91,9 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "react": "*",
-    "react-native": "*"
+    "@expo/config-plugins": ">=54.0.0",
+    "react": ">=19.2.0",
+    "react-native": ">=0.88.0"
   },
   "workspaces": [
     "example"
@@ -152,5 +156,10 @@
       "<rootDir>/src/**/__tests__/**/*.test.ts?(x)"
     ]
   },
-  "keycloakNativeSdkVersion": "0.3.0"
+  "keycloakNativeSdkVersion": "0.3.0",
+  "peerDependenciesMeta": {
+    "@expo/config-plugins": {
+      "optional": true
+    }
+  }
 }

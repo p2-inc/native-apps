@@ -1,5 +1,6 @@
 import Foundation
 import KeycloakNativeCore
+import KeycloakNativePush
 
 /// The Swift half of the TurboModule (spec/19 §4–§5): `KeycloakNativeModule.mm` conforms to the
 /// Codegen protocol and forwards every call here. Each JavaScript `KeycloakNative` is one
@@ -63,6 +64,57 @@ public final class KeycloakNativeBridge: NSObject {
     }
   }
 
+  @objc public func respondWithPasskey(
+    _ flowId: String, challengeId: String, preferImmediatelyAvailableCredentials: Bool, resolve: @escaping Resolve, reject: @escaping Reject
+  ) {
+    settle(resolve, reject) { [registry] in
+      let handle = try await registry.flow(flowId)
+      let challenge = try await handle.pending(challengeId, type: .passkey)
+      guard let params = challenge.passkeyParams else {
+        throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "passkey challenge without usable params")
+      }
+      let assertion = try await handle.kc.passkeys().assert(params, preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials)
+      return try await handle.encode(try await handle.flow.respond(.passkey(assertion), to: challenge))
+    }
+  }
+
+  @objc public func respondWithPasskeyRegistration(
+    _ flowId: String, challengeId: String, label: String, resolve: @escaping Resolve, reject: @escaping Reject
+  ) {
+    settle(resolve, reject) { [registry] in
+      let handle = try await registry.flow(flowId)
+      let challenge = try await handle.pending(challengeId, type: .passkeyRegistration)
+      guard let params = challenge.passkeyRegistrationParams else {
+        throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "passkey_registration challenge without usable params")
+      }
+      let attestation = try await handle.kc.passkeys().register(params)
+      let step = try await handle.flow.respond(.passkeyRegistration(attestation, label: label.isEmpty ? nil : label), to: challenge)
+      return try await handle.encode(step)
+    }
+  }
+
+  @objc public func respondWithPushEnrollment(
+    _ flowId: String, challengeId: String, deviceLabel: String, pushProviderType: String, pushProviderId: String,
+    resolve: @escaping Resolve, reject: @escaping Reject
+  ) {
+    settle(resolve, reject) { [registry] in
+      let handle = try await registry.flow(flowId)
+      let challenge = try await handle.pending(challengeId, type: .pushEnrollment)
+      guard let params = challenge.pushEnrollmentParams else {
+        throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "push_enrollment challenge without params")
+      }
+      let push = handle.kc.push()
+      let prepared = try await push.prepareEnrollment(
+        for: params, deviceLabel: deviceLabel, pushProviderType: pushProviderType, pushProviderId: pushProviderId.isEmpty ? nil : pushProviderId)
+      let step = try await handle.flow.respond(prepared.answer, to: challenge)
+      // Stored once the server moved on from the challenge (an error on it means it was refused).
+      if step.challenges?.first(where: { $0.type == .pushEnrollment && $0.error != nil }) == nil {
+        try push.commit(prepared)
+      }
+      return try await handle.encode(step)
+    }
+  }
+
   @objc public func cancel(_ flowId: String, resolve: @escaping Resolve, reject: @escaping Reject) {
     settle(resolve, reject) { [registry] in
       if let handle = try? await registry.flow(flowId) { await handle.flow.cancel() }
@@ -84,11 +136,10 @@ public final class KeycloakNativeBridge: NSObject {
 
   @objc public func storeCredentials(_ flowId: String, resolve: @escaping Resolve, reject: @escaping Reject) {
     settle(resolve, reject) { [registry] in
-      let handle = try await registry.flow(flowId)
-      guard let credentials = await handle.credentials else {
+      guard let (kc, credentials) = await registry.credentials(of: flowId) else {
         throw NativeAuthError(code: NativeAuthError.Code.flowState, description: "This flow has not produced credentials")
       }
-      try await handle.kc.credentialsManager().store(credentials)
+      try await kc.credentialsManager().store(credentials)
       return nil
     }
   }
@@ -161,6 +212,112 @@ public final class KeycloakNativeBridge: NSObject {
     }
   }
 
+  // MARK: - Passwords and passkeys outside a flow
+
+  @objc public func pickSavedPassword(_ instanceId: String, resolve: @escaping Resolve, reject: @escaping Reject) {
+    settle(resolve, reject) { [registry] in
+      let saved = try await registry.instance(instanceId).pickSavedPassword()
+      return try BridgeJSON.string(.object(["username": .string(saved.username), "password": .string(saved.password)]))
+    }
+  }
+
+  /// iOS offers to save a login through AutoFill from the screen's fields (`textContentType`), so
+  /// there is nothing to do here.
+  @objc public func savePassword(_ instanceId: String, username: String, password: String, resolve: @escaping Resolve, reject: @escaping Reject) {
+    resolve(nil)
+  }
+
+  @objc public func registerNewPasskey(_ instanceId: String, label: String, resolve: @escaping Resolve, reject: @escaping Reject) {
+    settle(resolve, reject) { [registry] in
+      let kc = try await registry.instance(instanceId)
+      let credentials = try await kc.credentialsManager().credentials()
+      let registered = try await kc.passkeys().registerNewPasskey(label: label.isEmpty ? nil : label, credentials: credentials)
+      return try BridgeJSON.string(.object([
+        "credentialId": .string(registered.credentialId), "label": registered.label.map(JSONValue.string) ?? .null,
+      ]))
+    }
+  }
+
+  // MARK: - Push MFA
+
+  @objc public func pushEnrollment(_ instanceId: String, resolve: @escaping Resolve, reject: @escaping Reject) {
+    settle(resolve, reject) { [registry] in
+      guard let enrollment = try await registry.instance(instanceId).push().enrollment else { return nil }
+      return try BridgeJSON.string(BridgeJSON.enrollment(enrollment))
+    }
+  }
+
+  @objc public func pushEnroll(
+    _ instanceId: String, deviceLabel: String, pushProviderType: String, pushProviderId: String,
+    resolve: @escaping Resolve, reject: @escaping Reject
+  ) {
+    settle(resolve, reject) { [registry] in
+      let enrollment = try await registry.instance(instanceId).push().enroll(
+        deviceLabel: deviceLabel, pushProviderType: pushProviderType, pushProviderId: pushProviderId.isEmpty ? nil : pushProviderId)
+      return try BridgeJSON.string(BridgeJSON.enrollment(enrollment))
+    }
+  }
+
+  @objc public func pushForgetEnrollment(_ instanceId: String, resolve: @escaping Resolve, reject: @escaping Reject) {
+    settle(resolve, reject) { [registry] in
+      try await registry.instance(instanceId).push().forgetEnrollment()
+      return nil
+    }
+  }
+
+  @objc public func pushPendingApprovals(_ instanceId: String, resolve: @escaping Resolve, reject: @escaping Reject) {
+    settle(resolve, reject) { [registry] in
+      let approvals = try await registry.instance(instanceId).push().pendingApprovals()
+      return try BridgeJSON.string(.array(approvals.map(\.raw)))
+    }
+  }
+
+  @objc public func pushRespond(
+    _ instanceId: String, cid: String, action: String, userVerification: String,
+    resolve: @escaping Resolve, reject: @escaping Reject
+  ) {
+    settle(resolve, reject) { [registry] in
+      let approval: PushApprovalAction
+      switch action {
+      case "approve": approval = .approve(userVerification: userVerification.isEmpty ? nil : userVerification)
+      case "deny": approval = .deny
+      default: throw NativeAuthError(code: NativeAuthError.Code.invalidParameter, description: "Unknown push action '\(action)'")
+      }
+      return try await registry.instance(instanceId).push().respond(cid: cid, approval)
+    }
+  }
+
+  @objc public func pushHandleMessage(_ instanceId: String, data: String, resolve: @escaping Resolve, reject: @escaping Reject) {
+    settle(resolve, reject) { [registry] in
+      let userInfo: [AnyHashable: Any] = try BridgeJSON.stringMap(data)
+      guard let payload = try await registry.instance(instanceId).push().handleNotification(userInfo) else { return nil }
+      return try BridgeJSON.string(BridgeJSON.payload(payload))
+    }
+  }
+
+  @objc public func pushUpdateProvider(
+    _ instanceId: String, pushProviderType: String, pushProviderId: String, resolve: @escaping Resolve, reject: @escaping Reject
+  ) {
+    settle(resolve, reject) { [registry] in
+      try await registry.instance(instanceId).push().updatePushProvider(type: pushProviderType, id: pushProviderId)
+      return nil
+    }
+  }
+
+  @objc public func pushRotateKey(_ instanceId: String, resolve: @escaping Resolve, reject: @escaping Reject) {
+    settle(resolve, reject) { [registry] in
+      try await registry.instance(instanceId).push().rotateKey()
+      return nil
+    }
+  }
+
+  @objc public func pushLockout(_ instanceId: String, resolve: @escaping Resolve, reject: @escaping Reject) {
+    settle(resolve, reject) { [registry] in
+      try await registry.instance(instanceId).push().lockout()
+      return nil
+    }
+  }
+
   // MARK: -
 
   /// Runs `body` in a task and settles the promise with its result or the SDK's error code.
@@ -209,6 +366,14 @@ private actor FlowHandle {
     self.credentials = credentials
   }
 
+  /// The pending challenge with this id and type; JavaScript checks too, the native flow is the authority.
+  nonisolated func pending(_ challengeId: String, type: ChallengeType) async throws -> Challenge {
+    guard let challenge = await flow.pendingChallenges.first(where: { $0.id == challengeId && $0.type == type }) else {
+      throw NativeAuthError(code: NativeAuthError.Code.flowState, description: "Challenge \(type.wire) is not in the pending set")
+    }
+    return challenge
+  }
+
   func encode(_ step: FlowStep) async throws -> String {
     switch step {
     case .authorized(let credentials): self.credentials = credentials
@@ -247,7 +412,25 @@ private actor Registry {
     return handle
   }
 
-  func removeFlow(_ id: String) {
-    flows[id] = nil
+  /// Credentials of released flows that were not stored yet, so `credentialsManager.store` works after
+  /// `flow.release()`; the last few only.
+  private var released: [(id: String, kc: KeycloakNative, credentials: Credentials)] = []
+
+  func removeFlow(_ id: String) async {
+    guard let handle = flows.removeValue(forKey: id) else { return }
+    if let credentials = await handle.credentials {
+      released.append((id, handle.kc, credentials))
+      if released.count > 4 { released.removeFirst() }
+    }
+  }
+
+  func credentials(of id: String) async -> (KeycloakNative, Credentials)? {
+    if let handle = flows[id] {
+      guard let credentials = await handle.credentials else { return nil }
+      return (handle.kc, credentials)
+    }
+    guard let index = released.firstIndex(where: { $0.id == id }) else { return nil }
+    let entry = released.remove(at: index)
+    return (entry.kc, entry.credentials)
   }
 }

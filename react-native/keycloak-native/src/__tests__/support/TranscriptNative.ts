@@ -35,6 +35,23 @@ export class TranscriptNative implements Spec {
   private lastCredentials = new Map<string, JsonObject>();
   /** Every request matched, in order (for assertions). */
   readonly matched: Exchange[] = [];
+  /** What `pickSavedPassword` returns; `undefined` behaves like a closed sheet. */
+  savedPassword: { username: string; password: string } | undefined;
+  /** Logins offered to the password manager. */
+  readonly savedPasswords: { username: string; password: string }[] = [];
+  /** Native ceremonies run, in order. */
+  readonly ceremonies: {
+    kind: string;
+    challengeId: string;
+    label?: string;
+    provider?: string;
+  }[] = [];
+  readonly pushResponses: {
+    cid: string;
+    action: string;
+    userVerification: string;
+  }[] = [];
+  enrollment: JsonObject | undefined;
 
   constructor(
     private readonly transcript: Transcript,
@@ -116,6 +133,68 @@ export class TranscriptNative implements Spec {
     return this.challengeRequest(flowId, form, this.perRunFields);
   }
 
+  /**
+   * The native side runs the ceremony and sends its fields; the WebAuthn material differs per run, so
+   * the recorded ceremony fields only need to be present (the native replay suites pin their values).
+   */
+  async respondWithPasskey(
+    flowId: string,
+    challengeId: string,
+    _prefer: boolean
+  ): Promise<string> {
+    this.ceremonies.push({ kind: 'passkey', challengeId });
+    return this.ceremony(flowId, challengeId, 'passkey', {});
+  }
+
+  async respondWithPasskeyRegistration(
+    flowId: string,
+    challengeId: string,
+    label: string
+  ): Promise<string> {
+    this.ceremonies.push({ kind: 'passkeyRegistration', challengeId, label });
+    return this.ceremony(
+      flowId,
+      challengeId,
+      'passkey_registration',
+      label.length > 0 ? { label } : {}
+    );
+  }
+
+  async respondWithPushEnrollment(
+    flowId: string,
+    challengeId: string,
+    deviceLabel: string,
+    pushProviderType: string,
+    pushProviderId: string
+  ): Promise<string> {
+    this.ceremonies.push({
+      kind: 'pushEnrollment',
+      challengeId,
+      label: deviceLabel,
+      provider: `${pushProviderType}:${pushProviderId}`,
+    });
+    const step = await this.ceremony(
+      flowId,
+      challengeId,
+      'push_enrollment',
+      {}
+    );
+    const parsed = JSON.parse(step) as {
+      kind: string;
+      challenges?: { type?: string; error?: unknown }[];
+    };
+    const rejected = parsed.challenges?.some(
+      (c) => c.type === 'push_enrollment' && c.error !== undefined
+    );
+    if (!rejected)
+      this.enrollment = this.syntheticEnrollment(
+        deviceLabel,
+        pushProviderType,
+        pushProviderId
+      );
+    return step;
+  }
+
   async cancel(flowId: string): Promise<void> {
     const flow = this.flow(flowId);
     if (flow.session === undefined) return;
@@ -186,6 +265,120 @@ export class TranscriptNative implements Spec {
     return null;
   }
 
+  async pickSavedPassword(): Promise<string> {
+    if (this.savedPassword === undefined)
+      throw rejection('saved_password_cancelled', 'The sheet was closed');
+    return JSON.stringify(this.savedPassword);
+  }
+
+  async savePassword(
+    _instanceId: string,
+    username: string,
+    password: string
+  ): Promise<void> {
+    this.savedPasswords.push({ username, password });
+  }
+
+  async registerNewPasskey(
+    _instanceId: string,
+    label: string
+  ): Promise<string> {
+    return JSON.stringify({ credentialId: 'registered', label: label || null });
+  }
+
+  async pushEnrollment(): Promise<string | null> {
+    return this.enrollment === undefined
+      ? null
+      : JSON.stringify(this.enrollment);
+  }
+
+  async pushEnroll(
+    _instanceId: string,
+    deviceLabel: string,
+    pushProviderType: string,
+    pushProviderId: string
+  ): Promise<string> {
+    const start = this.next((e) =>
+      e.request.path.endsWith('/native-auth/push/enroll/start')
+    );
+    if (start.response.status !== 200)
+      throw rejection('invalid_response', undefined, start.response.status);
+    const complete = this.next((e) =>
+      e.request.path.endsWith('/enroll/complete')
+    );
+    if (complete.response.status !== 200 && complete.response.status !== 201)
+      throw rejection('invalid_response', undefined, complete.response.status);
+    this.enrollment = this.syntheticEnrollment(
+      deviceLabel,
+      pushProviderType,
+      pushProviderId
+    );
+    return JSON.stringify(this.enrollment);
+  }
+
+  async pushForgetEnrollment(): Promise<void> {
+    this.enrollment = undefined;
+  }
+
+  async pushPendingApprovals(): Promise<string> {
+    const exchange = this.next((e) =>
+      e.request.path.endsWith('/push-mfa/login/pending')
+    );
+    const body = asObject(exchange.response.json);
+    if (exchange.response.status !== 200)
+      throw rejection('invalid_response', undefined, exchange.response.status);
+    return JSON.stringify(
+      Array.isArray(body.challenges) ? body.challenges : []
+    );
+  }
+
+  async pushRespond(
+    _instanceId: string,
+    cid: string,
+    action: string,
+    userVerification: string
+  ): Promise<string> {
+    this.pushResponses.push({ cid, action, userVerification });
+    const exchange = this.next((e) =>
+      e.request.path.endsWith(`/push-mfa/login/challenges/${cid}/respond`)
+    );
+    const body = asObject(exchange.response.json);
+    switch (exchange.response.status) {
+      case 200:
+        return String(body.status);
+      case 403:
+        throw rejection(
+          'user_verification_mismatch',
+          String(body.error ?? ''),
+          403
+        );
+      case 409:
+        throw rejection('push_conflict', String(body.error ?? ''), 409);
+      default:
+        throw rejection(
+          'invalid_response',
+          undefined,
+          exchange.response.status
+        );
+    }
+  }
+
+  async pushHandleMessage(
+    _instanceId: string,
+    data: string
+  ): Promise<string | null> {
+    const o = JSON.parse(data) as Record<string, string>;
+    return o.cid === undefined ? null : JSON.stringify({ cid: o.cid });
+  }
+
+  async pushUpdateProvider(): Promise<void> {}
+
+  async pushRotateKey(): Promise<void> {
+    this.stored = undefined;
+  }
+
+  async pushLockout(): Promise<void> {}
+
   // ---
 
   private flow(flowId: string) {
@@ -204,6 +397,56 @@ export class TranscriptNative implements Spec {
       }
     }
     throw new Error(`${this.transcript.test}: no further exchange matches`);
+  }
+
+  private ceremony(
+    flowId: string,
+    challengeId: string,
+    type: string,
+    fields: Record<string, string>
+  ): Promise<string> {
+    const flow = this.flow(flowId);
+    const exchange = this.transcript.exchanges
+      .slice(this.cursor)
+      .find(isChallengeEndpoint);
+    const recorded = exchange?.request.form ?? {};
+    const ceremonyFields = Object.keys(recorded).filter(
+      (k) =>
+        !['auth_session', 'challenge_type', 'challenge_id', 'label'].includes(k)
+    );
+    const form: Record<string, string | undefined> = {
+      auth_session: flow.session,
+      challenge_type: type,
+      challenge_id: challengeId,
+      ...Object.fromEntries(ceremonyFields.map((k) => [k, '<ceremony>'])),
+      ...fields,
+      ...flow.parameters.continuationParameters,
+    };
+    return Promise.resolve(
+      this.challengeRequest(
+        flowId,
+        form,
+        new Set([...this.perRunFields, ...ceremonyFields])
+      )
+    );
+  }
+
+  private syntheticEnrollment(
+    deviceLabel: string,
+    pushProviderType: string,
+    pushProviderId: string
+  ): JsonObject {
+    return {
+      credentialId: 'credential',
+      deviceId: 'device',
+      userId: 'user',
+      deviceLabel,
+      pushProviderType,
+      pushProviderId: pushProviderId.length > 0 ? pushProviderId : null,
+      deviceApiBase: 'http://localhost/realms/demo/push-mfa',
+      keyThumbprint: 'jkt',
+      enrolledAt: Date.now(),
+    };
   }
 
   private challengeRequest(

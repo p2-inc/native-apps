@@ -10,7 +10,18 @@ import {
   type Credentials,
   type FlowStep,
   type JsonObject,
+  type JsonValue,
+  type PendingApproval,
+  type PushApprovalAction,
+  type PushEnrollment,
+  type PushNotificationPayload,
+  type PushProviderRegistration,
   type RedirectToWebRequest,
+  type RegisteredPasskey,
+  type SavedPassword,
+  parsePendingApproval,
+  parsePushEnrollment,
+  parsePushNotificationPayload,
 } from './model';
 
 /** Parameters of the initial request (spec/03 §2.1), as `LoginParameters` of the native SDKs. */
@@ -224,6 +235,185 @@ export class KeycloakNative {
     return call(() => nativeModule().dpopKeyThumbprint(this.instanceId));
   }
 
+  /**
+   * Shows the system sheet of passwords saved for the app (iOS: its associated domains; Android:
+   * Credential Manager). Errors: `saved_password_cancelled`, `saved_password_unavailable`.
+   */
+  async pickSavedPassword(): Promise<SavedPassword> {
+    await this.ready;
+    const json = await call(() =>
+      nativeModule().pickSavedPassword(this.instanceId)
+    );
+    const o = JSON.parse(json) as Partial<SavedPassword>;
+    return { username: o.username ?? '', password: o.password ?? '' };
+  }
+
+  /**
+   * Offers a login to the password manager. Android shows Credential Manager's save prompt; iOS
+   * saves through AutoFill from the screen's fields and resolves without doing anything.
+   */
+  async savePassword(username: string, password: string): Promise<void> {
+    await this.ready;
+    await call(() =>
+      nativeModule().savePassword(this.instanceId, username, password)
+    );
+  }
+
+  /**
+   * Registers a passkey for the signed-in user from inside the app (spec/03 §4.4, the authenticated
+   * registration endpoints). Needs fresh credentials: an old login is refused until a step-up with
+   * `maxAge`.
+   */
+  async registerNewPasskey(label?: string): Promise<RegisteredPasskey> {
+    await this.ready;
+    const json = await call(() =>
+      nativeModule().registerNewPasskey(this.instanceId, label ?? '')
+    );
+    const o = JSON.parse(json) as { credentialId?: string; label?: string };
+    return { credentialId: o.credentialId ?? '', label: o.label ?? undefined };
+  }
+
+  /**
+   * Push MFA for this device (spec/03 §7): in-app enrollment, the user's pending approvals, approve /
+   * deny with number match, push token updates, key rotation and the panic lockout. The device key is
+   * the DPoP key and the device API is called with the stored DPoP-bound login.
+   *
+   * The app keeps its own notification library (`@react-native-firebase/messaging`,
+   * `expo-notifications`, …): it passes the provider token to `enroll` / `updateProvider` and forwards
+   * push-MFA messages to `handleMessage`.
+   */
+  readonly push = {
+    /** The stored enrollment of this device, or `null`. */
+    enrollment: async (): Promise<PushEnrollment | null> => {
+      await this.ready;
+      const json = await call(() =>
+        nativeModule().pushEnrollment(this.instanceId)
+      );
+      return json === null
+        ? null
+        : (parsePushEnrollment(JSON.parse(json)) ?? null);
+    },
+    isEnrolled: async (): Promise<boolean> =>
+      (await this.push.enrollment()) !== null,
+    /** Enrolls this device for the signed-in user (spec/02 §3 scenario C). */
+    enroll: async (
+      deviceLabel: string,
+      registration: PushProviderRegistration = { type: 'none' }
+    ): Promise<PushEnrollment> => {
+      await this.ready;
+      const json = await call(() =>
+        nativeModule().pushEnroll(
+          this.instanceId,
+          deviceLabel,
+          registration.type,
+          registration.id ?? ''
+        )
+      );
+      const enrollment = parsePushEnrollment(JSON.parse(json));
+      if (enrollment === undefined) {
+        throw new NativeAuthError(
+          NativeAuthErrorCode.invalidResponse,
+          'The native module returned no enrollment'
+        );
+      }
+      return enrollment;
+    },
+    /** Forgets the local enrollment (the server credential stays; an admin removes it). */
+    forgetEnrollment: async (): Promise<void> => {
+      await this.ready;
+      await call(() => nativeModule().pushForgetEnrollment(this.instanceId));
+    },
+    /**
+     * What is waiting for this user. Read it when the app opens or resumes: a backgrounded app may
+     * not see the message until the user taps it, and pushes can be delayed or dropped.
+     */
+    pendingApprovals: async (): Promise<PendingApproval[]> => {
+      await this.ready;
+      const json = await call(() =>
+        nativeModule().pushPendingApprovals(this.instanceId)
+      );
+      const list = JSON.parse(json) as JsonValue[];
+      return (Array.isArray(list) ? list : []).flatMap((entry) => {
+        const approval = parsePendingApproval(entry);
+        return approval === undefined ? [] : [approval];
+      });
+    },
+    /**
+     * Approves or denies; resolves to the server's status (`approved` / `denied`). A wrong number is
+     * `user_verification_mismatch`, an approval resolved meanwhile `push_conflict`.
+     */
+    respond: async (
+      approval: PendingApproval | string,
+      action: PushApprovalAction
+    ): Promise<string> => {
+      await this.ready;
+      const cid = typeof approval === 'string' ? approval : approval.cid;
+      return call(() =>
+        nativeModule().pushRespond(
+          this.instanceId,
+          cid,
+          action.kind,
+          action.kind === 'approve' ? (action.userVerification ?? '') : ''
+        )
+      );
+    },
+    /**
+     * Decodes a push-MFA message: the `data` of an FCM message, or the APNs payload's custom keys.
+     * `null` when it is not one, or it is for another credential than this device's.
+     */
+    handleMessage: async (
+      data: Record<string, unknown>
+    ): Promise<PushNotificationPayload | null> => {
+      await this.ready;
+      const strings = Object.fromEntries(
+        Object.entries(data).flatMap(([k, v]) =>
+          typeof v === 'string' ? [[k, v]] : []
+        )
+      );
+      const json = await call(() =>
+        nativeModule().pushHandleMessage(
+          this.instanceId,
+          JSON.stringify(strings)
+        )
+      );
+      return json === null
+        ? null
+        : (parsePushNotificationPayload(JSON.parse(json)) ?? null);
+    },
+    /** The pending approval a message refers to, if it is still open. */
+    pendingApproval: async (
+      payload: PushNotificationPayload
+    ): Promise<PendingApproval | null> =>
+      (await this.push.pendingApprovals()).find((a) => a.cid === payload.cid) ??
+      null,
+    /**
+     * Tells the server where messages reach this device now (a new FCM token, an APNs token as hex).
+     * No request when nothing changed.
+     */
+    updateProvider: async (
+      registration: PushProviderRegistration
+    ): Promise<void> => {
+      await this.ready;
+      await call(() =>
+        nativeModule().pushUpdateProvider(
+          this.instanceId,
+          registration.type,
+          registration.id ?? ''
+        )
+      );
+    },
+    /** Registers a fresh device key; the stored credentials are cleared and the user signs in again. */
+    rotateKey: async (): Promise<void> => {
+      await this.ready;
+      await call(() => nativeModule().pushRotateKey(this.instanceId));
+    },
+    /** The panic button: the server disables the account; an admin re-enables it. */
+    lockout: async (): Promise<void> => {
+      await this.ready;
+      await call(() => nativeModule().pushLockout(this.instanceId));
+    },
+  };
+
   private async createFlow(
     parameters: LoginParameters,
     stepUp: boolean
@@ -338,6 +528,60 @@ export class NativeLoginFlow {
     );
   }
 
+  /**
+   * Runs the platform passkey prompt for a pending `passkey` challenge and answers it with the
+   * assertion. Closing the prompt is `passkey_cancelled` (not a flow failure: the set stays pending).
+   */
+  async usePasskey(
+    challenge: Challenge,
+    options: { preferImmediatelyAvailableCredentials?: boolean } = {}
+  ): Promise<FlowStep> {
+    this.checkPending(challenge, 'passkey');
+    return this.run(() =>
+      nativeModule().respondWithPasskey(
+        this.id,
+        challenge.id,
+        options.preferImmediatelyAvailableCredentials === true
+      )
+    );
+  }
+
+  /** Runs the platform registration for a pending `passkey_registration` challenge and answers it. */
+  async registerPasskey(
+    challenge: Challenge,
+    label?: string
+  ): Promise<FlowStep> {
+    this.checkPending(challenge, 'passkey_registration');
+    return this.run(() =>
+      nativeModule().respondWithPasskeyRegistration(
+        this.id,
+        challenge.id,
+        label ?? ''
+      )
+    );
+  }
+
+  /**
+   * Enrolls this device on a pending `push_enrollment` challenge (spec/03 §4.15) with the DPoP key;
+   * the enrollment is stored once the server accepted it.
+   */
+  async enrollPush(
+    challenge: Challenge,
+    deviceLabel: string,
+    registration: PushProviderRegistration = { type: 'none' }
+  ): Promise<FlowStep> {
+    this.checkPending(challenge, 'push_enrollment');
+    return this.run(() =>
+      nativeModule().respondWithPushEnrollment(
+        this.id,
+        challenge.id,
+        deviceLabel,
+        registration.type,
+        registration.id ?? ''
+      )
+    );
+  }
+
   /** `action=cancel`: best-effort server cancellation. Safe at any point. */
   async cancel(): Promise<void> {
     this.stateValue = 'finished';
@@ -378,6 +622,31 @@ export class NativeLoginFlow {
       nativeModule().releaseFlow(this.id);
     } catch {
       // Nothing to release.
+    }
+  }
+
+  private checkPending(challenge: Challenge, type: string): void {
+    if (this.stateValue !== 'awaitingAnswer' || this.inFlight) {
+      throw new NativeAuthError(
+        NativeAuthErrorCode.flowState,
+        `No challenge is pending (state: ${this.stateValue}${this.inFlight ? ', a request is in flight' : ''})`
+      );
+    }
+    if (
+      !this.pending.some(
+        (c) => c.id === challenge.id && c.wireType === challenge.wireType
+      )
+    ) {
+      throw new NativeAuthError(
+        NativeAuthErrorCode.flowState,
+        `Challenge ${challenge.wireType} is not in the pending set`
+      );
+    }
+    if (challenge.wireType !== type) {
+      throw new NativeAuthError(
+        NativeAuthErrorCode.unsupportedChallenge,
+        `This answer is for a ${type} challenge, not ${challenge.wireType}`
+      );
     }
   }
 

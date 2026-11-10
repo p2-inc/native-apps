@@ -2,8 +2,8 @@ require "json"
 
 package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 
-# The iOS half of the React Native module (spec/19 §8). It wraps the Swift package KeycloakNativeCore,
-# which it consumes as a Swift package through React Native's spm_dependency rather than as a pod:
+# The iOS half of the React Native module (spec/19 §8). It wraps the Swift package's KeycloakNativeCore and
+# KeycloakNativePush products, which it consumes through React Native's spm_dependency rather than as a pod:
 # inside this repository the package is the local one at the repository root (Package.swift), so the
 # module and the SDK change together; from npm it is this repository at the matching tag.
 repo_root = File.expand_path("../..", __dir__)
@@ -29,7 +29,7 @@ Pod::Spec.new do |s|
   spm_dependency(s,
     url: local_package ? repo_root : "https://github.com/p2-inc/native-apps.git",
     requirement: { kind: "exactVersion", version: sdk_version },
-    products: ["KeycloakNativeCore"]
+    products: ["KeycloakNativeCore", "KeycloakNativePush"]
   )
 
   install_modules_dependencies(s)
