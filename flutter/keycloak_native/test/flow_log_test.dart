@@ -1,5 +1,4 @@
 // The native flow log reaches the instance's `flowLog` stream (spec/18 §4).
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:keycloak_native/keycloak_native.dart';
 import 'package:keycloak_native/src/messages.g.dart';

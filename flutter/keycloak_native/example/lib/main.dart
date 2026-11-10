@@ -149,8 +149,9 @@ class _HomePageState extends State<HomePage> {
               DropdownButtonFormField<String>(
                 key: const ValueKey('client'),
                 initialValue: _clientId,
+                isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Client', border: OutlineInputBorder()),
-                items: [for (final e in clients.entries) DropdownMenuItem(value: e.key, child: Text('${e.key}: ${e.value}'))],
+                items: [for (final e in clients.entries) DropdownMenuItem(value: e.key, child: Text('${e.key}: ${e.value}', overflow: TextOverflow.ellipsis))],
                 onChanged: (value) => _select(value!),
               ),
               const SizedBox(height: 16),

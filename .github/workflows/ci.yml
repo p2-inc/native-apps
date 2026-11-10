@@ -163,3 +163,21 @@ jobs:
       - name: Example APK (compiles the Android SDK from ../android through the Gradle composite build)
         working-directory: flutter/keycloak_native/example
         run: flutter build apk --debug
+
+  flutter-ios:
+    # Not a required check (yet): spec/18 phase E.
+    name: Flutter plugin (example app for the iOS simulator)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: flutter/keycloak_native/example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - name: Example app for the simulator (compiles the iOS SDK through the local Swift package)
+        run: flutter build ios --simulator --debug --no-codesign
