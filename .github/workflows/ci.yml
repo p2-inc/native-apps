@@ -1,19 +1,15 @@
 name: keycloak-native-auth
 
+# One workflow for every package. The `changes` job decides which parts a pull request touches and each
+# job runs only for its parts; pushes to main, the nightly run and manual runs build everything. Branch
+# protection requires only `CI passed`, which fails if any job that ran failed. A skipped job counts as
+# passed, so docs-only pull requests aren't left waiting, and adding a job needs no protection change.
 on:
   push:
     branches: [main]
-    paths:
-      - "keycloak-native-auth/**"
-      - "ios/**"
-      - "android/**"
-      - "flutter/**"
-      - "react-native/**"
-      - "Package.swift"
-      - ".github/workflows/ci.yml"
-  # Every pull request, docs-only ones too: the six jobs above `flutter` are required checks on
-  # main, and a filtered-out run would leave the PR waiting for them forever.
   pull_request:
+  schedule:
+    - cron: "17 6 * * *"
   workflow_dispatch:
 
 defaults:
@@ -21,9 +17,58 @@ defaults:
     working-directory: keycloak-native-auth
 
 jobs:
+  changes:
+    name: Changed parts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      server: ${{ steps.parts.outputs.server }}
+      ios: ${{ steps.parts.outputs.ios }}
+      android: ${{ steps.parts.outputs.android }}
+      flutter: ${{ steps.parts.outputs.flutter }}
+      react-native: ${{ steps.parts.outputs.react-native }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Map changed paths to parts
+        id: parts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # The transcripts are the contract between the server and every client, and this workflow
+          # file changes how everything is checked: both count as a change to every part.
+          if [ "$EVENT" = pull_request ]; then
+            files=$(gh pr diff "$PR" --name-only)
+          else
+            files="*"
+          fi
+          echo "$files"
+          part() { # name, extended regexp over the changed paths, directory that must exist
+            if [ -n "$3" ] && [ ! -d "$3" ]; then
+              hit=false
+            elif [ "$files" = "*" ] || grep -qE "$2|^keycloak-native-auth/demo/transcripts/|^\.github/workflows/ci\.yml$" <<<"$files"; then
+              hit=true
+            else
+              hit=false
+            fi
+            echo "$1=$hit" | tee -a "$GITHUB_OUTPUT"
+          }
+          part server '^keycloak-native-auth/'
+          part ios '^ios/|^Package\.(swift|resolved)$'
+          part android '^android/'
+          # The wrappers build the native SDKs from the repository, so SDK changes rebuild them too.
+          part flutter '^flutter/|^ios/|^android/|^Package\.(swift|resolved)$' flutter
+          part react-native '^react-native/|^ios/|^android/|^Package\.(swift|resolved)$' react-native
+
   build-and-test:
     # One build (compiled against the newest supported Keycloak, keycloak.version in the POM) is
     # tested against a stock container of every supported minor (README "Keycloak versions").
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     name: Build, unit tests, integration tests (Testcontainers, Keycloak ${{ matrix.keycloak }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -51,6 +96,8 @@ jobs:
           if-no-files-found: ignore
 
   walkthrough:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     name: docker compose up + walkthrough.sh (definition of done)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -82,6 +129,8 @@ jobs:
         run: docker compose down -v
 
   ios-sdk:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     name: Swift package build + tests (macOS)
     runs-on: macos-latest
     timeout-minutes: 30
@@ -103,7 +152,8 @@ jobs:
         run: xcodebuild -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build-for-testing | tail -n 20
 
   android-core:
-    # The name is a required status check on main (branch protection); renaming it needs the rule updated too.
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     name: Android SDK (core transcript replay, android and ui module builds, ui model tests)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -136,7 +186,8 @@ jobs:
             android/push/build/reports/tests/
 
   flutter:
-    # Not a required check (yet): spec/18 phase E.
+    needs: changes
+    if: needs.changes.outputs.flutter == 'true'
     name: Flutter plugin (analyze, tests with transcript replay, example APK)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -166,7 +217,8 @@ jobs:
         run: flutter build apk --debug
 
   flutter-ios:
-    # Not a required check (yet): spec/18 phase E.
+    needs: changes
+    if: needs.changes.outputs.flutter == 'true'
     name: Flutter plugin (example app for the iOS simulator)
     runs-on: macos-latest
     timeout-minutes: 30
@@ -184,7 +236,8 @@ jobs:
         run: flutter build ios --simulator --debug --no-codesign
 
   react-native:
-    # Not a required check: it is new (spec/19 §9), and a branch protection rule names required jobs.
+    needs: changes
+    if: needs.changes.outputs.react-native == 'true'
     name: React Native module (typecheck, lint, Jest transcript replay, example app Android build)
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -213,3 +266,76 @@ jobs:
       - name: Example app (assembleDebug; the Android SDK is built from ../../android through a composite build)
         working-directory: react-native/keycloak-native-react-native/example/android
         run: ./gradlew --no-daemon --console=plain :app:assembleDebug -PreactNativeArchitectures=x86_64
+
+  react-native-ios:
+    needs: changes
+    if: needs.changes.outputs.react-native == 'true'
+    name: React Native module (example app for the iOS simulator)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: react-native/keycloak-native-react-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: react-native/keycloak-native-react-native/.nvmrc
+      - name: Install (Yarn 4 from .yarn/releases, workspaces with the example app)
+        run: yarn install --immutable
+      - name: Pods (the module's Swift package dependency resolves to this checkout's Package.swift)
+        working-directory: react-native/keycloak-native-react-native/example/ios
+        run: RCT_NEW_ARCH_ENABLED=1 pod install
+      - name: Example app for the simulator
+        working-directory: react-native/keycloak-native-react-native/example/ios
+        run: xcodebuild -workspace ReactNativeKeycloakNativeExample.xcworkspace -scheme ReactNativeKeycloakNativeExample -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build | tail -n 20
+
+  react-native-floor:
+    # The oldest supported React Native (spec/19 "Floor"): a fresh template app with the module from `npm pack`,
+    # the Android SDK from this checkout's Maven publication and the Swift package from this checkout.
+    needs: changes
+    if: needs.changes.outputs.react-native == 'true'
+    name: React Native module on its oldest supported version (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-latest
+          - platform: ios
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: react-native/keycloak-native-react-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: react-native/keycloak-native-react-native/.nvmrc
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Build the floor app
+        run: scripts/floor-build.sh ${{ matrix.platform }} "$RUNNER_TEMP/rn-floor"
+
+  ci-passed:
+    # The only required status check on main. Add every new job to `needs`.
+    name: CI passed
+    if: always()
+    needs: [changes, build-and-test, walkthrough, ios-sdk, android-core, flutter, flutter-ios, react-native, react-native-ios, react-native-floor]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Every job that ran succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
