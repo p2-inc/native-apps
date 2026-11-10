@@ -1,7 +1,7 @@
-# 18 — Flutter plugin plan (`keycloak_native`)
+# 18 — Flutter plugin plan (`keycloak_native_flutter`)
 
 **Date:** 9 November 2026
-**Status:** phases A–D implemented in `flutter/keycloak_native` (every challenge type and required action, passkeys, saved passwords, push enrollment and approvals, the browser fallback, the flow log); phase E (release hardening) is partly done. The open questions of the first draft are decided in §10.
+**Status:** phases A–D implemented in `flutter/keycloak_native_flutter` (every challenge type and required action, passkeys, saved passwords, push enrollment and approvals, the browser fallback, the flow log); phase E (release hardening) is partly done. The open questions of the first draft are decided in §10.
 **Builds on:** 03 (the protocol, unchanged), 05 and 17 (the iOS and Android SDKs, which this plugin wraps), 15 (`skip`, `custom`, `x_*`).
 
 A Flutter app gets native authentication through a **plugin that wraps the two native SDKs** over platform channels. It is not a third implementation of the protocol in Dart. The state machine, PKCE, DPoP, token exchange and refresh, the secure stores, passkey ceremonies, the browser fallback and push stay in `KeycloakNativeCore` (iOS) and `core` + `android` (Android), which already replay the server's transcripts. Dart gets the challenge loop as typed classes and Flutter widgets in place of the SwiftUI and Compose screens, with every default screen replaceable per challenge type, as in the native UI layers. A React Native module follows the same shape (spec/19); where a choice here is arbitrary it is made so the two stay alike.
@@ -18,13 +18,13 @@ A Flutter app gets native authentication through a **plugin that wraps the two n
 
 ## 2. Package layout
 
-`flutter/keycloak_native/` in this repository (one version line and one set of transcripts with the server and the SDKs).
+`flutter/keycloak_native_flutter/` in this repository (one version line and one set of transcripts with the server and the SDKs).
 
 | Path | Content |
 |---|---|
-| `pubspec.yaml` | plugin `keycloak_native`, platforms `android` (`io.phasetwo.keycloak.nativeauth.flutter.KeycloakNativePlugin`) and `ios` (`KeycloakNativePlugin`); Apache-2.0 (`LICENSE`, a copy of the repository's) |
+| `pubspec.yaml` | plugin `keycloak_native_flutter`, platforms `android` (`io.phasetwo.keycloak.nativeauth.flutter.KeycloakNativePlugin`) and `ios` (`KeycloakNativePlugin`); Apache-2.0 (`LICENSE`, a copy of the repository's) |
 | `pigeons/messages.dart` | the channel interface (§4); `dart run pigeon --input pigeons/messages.dart` writes the three generated files, which are committed |
-| `lib/keycloak_native.dart` | the public library; everything else is under `lib/src/` |
+| `lib/keycloak_native_flutter.dart` | the public library; everything else is under `lib/src/` |
 | `lib/src/client.dart` | `KeycloakNative.configure`, `KeycloakNativeOptions`, `Authentication` (login, step-up, `continueAfterTokenChallenge`), `CredentialsManager`, `WebFallback`, `Passkeys`, saved passwords, the `flowLog` stream |
 | `lib/src/push.dart` | `Push` (enrollment, approvals, provider updates, key rotation, lockout), `PendingApproval`, `PushApprovalAction`, `PushProviderRegistration` |
 | `lib/src/flow.dart` | `LoginParameters`, `NativeLoginFlow`, `FlowStep` (`ChallengesStep`, `AuthorizedStep`, `RedirectToWebStep`) |
@@ -33,7 +33,7 @@ A Flutter app gets native authentication through a **plugin that wraps the two n
 | `lib/src/mapping.dart` | messages ↔ model, internal |
 | `lib/src/ui/` | `NativeLoginController` (the twin of the native `NativeLoginModel`), `NativeLoginView`, a default screen per challenge type, `PushApprovalsController` + `PushApprovalsView`, `NativeLoginStrings` (English) and `NativeLoginStringsDe` |
 | `android/` | `KeycloakNativePlugin.kt` (FlutterPlugin + ActivityAware + the host API) and the generated `Messages.g.kt` |
-| `ios/keycloak_native/` | a Swift package (`Package.swift`, Flutter's Swift Package Manager integration) with `KeycloakNativePlugin.swift` and the generated `Messages.g.swift` |
+| `ios/keycloak_native_flutter/` | a Swift package (`Package.swift`, product `keycloak-native-flutter`, Flutter's Swift Package Manager integration) with `KeycloakNativePlugin.swift` and the generated `Messages.g.swift` |
 | `example/` | an app on the demo realm's four native clients: sign in through `NativeLoginView`, claims, refresh, step-up, passkey registration, push enrollment and the approvals list, the flow log, log out; `integration_test/` signs in against the running compose stack |
 | `test/` | model mapping, transcript replay through a fake host API, widget tests of every default screen, the flow log (§7) |
 
@@ -49,7 +49,7 @@ Consequences:
 - The composite build loads the Android SDK's Gradle plugins, so the example (and the plugin's `buildscript`) use the SDK's versions: AGP 9.5.0, Kotlin 2.4.21, Gradle 9.8.2, `compileSdk 37`. `minSdk` is 28, the SDK's. An app with a lower `minSdk` must raise it.
 - iOS needs 17.0 (the SDK's floor) and Swift Package Manager, Flutter's default. There is no podspec, because the SDK has none; an app that turned SPM off cannot use the plugin (§10).
 - `KeycloakNativeUI` (iOS) and `ui`, `push` (Android) are not dependencies: Flutter widgets replace the native screens, and the push protocol is `KeycloakNativePush` on iOS and `Push` in `core` on Android. Neither registers with APNs or FCM: the app obtains the token (for instance with `firebase_messaging`) and passes a `PushProviderRegistration`, so the plugin pulls in no Firebase and does not clash with an app's own messaging setup.
-- **Kotlin metadata.** The Android SDK is compiled with Kotlin 2.4, and Kotlin reads class metadata at most one minor version ahead of itself, so the app's Kotlin Gradle plugin must be 2.3 or newer. Flutter 3.47's app template pins Kotlin 2.4.0 (`org.jetbrains.kotlin.android` in `settings.gradle.kts`), which reads the SDK as is; apps created with older templates (Kotlin 2.1 or 2.2) fail with an "incompatible version of Kotlin" metadata error until they raise it. This is the same constraint the React Native module meets; a change to the SDK's build to emit older metadata is a separate decision (and PR) for the Android SDK, not something the plugin works around. Not reproduced here with an old-template app: the in-repo example builds the SDK in the same Gradle build, which forces one Kotlin version.
+- **Kotlin metadata.** The Android SDK is compiled with Kotlin 2.4, and Kotlin reads class metadata at most one minor version ahead of itself, so as built the app's Kotlin Gradle plugin had to be 2.3 or newer. The Android SDK's build is changed separately (#30) to emit metadata Kotlin 2.2 reads, which makes the floor Kotlin 2.2, as for the React Native module. Flutter 3.47's app template pins Kotlin 2.4.0 (`org.jetbrains.kotlin.android` in `settings.gradle.kts`) and reads the SDK either way; apps created with older templates on Kotlin 2.1 fail with an "incompatible version of Kotlin" metadata error until they raise it. The plugin itself does not work around this. Not reproduced here with an old-template app: the in-repo example builds the SDK in the same Gradle build, which forces one Kotlin version.
 
 ## 4. The channel (Pigeon)
 
@@ -106,7 +106,7 @@ Pigeon 29 generates Dart, Kotlin (`suspend` host methods on `Dispatchers.Main`) 
 
 ## 8. Distribution
 
-- **pub.dev** as `keycloak_native`, Apache-2.0, on the repository's version line (`0.x` before 1.0). The release workflow gains a `dart pub publish` step once the package name is settled (§10); the Android artifacts go to Maven Central from 0.3.0; the plugin's Gradle file names the SDK version, and the iOS manifest the tag.
+- **pub.dev** as `keycloak_native_flutter` under the phasetwo.io verified publisher, Apache-2.0, on the repository's version line (`0.x` before 1.0). The release workflow gains a `dart pub publish` step once the publisher is set up; the Android artifacts go to Maven Central from 0.3.0; the plugin's Gradle file names the SDK version, and the iOS manifest the tag.
 - **Android:** apps need `mavenCentral()` (Flutter's default). The SDK's AARs require `compileSdk 37` and `minSdk 28`.
 - **iOS:** Swift Package Manager resolves `https://github.com/p2-inc/native-apps.git` at the tag; the repository's root manifest is already consumable by URL.
 - **In this repository** the example never uses published artifacts (§3), so the plugin and the SDKs change in one PR.
@@ -147,13 +147,14 @@ Decided (9 November 2026):
 
 - **Swift Package Manager only, no podspec.** The iOS SDK ships only as a Swift package and Flutter integrates plugins through SPM by default; a podspec would need one for `KeycloakNativeCore` and `KeycloakNativePush` as well. Apps that turned SPM off cannot use the plugin; revisit only if integrators ask.
 - **`FlutterFragmentActivity` stays a requirement on Android.** The browser fallback's Auth Tab launcher must be registered while a `ComponentActivity` is created. A plugin-owned transparent activity would lift the requirement at the cost of an extra activity hop and its own lifecycle edge cases; switching an app's `MainActivity` base class is one line, and the failure names the fix (`web_fallback_failed`). The same activity serves Credential Manager.
-- **Only the access and ID token reach Dart.** Apps call APIs with the access token; DPoP-bound tokens need `CredentialsManager.resourceRequestHeaders` (one channel call per request). The plugin adds no HTTP client dependency; wrapping `package:http`'s `BaseClient` around `resourceRequestHeaders` is a few lines in the app (README).
+- **Only the access and ID token reach Dart; the refresh token stays native, with no export API** (decided 10 November 2026). The SDK refreshes inside the Keychain or Keystore (`CredentialsManager.credentials`), so Dart never needs the refresh token. Exposing it would put a long-lived credential where any package in the app's isolate can read it, where it is easy to persist in plain text (`shared_preferences`) or to log, and outside the hardware-backed store. Apps call APIs with the access token; DPoP-bound tokens need `CredentialsManager.resourceRequestHeaders` (one channel call per request), and the integration guide recommends enabling Keycloak's DPoP feature so tokens are bound to the non-exportable device key. The plugin adds no HTTP client dependency; wrapping `package:http`'s `BaseClient` around `resourceRequestHeaders` is a few lines in the app.
 - **Strings are a Dart class, English and German.** `NativeLoginStrings.of(context)` picks German for a `de` locale, English otherwise; apps subclass it to reword or add languages. No ARB files or `LocalizationsDelegate`, so the package needs no code generation and no `flutter_localizations` dependency, and apps with their own `intl` setup map their messages onto the getters.
 - **No push messaging in the plugin.** See §3: the app owns APNs and FCM registration and hands in tokens and payloads.
 - **Terms links open through the app.** `TermsScreen.openUrl` takes the app's launcher (e.g. `url_launcher`); without one the URL is shown as selectable text. The plugin does not depend on `url_launcher`.
 
-Open, for the product owner:
+- **The package is `keycloak_native_flutter`** (decided 10 November 2026), published on pub.dev under the phasetwo.io verified publisher, in `flutter/keycloak_native_flutter`. The Android package `io.phasetwo.keycloak.nativeauth.flutter` and the plugin classes keep their names; the iOS Swift package, target and product follow the package name (`keycloak_native_flutter`, `keycloak-native-flutter`).
+- **Minimum versions** (decided 10 November 2026): iOS 17, Android API 28, Kotlin 2.2 (with the SDK change of #30), Flutter 3.35. The first three are the native SDKs' floors, so lowering them would be SDK work; Flutter 3.35 is the oldest release whose APIs the widgets use (`Column.spacing`, `DropdownButtonFormField.initialValue`).
 
-- **The package name and publisher on pub.dev.** `keycloak_native` is a working name; publishing needs a verified publisher (phasetwo.io) and possibly a prefixed name (`phasetwo_keycloak_native`) to avoid implying an official Keycloak package. The Android package `io.phasetwo.keycloak.nativeauth.flutter` and the iOS module name follow whatever is chosen.
-- **Minimum versions.** The plugin inherits iOS 17, Android API 28 and Kotlin 2.3+ (§3) from the SDKs. Whether those floors are acceptable for the Flutter audience is a product call; lowering them is SDK work, not plugin work.
-- **Shared screens with React Native.** Both wrappers send the same messages; if spec/19 lands on the same handle-and-JSON-params channel shape, the message definitions could be shared and the bridges' native code could become a common internal module in each SDK.
+Later, not blocking:
+
+- **Shared message definitions with React Native.** Both wrappers send the same kinds of messages; if spec/19 keeps the same handle-and-JSON-params shape, the message definitions could be shared and the bridges' native code could become a common internal module in each SDK.

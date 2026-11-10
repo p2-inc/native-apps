@@ -1,0 +1,32 @@
+name: keycloak_native_flutter
+description: "Native authentication for Keycloak in Flutter apps: wraps the Keycloak Native iOS and Android SDKs."
+# One version line with the server and the native SDKs (README "Releases").
+version: 0.3.0-dev
+homepage: https://phasetwo.io
+repository: https://github.com/p2-inc/native-apps/tree/main/flutter/keycloak_native_flutter
+issue_tracker: https://github.com/p2-inc/native-apps/issues
+# Not on pub.dev before the Android SDK is on Maven Central (spec/18 §8).
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  pigeon: ^29.1.1
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: io.phasetwo.keycloak.nativeauth.flutter
+        pluginClass: KeycloakNativePlugin
+      ios:
+        pluginClass: KeycloakNativePlugin

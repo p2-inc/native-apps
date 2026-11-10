@@ -1,0 +1,23 @@
+name: keycloak_native_flutter_example
+description: "The keycloak_native_flutter plugin against the demo realm of keycloak-native-auth/demo."
+publish_to: 'none'
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  keycloak_native_flutter:
+    path: ../
+
+dev_dependencies:
+  crypto: ^3.0.8
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
