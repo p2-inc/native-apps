@@ -56,11 +56,13 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      # pub refuses to publish with modified checked-in files, so the stamp is committed in the runner (not pushed).
+      # pub warns about modified checked-in files, so the stamp (and any lockfile change from pub get) is committed
+      # in the runner, never pushed.
       - name: Stamp the release version
         working-directory: .
-        run: |
-          scripts/set-wrapper-versions.sh "$GITHUB_REF_NAME"
-          git -c user.name=release -c user.email=release@localhost commit -q -am "Release $GITHUB_REF_NAME"
+        run: scripts/set-wrapper-versions.sh "$GITHUB_REF_NAME"
       - run: flutter pub get
+      - name: Commit the stamp locally
+        run: git -c user.name=release -c user.email=release@localhost commit -q -am "Release $GITHUB_REF_NAME"
+      - run: flutter pub publish --dry-run
       - run: flutter pub publish --force
