@@ -144,11 +144,11 @@ NativeLoginScreen(kc, flow, onResult = { result ->
 A TurboModule for React Native 0.84+ (New Architecture), with an Expo config plugin.
 
 ```bash
-npm install @phasetwo/keycloak-native-react-native
+npm install @phasetwo.io/keycloak-native-react-native
 ```
 
 ```tsx
-import { KeycloakNative, NativeLoginScreen } from '@phasetwo/keycloak-native-react-native';
+import { KeycloakNative, NativeLoginScreen } from '@phasetwo.io/keycloak-native-react-native';
 
 const kc = KeycloakNative.configure({ issuer: 'https://idp.example.com/realms/demo', clientId: 'my-app' });
 const flow = await kc.authentication.startLogin({ scope: 'openid profile' });

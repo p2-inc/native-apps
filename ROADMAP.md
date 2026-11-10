@@ -15,7 +15,7 @@ Where the project stands and what comes next. The design record behind it, inclu
 ## In progress
 
 - **Real-device verification on Android**: passkeys and saved passwords behind a public hostname with `assetlinks.json`, the browser fallback, and real FCM delivery on a phone.
-- **Publishing the wrappers**: the React Native module on npm as `@phasetwo/keycloak-native-react-native` and the Flutter plugin on pub.dev as `keycloak_native_flutter`, starting with 0.3.0.
+- **Publishing the wrappers**: the React Native module on npm as `@phasetwo.io/keycloak-native-react-native` and the Flutter plugin on pub.dev as `keycloak_native_flutter`, starting with 0.3.0.
 
 ## Next
 
