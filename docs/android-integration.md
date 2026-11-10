@@ -243,7 +243,7 @@ val headers = kc.resourceRequestHeaders(credentials, "GET", URI("https://api.exa
 
 `stored()` returns possibly expired credentials or `null`. `hasValid(minTtl)` only checks expiry, not server validity. `credentials(minTtl)` refreshes when the access token is within 30 seconds plus `minTtl` of expiry, serializes concurrent refreshes and persists the result; durations are `kotlin.time.Duration`. With nothing stored it throws `credentials_not_found`; a direct `kc.tokens().refresh(credentials)` does not persist. Access, refresh and ID tokens and the post-login session live in `Credentials`; `accessTokenClaims` and `idTokenClaims` are unverified display conveniences.
 
-Set the returned headers on your request (`Authorization: Bearer …`, or `Authorization: DPoP …` plus a `DPoP` proof when the tokens are bound), preserving the exact method and URL for DPoP. Core does not perform resource requests, validate authorization results, schedule background refresh or retry business operations.
+We recommend enabling DPoP on the server so these tokens are bound to the device key; see [security](security.md#recommended-dpop-for-every-client-refresh-tokens-stay-native) for what that asks of your APIs. Set the returned headers on your request (`Authorization: Bearer …`, or `Authorization: DPoP …` plus a `DPoP` proof when the tokens are bound), preserving the exact method and URL for DPoP. Core does not perform resource requests, validate authorization results, schedule background refresh or retry business operations.
 
 ```kotlin
 val elevatedFlow = kc.authentication().stepUp(acrValues = "2")

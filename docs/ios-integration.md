@@ -160,7 +160,7 @@ let headers = try await kc.resourceRequestHeaders(
 
 `stored()` returns optional possibly expired credentials. `hasValid(minTTL:)` only checks expiry, not server validity. `credentials(minTTL:)` refreshes when access expiry is within 30 s + requested TTL, serializes concurrent refreshes and persists result. Calls with no credentials throw `credentials_not_found`; direct `Tokens.refresh` does not persist. Access/refresh/ID tokens and post-login session live in `Credentials`; expiry is derived from token response lifetimes. `accessTokenClaims`/`idTokenClaims` are unverified display conveniences.
 
-Set returned resource headers on your request, preserving exact method/URL for DPoP. Core does not perform resource requests, validate server authorization results, parse every resource server's step-up policy, schedule background refresh or automatically retry business operations.
+We recommend enabling DPoP on the server so these tokens are bound to the device key; see [security](security.md#recommended-dpop-for-every-client-refresh-tokens-stay-native) for what that asks of your APIs. Set returned resource headers on your request, preserving exact method/URL for DPoP. Core does not perform resource requests, validate server authorization results, parse every resource server's step-up policy, schedule background refresh or automatically retry business operations.
 
 ```swift
 let elevatedFlow = try await kc.authentication().stepUp(acrValues: "2")
