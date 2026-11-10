@@ -7,10 +7,11 @@ on:
       - "keycloak-native-auth/**"
       - "ios/**"
       - "android/**"
+      - "flutter/**"
       - "Package.swift"
       - ".github/workflows/ci.yml"
-  # Every pull request, docs-only ones too: the six jobs are required checks on main, and a
-  # filtered-out run would leave the PR waiting for them forever.
+  # Every pull request, docs-only ones too: the six jobs above `flutter` are required checks on
+  # main, and a filtered-out run would leave the PR waiting for them forever.
   pull_request:
   workflow_dispatch:
 
@@ -132,3 +133,51 @@ jobs:
             android/core/build/reports/tests/
             android/ui/build/reports/tests/
             android/push/build/reports/tests/
+
+  flutter:
+    # Not a required check (yet): spec/18 phase E.
+    name: Flutter plugin (analyze, tests with transcript replay, example APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: flutter/keycloak_native_flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Generated channel code is up to date
+        run: dart run pigeon --input pigeons/messages.dart && git diff --exit-code -- lib/src/messages.g.dart android/src/main/kotlin ios/keycloak_native_flutter/Sources
+      - run: flutter analyze
+      - name: Tests (model, transcript replay from keycloak-native-auth/demo/transcripts, widgets)
+        run: flutter test
+      - name: Example APK (compiles the Android SDK from ../android through the Gradle composite build)
+        working-directory: flutter/keycloak_native_flutter/example
+        run: flutter build apk --debug
+
+  flutter-ios:
+    # Not a required check (yet): spec/18 phase E.
+    name: Flutter plugin (example app for the iOS simulator)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: flutter/keycloak_native_flutter/example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - name: Example app for the simulator (compiles the iOS SDK through the local Swift package)
+        run: flutter build ios --simulator --debug --no-codesign
