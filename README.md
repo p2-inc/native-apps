@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/banner-dark.png">
+  <img alt="Native login for Keycloak: your app's screens, Keycloak's login flow" src="docs/media/banner-light.png">
+</picture>
+
 # Native login for Keycloak
 
 [![CI](https://github.com/p2-inc/native-apps/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/p2-inc/native-apps/actions/workflows/ci.yml)
@@ -8,39 +13,30 @@
 ![Flutter 3.35+](https://img.shields.io/badge/Flutter-3.35%2B-02569b?logo=flutter)
 [![License](https://img.shields.io/badge/license-Apache%202.0%20%2B%20ELv2-blue)](#-license)
 
-**Sign users in to Keycloak with your app's own screens, not a browser.**
-
-Your Keycloak keeps running the login flow: passwords, passkeys, one-time codes, push approvals, required actions, brute-force protection. These extensions hand each step to your app as JSON, and the SDKs turn it into native screens for iOS, Android, React Native and Flutter.
+Sign users in to Keycloak with your app's own screens. Keycloak keeps running the login flow, with its passwords, passkeys, one-time codes, push approvals, required actions and brute-force protection. These extensions hand each step to your app as JSON, and the SDKs for iOS, Android, React Native and Flutter turn it into native screens.
 
 <!-- Demo GIF goes here: docs/media/native-login.gif (username → password → TOTP on the default screens). -->
 
 ## ✨ Why
 
-- **No browser sheet.** No "wants to use … to sign in" prompt and no web page inside your app. The login looks and feels like the rest of it.
-- **Keycloak stays in charge.** Change the flow, add a second factor or require an action in the admin console, and every app follows without a release.
-- **Better than the password grant.** You get MFA, passkeys, required actions and brute-force rules, which the password grant skips, and tokens bound to the device with DPoP.
+- **No browser sheet.** Browser-based login (AppAuth) shows a "wants to use … to sign in" prompt and Keycloak's web pages. Here every step is a screen in your app.
+- **The flow lives in Keycloak.** Change the flow, add a second factor or require an action in the admin console, and every app follows without a release.
+- **Unlike the password grant,** it supports MFA, passkeys, required actions and brute-force rules, and tokens can be bound to the device with DPoP.
 
-Registration, password reset, TOTP enrollment and social or enterprise identity providers stay on Keycloak's own pages. When a login reaches a step the app can't show natively, the SDK finishes that login in the system browser and the user comes back signed in.
+Some things stay on Keycloak's own pages: registration, password reset, TOTP enrollment, and social or enterprise identity providers. When a login reaches one of those, the SDK finishes it in the system browser and the user comes back signed in.
 
 ## 🧭 How it works
 
 ```mermaid
 sequenceDiagram
-    participant App as Your app
-    participant SDK
+    participant App as Your app (SDK)
     participant KC as Keycloak + extensions
-    App->>SDK: startLogin()
-    SDK->>KC: POST /native-auth/challenge
-    KC-->>SDK: challenge: username
-    SDK->>App: username screen
-    App->>SDK: "alice"
-    SDK->>KC: answer
-    KC-->>SDK: challenge: password, or passkey
-    Note over SDK,KC: …one round per step of your Keycloak flow…
-    KC-->>SDK: authorization code
-    SDK->>KC: token request (PKCE + DPoP)
-    KC-->>SDK: tokens, bound to the device key
-    SDK->>App: signed in
+    App->>KC: start login
+    KC-->>App: challenge: username → shown as a native screen
+    App->>KC: answer, then the next challenge… (one per step of your flow)
+    KC-->>App: authorization code
+    App->>KC: token request with PKCE and DPoP
+    KC-->>App: tokens bound to the device key
 ```
 
 The protocol follows the IETF draft [OAuth 2.0 for First-Party Applications](https://datatracker.ietf.org/doc/draft-ietf-oauth-first-party-apps/). Details: [protocol and flows](docs/protocol-and-flows.md).
@@ -56,48 +52,56 @@ The protocol follows the IETF draft [OAuth 2.0 for First-Party Applications](htt
 | ⬆️ Step-up | ask for a stronger factor before a sensitive action |
 | 📋 Required actions | update password, verify email, accept terms, register a passkey or push device |
 
-All four SDKs cover all of it, with default screens you can use as they are or replace one at a time.
+Every SDK has default screens for all of these. Use them as they are, or replace them one at a time.
 
-## 🚀 Try it in 5 minutes
+## 🚀 Try it locally
 
-You need Docker, Java 21 and Maven. Start Keycloak with the demo realm:
+You need Docker, Java 21 and Maven, plus the toolchain for the platform you pick (Xcode, Android Studio, Node with Yarn, or Flutter). Start Keycloak with the demo realm:
 
 ```bash
 git clone https://github.com/p2-inc/native-apps && cd native-apps/keycloak-native-auth
 mvn -DskipTests -DskipITs package
-cd demo && docker compose up --wait     # Keycloak on :8080, mailpit on :8025
+cd demo && docker compose up --wait    # Keycloak on :8080, mailpit on :8025
 ```
 
-Then run a demo app and sign in as **`alice`** / **`alice-password`**. The TOTP code comes from `./scripts/walkthrough.sh` or any authenticator app set up with the key `alice-totp-secret-20261014`.
+The iOS demo app expects Keycloak on port 8089, so for iOS start it with `KC_PORT=8089 docker compose up --wait` instead.
 
-| | Run the demo |
+Then run a demo app from the repository root and sign in as `alice` / `alice-password`. For the second factor, `./scripts/walkthrough.sh` in the demo directory prints the current TOTP code (it needs `curl`, `jq` and `openssl`), or set up any authenticator app with the key `alice-totp-secret-20261014`.
+
+| | From the repository root |
 |---|---|
-| 📱 iOS | Start compose with `KC_PORT=8089 docker compose up --wait`, open `ios/KeycloakNativeDemo/KeycloakNativeDemo.xcodeproj` and run on a simulator. [More](ios/KeycloakNativeDemo/README.md) |
-| 🤖 Android | `cd android && ./gradlew :demo:installDebug` with an emulator running. [More](android/demo/README.md) |
-| ⚛️ React Native | `cd react-native/keycloak-native-react-native && yarn && yarn example ios` (or `android`). [More](react-native/keycloak-native-react-native/README.md) |
-| 🐦 Flutter | `cd flutter/keycloak_native_flutter/example && flutter run`. [More](flutter/keycloak_native_flutter/README.md) |
+| 📱 iOS | Open `ios/KeycloakNativeDemo/KeycloakNativeDemo.xcodeproj` and run it on a simulator ([details](ios/KeycloakNativeDemo/README.md)) |
+| 🤖 Android | `cd android && ./gradlew :demo:installDebug` with an emulator running ([details](android/demo/README.md)) |
+| ⚛️ React Native | `cd react-native/keycloak-native-react-native && yarn && yarn example ios` (or `android`) |
+| 🐦 Flutter | `cd flutter/keycloak_native_flutter/example && flutter run` |
 
-The demo realm has a user for every scenario: `bob` gets an email code (read it in mailpit), `hank` has to accept terms, `carol` has to update her password. [All demo users](docs/flow-examples.md).
+Other demo users show other parts of the flow: `bob` gets an email code (read it in mailpit), `hank` has to accept terms, and `carol` has to update her password. [All of them](docs/flow-examples.md).
 
 ## 🛠️ Add it to your Keycloak
 
-1. Download `keycloak-native-auth-providers-<version>.zip` from the [latest release](https://github.com/p2-inc/native-apps/releases) and put the jars in Keycloak's `providers/` directory. Install all of them; they depend on each other.
-2. Create an authentication flow named `native` from the native steps (`native-username`, `native-password`, `native-totp`, `native-passkey`, …). Don't bind it as the browser flow: the native endpoint finds it by name, and a client or realm can pick another with the `native-auth.flow-alias` attribute. The [demo realm](keycloak-native-auth/demo/realm-export/demo-realm.json) has complete examples.
-3. Create a public OpenID Connect client with PKCE S256 and the attribute `native-auth.enabled` = `true`, and add a redirect URI for the browser fallback.
+Keycloak 26.4 or later.
 
-Full setup, including passkey domains and push: [server guide](keycloak-native-auth/README.md). On [Phase Two](https://phasetwo.io) hosted Keycloak, [ask us](https://phasetwo.io/contact) to turn it on.
+1. Download `keycloak-native-auth-providers-<version>.zip` from the [latest release](https://github.com/p2-inc/native-apps/releases) and put all its jars in Keycloak's `providers/` directory; they depend on each other.
+2. Create an authentication flow named `native` from the native steps (`native-username`, `native-password`, `native-totp`, `native-passkey` and so on). Don't bind it as the browser flow: the native endpoint finds it by name, and a client or realm can choose another with the `native-auth.flow-alias` attribute. The [demo realm](keycloak-native-auth/demo/realm-export/demo-realm.json) is a working example to import or copy from.
+3. Create a public OpenID Connect client with PKCE S256 and the attribute `native-auth.enabled` set to `true`, and register a redirect URI such as `myapp://auth/callback` for logins that finish in the browser.
+
+The [server guide](keycloak-native-auth/README.md) covers every setting, passkey domains and push. On [Phase Two](https://phasetwo.io) hosted Keycloak, [contact us](https://phasetwo.io/contact) and we'll install the extensions on your cluster.
 
 ## 📱 iOS
 
-Swift package, iOS 17+. Add `https://github.com/p2-inc/native-apps` in Xcode and link `KeycloakNativeCore` and `KeycloakNativeUI`.
+A Swift package for iOS 17+. In Xcode, add `https://github.com/p2-inc/native-apps` and link `KeycloakNativeCore` and `KeycloakNativeUI`.
 
 ```swift
+import KeycloakNativeCore
+import KeycloakNativeUI
+
 let kc = KeycloakNative.configure(
   issuer: URL(string: "https://idp.example.com/realms/demo")!,
   clientId: "my-app"
 )
+let flow = kc.authentication().startLogin(LoginParameters(scope: "openid profile"))
 
-// In your SwiftUI view, with `flow = kc.authentication().startLogin(LoginParameters(scope: "openid profile"))`:
+// In a SwiftUI view:
 NativeLoginView(kc: kc, flow: flow) { result in
   if case .authorized(let credentials) = result {
     Task { try await kc.credentialsManager().store(credentials) }
@@ -105,11 +109,11 @@ NativeLoginView(kc: kc, flow: flow) { result in
 }
 ```
 
-📖 [iOS guide](docs/ios-integration.md) · [demo app](ios/KeycloakNativeDemo/README.md)
+📖 [iOS guide](docs/ios-integration.md), including passkeys (Associated Domains) and push.
 
 ## 🤖 Android
 
-Kotlin and Jetpack Compose, Android 9+ (API 28), from Maven Central.
+Kotlin and Jetpack Compose for Android 9+ (API 28), from Maven Central.
 
 ```kotlin
 implementation("io.phasetwo.keycloak.nativeauth:keycloak-native-android:0.3.0")
@@ -117,37 +121,48 @@ implementation("io.phasetwo.keycloak.nativeauth:keycloak-native-ui:0.3.0")
 ```
 
 ```kotlin
-val kc = KeycloakNative.configure(URI("https://idp.example.com/realms/demo"), "my-app", options)
+val kc = KeycloakNative.configure(
+  URI("https://idp.example.com/realms/demo"),
+  "my-app",
+  KeycloakNative.Options(
+    hardwareKeys = KeystoreDPoPKeys(context),                        // DPoP key in the Android Keystore
+    secureStore = KeystoreSecureStore(context, namespace = "my-app"), // tokens sealed by the Keystore
+  ),
+)
+val flow = kc.authentication().startLogin(LoginParameters(scope = "openid profile"))
 
-// In a composable, with `flow = kc.authentication().startLogin(LoginParameters(scope = "openid profile"))`:
+// In a composable:
 NativeLoginScreen(kc, flow, onResult = { result ->
   if (result is NativeLoginResult.Authorized) scope.launch { kc.credentialsManager().store(result.credentials) }
 })
 ```
 
-📖 [Android guide](docs/android-integration.md) (it shows the `options` for Keystore storage, passkeys and the browser fallback) · [demo app](android/demo/README.md)
+📖 [Android guide](docs/android-integration.md), including the activity setup for passkeys, saved passwords and the browser fallback.
 
 ## ⚛️ React Native
 
-A TurboModule for React Native 0.84+ with the New Architecture, plus an Expo config plugin.
+A TurboModule for React Native 0.84+ (New Architecture), with an Expo config plugin.
 
 ```bash
 npm install @phasetwo/keycloak-native-react-native
 ```
 
 ```tsx
+import { KeycloakNative, NativeLoginScreen } from '@phasetwo/keycloak-native-react-native';
+
 const kc = KeycloakNative.configure({ issuer: 'https://idp.example.com/realms/demo', clientId: 'my-app' });
+const flow = await kc.authentication.startLogin({ scope: 'openid profile' });
 
 <NativeLoginScreen
   kc={kc}
-  flow={flow}  // from kc.authentication.startLogin({ scope: 'openid profile' })
+  flow={flow}
   onResult={async (result) => {
     if (result.kind === 'authorized') await kc.credentialsManager.store(result.credentials);
   }}
 />
 ```
 
-📖 [React Native guide](docs/react-native-integration.md)
+📖 [React Native guide](docs/react-native-integration.md), including the Android activity and Expo setup.
 
 ## 🐦 Flutter
 
@@ -158,40 +173,44 @@ flutter pub add keycloak_native_flutter
 ```
 
 ```dart
+import 'package:keycloak_native_flutter/keycloak_native_flutter.dart';
+
 final kc = await KeycloakNative.configure(
   issuer: Uri.parse('https://idp.example.com/realms/demo'),
   clientId: 'my-app',
 );
+final flow = await kc.authentication.startLogin(const LoginParameters(scope: 'openid profile'));
 
 NativeLoginView(
   kc: kc,
-  flow: flow, // from kc.authentication.startLogin(const LoginParameters(scope: 'openid profile'))
+  flow: flow,
   onResult: (result) async {
     if (result is NativeLoginAuthorized) await kc.credentialsManager.store(result.credentials);
   },
 );
 ```
 
-📖 [Flutter guide](docs/flutter-integration.md)
+📖 [Flutter guide](docs/flutter-integration.md), including the Android activity setup.
 
 ## 🔐 Security
 
-- **PKCE** on every login, and **DPoP** binds the code, access token and refresh token to a key in the Secure Enclave or Android Keystore. We recommend turning DPoP on for every app ([why, and what it asks of your APIs](docs/security.md#recommended-dpop-for-every-client-refresh-tokens-stay-native)).
-- Tokens live in the Keychain or Keystore. In React Native and Flutter, the refresh token never reaches JavaScript or Dart.
-- The flow, MFA, brute-force rules and required actions are enforced by Keycloak, not by the app.
+- **PKCE** on every login. **DPoP** binds the code, access token and refresh token to a key in the Secure Enclave or Android Keystore. We recommend DPoP for every app; your APIs then need to accept `Authorization: DPoP` and check the proof ([details](docs/security.md#recommended-dpop-for-every-client-refresh-tokens-stay-native)).
+- Tokens are stored in the Keychain or Keystore. In React Native and Flutter, the refresh token never reaches JavaScript or Dart.
+- Keycloak enforces the flow, MFA, brute-force rules and required actions, not the app.
 
 Read the [security model](docs/security.md). To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## 📊 Status
 
-Pre-1.0: any release can change the protocol or the API, so pin exact versions. Every SDK is tested in CI against recorded exchanges with Keycloak 26.4, 26.6 and 26.8, and the demo apps run on simulators and emulators. Next up is verification on real devices with passkeys and real push delivery. See the [roadmap](ROADMAP.md).
+Pre-1.0: any release can change the protocol or the API, so pin exact versions. The Maven Central, npm and pub.dev packages above start with 0.3.0.
+
+The Keycloak extensions are integration-tested against Keycloak 26.4, 26.6 and 26.8. Each SDK is tested in CI by replaying recorded server exchanges, and the demo apps run on simulators and emulators. Passkeys and push delivery on real devices are being verified now. See the [roadmap](ROADMAP.md).
 
 ## 📚 Learn more
 
-- [Documentation](docs/README.md): setup, protocol, flow examples, troubleshooting
-- [Launch post](https://phasetwo.io/blog/native-login-keycloak-ios-android/) and [docs on phasetwo.io](https://phasetwo.io/docs/securing-applications/native-apps/)
-- [Contributing](CONTRIBUTING.md), including how releases are cut
-- Questions and bugs: [issues](https://github.com/p2-inc/native-apps/issues). Hosted Keycloak and support: [Phase Two](https://phasetwo.io/contact)
+- [Documentation](docs/README.md): setup, protocol, flow examples, troubleshooting, and the repository layout
+- [Native apps on phasetwo.io](https://phasetwo.io/docs/securing-applications/native-apps/) and the [launch post](https://phasetwo.io/blog/native-login-keycloak-ios-android/)
+- [Contributing](CONTRIBUTING.md) and [issues](https://github.com/p2-inc/native-apps/issues)
 
 ## 📄 License
 
