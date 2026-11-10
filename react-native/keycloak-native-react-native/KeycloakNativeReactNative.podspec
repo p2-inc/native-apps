@@ -6,7 +6,9 @@ package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 # KeycloakNativePush products, which it consumes through React Native's spm_dependency rather than as a pod:
 # inside this repository the package is the local one at the repository root (Package.swift), so the
 # module and the SDK change together; from npm it is this repository at the matching tag.
-repo_root = File.expand_path("../..", __dir__)
+# KEYCLOAK_NATIVE_SPM_PATH points an installed copy (an app outside the repository, such as the React Native
+# floor build) at a local checkout instead.
+repo_root = ENV["KEYCLOAK_NATIVE_SPM_PATH"] || File.expand_path("../..", __dir__)
 local_package = File.exist?(File.join(repo_root, "Package.swift")) && ENV["KEYCLOAK_NATIVE_SPM_REMOTE"] != "1"
 sdk_version = ENV["KEYCLOAK_NATIVE_SDK_VERSION"] || package["keycloakNativeSdkVersion"]
 

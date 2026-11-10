@@ -24,7 +24,7 @@ const kc = KeycloakNative.configure({ issuer: 'https://idp.example.com/realms/de
 />;
 ```
 
-Requirements: React Native 0.88 or later with the New Architecture; iOS 17; Android minSdk 28, compileSdk 37 and Kotlin 2.2 or later.
+Requirements: React Native 0.84 or later with the New Architecture (Expo SDK 56 or later); iOS 17; Android minSdk 28, compileSdk 36 and Kotlin 2.2 or later.
 
 ## Development
 

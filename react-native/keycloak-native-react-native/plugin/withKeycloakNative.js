@@ -9,7 +9,7 @@
 //
 // Android: `KeycloakNativeActivity.register(this)` in `MainActivity.onCreate` (the browser fallback's
 // activity result launcher), the SDK's `NativeAuthRedirectActivity` with an intent filter for the
-// `redirectUri`, and minSdk 28 / compileSdk 37 / Kotlin 2.2 as floors in gradle.properties.
+// `redirectUri`, and minSdk 28 / compileSdk 36 / Kotlin 2.2 as floors in gradle.properties.
 // iOS: the iOS 17 deployment target, and the Associated Domains `webcredentials:` entries passkeys and
 // saved passwords need.
 
@@ -34,7 +34,7 @@ const REGISTER = 'KeycloakNativeActivity.register(this)';
 
 const FLOORS = {
   'android.minSdkVersion': '28',
-  'android.compileSdkVersion': '37',
+  'android.compileSdkVersion': '36',
   'android.kotlinVersion': '2.2.0',
 };
 const IOS_DEPLOYMENT_TARGET = '17.0';
