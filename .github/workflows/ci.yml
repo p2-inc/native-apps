@@ -1,17 +1,15 @@
 name: keycloak-native-auth
 
+# One workflow for every package. The `changes` job decides which parts a pull request touches and each
+# job runs only for its parts; pushes to main, the nightly run and manual runs build everything. Branch
+# protection requires only `CI passed`, which fails if any job that ran failed. A skipped job counts as
+# passed, so docs-only pull requests aren't left waiting, and adding a job needs no protection change.
 on:
   push:
     branches: [main]
-    paths:
-      - "keycloak-native-auth/**"
-      - "ios/**"
-      - "android/**"
-      - "Package.swift"
-      - ".github/workflows/ci.yml"
-  # Every pull request, docs-only ones too: the six jobs are required checks on main, and a
-  # filtered-out run would leave the PR waiting for them forever.
   pull_request:
+  schedule:
+    - cron: "17 6 * * *"
   workflow_dispatch:
 
 defaults:
@@ -19,9 +17,58 @@ defaults:
     working-directory: keycloak-native-auth
 
 jobs:
+  changes:
+    name: Changed parts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      server: ${{ steps.parts.outputs.server }}
+      ios: ${{ steps.parts.outputs.ios }}
+      android: ${{ steps.parts.outputs.android }}
+      flutter: ${{ steps.parts.outputs.flutter }}
+      react-native: ${{ steps.parts.outputs.react-native }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Map changed paths to parts
+        id: parts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # The transcripts are the contract between the server and every client, and this workflow
+          # file changes how everything is checked: both count as a change to every part.
+          if [ "$EVENT" = pull_request ]; then
+            files=$(gh pr diff "$PR" --name-only)
+          else
+            files="*"
+          fi
+          echo "$files"
+          part() { # name, extended regexp over the changed paths, directory that must exist
+            if [ -n "$3" ] && [ ! -d "$3" ]; then
+              hit=false
+            elif [ "$files" = "*" ] || grep -qE "$2|^keycloak-native-auth/demo/transcripts/|^\.github/workflows/ci\.yml$" <<<"$files"; then
+              hit=true
+            else
+              hit=false
+            fi
+            echo "$1=$hit" | tee -a "$GITHUB_OUTPUT"
+          }
+          part server '^keycloak-native-auth/'
+          part ios '^ios/|^Package\.(swift|resolved)$'
+          part android '^android/'
+          # The wrappers build the native SDKs from the repository, so SDK changes rebuild them too.
+          part flutter '^flutter/|^ios/|^android/|^Package\.(swift|resolved)$' flutter
+          part react-native '^react-native/|^ios/|^android/|^Package\.(swift|resolved)$' react-native
+
   build-and-test:
     # One build (compiled against the newest supported Keycloak, keycloak.version in the POM) is
     # tested against a stock container of every supported minor (README "Keycloak versions").
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     name: Build, unit tests, integration tests (Testcontainers, Keycloak ${{ matrix.keycloak }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -49,6 +96,8 @@ jobs:
           if-no-files-found: ignore
 
   walkthrough:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     name: docker compose up + walkthrough.sh (definition of done)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -80,6 +129,8 @@ jobs:
         run: docker compose down -v
 
   ios-sdk:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     name: Swift package build + tests (macOS)
     runs-on: macos-latest
     timeout-minutes: 30
@@ -101,7 +152,8 @@ jobs:
         run: xcodebuild -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="-" build-for-testing | tail -n 20
 
   android-core:
-    # The name is a required status check on main (branch protection); renaming it needs the rule updated too.
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     name: Android SDK (core transcript replay, android and ui module builds, ui model tests)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -132,3 +184,21 @@ jobs:
             android/core/build/reports/tests/
             android/ui/build/reports/tests/
             android/push/build/reports/tests/
+
+  ci-passed:
+    # The only required status check on main. Add every new job to `needs`.
+    name: CI passed
+    if: always()
+    needs: [changes, build-and-test, walkthrough, ios-sdk, android-core]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Every job that ran succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
