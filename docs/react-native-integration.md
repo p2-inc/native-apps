@@ -6,9 +6,9 @@
 
 ## Requirements
 
-- React Native 0.88 or later with the New Architecture. Expo works in development builds and EAS with the [config plugin](#expo), not in Expo Go.
+- React Native 0.84 or later with the New Architecture (the floor and why it is there: [spec/19 §8](../spec/19-react-native-plan.md#8-distribution)). Expo SDK 56 or later works in development builds and EAS with the [config plugin](#expo), not in Expo Go.
 - iOS 17 or later. The pod brings in the Swift package products `KeycloakNativeCore` and `KeycloakNativePush` through React Native's `spm_dependency`; `pod install` resolves them.
-- Android minSdk 28, compileSdk 37 and Kotlin 2.2 or later (see the Android guide's [Kotlin version](android-integration.md#kotlin-version)). The SDK comes from Maven Central.
+- Android minSdk 28 (API 28, Android 9), compileSdk 36 and Kotlin 2.2 or later (see the Android guide's [Kotlin version](android-integration.md#kotlin-version)). React Native 0.87 and later use Kotlin 2.2 already; on 0.84 to 0.86, whose template has Kotlin 2.1.20, set `kotlinVersion = "2.2.20"` in `android/build.gradle` and use it for the Kotlin Gradle plugin: `classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")`. The SDK comes from Maven Central.
 - A public Keycloak client configured with the [server setup](README.md#practical-quick-start): PKCE S256 required, and a callback such as `demoapp://auth/callback` for the browser fallback.
 
 ## Setup
@@ -59,7 +59,7 @@ The package ships a config plugin that does both platforms' setup during `npx ex
 }
 ```
 
-It adds the `register` call to `MainActivity.onCreate`, declares `NativeAuthRedirectActivity` for `redirectUri`, raises `android.minSdkVersion`, `android.compileSdkVersion` and `android.kotlinVersion` in `gradle.properties` to 28, 37 and 2.2.0 (higher values are kept), sets the iOS deployment target to 17.0, and adds `webcredentials:` entries for `associatedDomains`.
+It adds the `register` call to `MainActivity.onCreate`, declares `NativeAuthRedirectActivity` for `redirectUri`, raises `android.minSdkVersion`, `android.compileSdkVersion` and `android.kotlinVersion` in `gradle.properties` to 28, 36 and 2.2.0 (higher values are kept), sets the iOS deployment target to 17.0, and adds `webcredentials:` entries for `associatedDomains`.
 
 ## Configure
 
@@ -143,12 +143,24 @@ A descriptor `error` on a new set is inline feedback (a wrong password), not a t
 
 Step-up: `kc.authentication.stepUp({ acrValues, maxAge })` starts a flow inside the stored session; it reads the post-login session natively and fails with `credentials_not_found` when there is none.
 
-## Tokens
+## Tokens and DPoP
 
+Only the access token and the ID token reach JavaScript. The refresh token (and the post-login session a step-up uses) stays in the iOS Keychain or the Android Keystore-backed store, and the SDK refreshes on the native side; `Credentials` carries `hasRefreshToken` instead of the token. There is deliberately no API to export it, because the JavaScript side of a React Native app is the wrong place for a long-lived credential:
+
+- every npm package in the app, including transitive dependencies, runs in the same JavaScript context and can read whatever JavaScript holds;
+- the usual persistence, AsyncStorage, is plain text on the device;
+- logging, crash reporting and developer tools (Flipper, React DevTools, network inspectors) capture values that pass through JavaScript;
+- over-the-air updates can replace the JavaScript of a reviewed app;
+- a refresh token lives for the whole session (or longer, for offline tokens), while an access token expires in minutes.
+
+If a web view or a backend needs a session, let your server exchange tokens; do not move the refresh token through JavaScript.
+
+Turn on DPoP as well. With Keycloak's `dpop` feature enabled and the client set to require DPoP-bound tokens, the SDK binds every token to its key in the Secure Enclave or Android Keystore, which cannot be exported, so an access token copied out of JavaScript is useless without a proof from the device. The module defaults to `dpop: 'automatic'`. The cost is on the resource-server side: your APIs must accept `Authorization: DPoP <token>` and validate the `DPoP` proof (the token's `cnf.jkt`, the request method and URL, the proof's age and `jti`), not only `Bearer`. On the client the module does its part:
+
+- `kc.resourceRequestHeaders(method, url)` returns `Authorization`, and a `DPoP` proof for exactly that method and URL when the tokens are DPoP-bound. Send the request with the same method and URL; build new headers for every request.
 - `kc.credentialsManager.credentials(minTtlSeconds)` returns the stored credentials, refreshed natively when the access token is within 30 seconds plus `minTtlSeconds` of expiry; `credentials_not_found` when nothing is stored, `reauthentication_required` when the refresh was refused.
-- `kc.resourceRequestHeaders(method, url)` returns `Authorization`, and a `DPoP` proof for exactly that method and URL when the tokens are DPoP-bound. Send the request with the same method and URL.
 - `stored()`, `hasValid(minTtlSeconds)`, `logout()` (server logout, then local clear) and `clear()`.
-- The refresh token and the post-login session never leave the native side; `Credentials` carries `hasRefreshToken` instead.
+- `kc.dpopKeyThumbprint()` returns the key's `jkt`, the value resource servers compare with the token's `cnf.jkt`.
 
 ## Passkeys and saved passwords outside a flow
 
