@@ -20,7 +20,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  pigeon: ^29.1.1
+  # Exact: the generated channel code is committed and CI checks it is up to date, so a new
+  # Pigeon release must not change it unnoticed. Bump deliberately and regenerate.
+  pigeon: 29.1.1
 
 flutter:
   plugin:
