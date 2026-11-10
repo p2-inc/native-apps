@@ -4,7 +4,7 @@
 
 ## Installation and configuration
 
-The [Gradle build](../android/settings.gradle.kts) has four library modules. `core` is plain Kotlin/JVM (coroutines, kotlinx.serialization): the challenge state machine, PKCE, DPoP, tokens and credentials, passkey and saved-password models, and the push protocol. `android` adds the platform pieces: `KeystoreSecureStore`, `KeystoreDPoPKeys`, `CredentialManagerPasskeyPlatform`, `CredentialManagerSavedPasswordPlatform` and `AuthTabWebPresenter`. `ui` holds the default Jetpack Compose (Material 3) screens and `PushApprovalsScreen`. `push` adds Firebase Cloud Messaging. The Android modules need minSdk 28 (Android 9) and compile against SDK 37; the libraries target Java 17 bytecode.
+The [Gradle build](../android/settings.gradle.kts) has four library modules. `core` is plain Kotlin/JVM (coroutines, kotlinx.serialization): the challenge state machine, PKCE, DPoP, tokens and credentials, passkey and saved-password models, and the push protocol. `android` adds the platform pieces: `KeystoreSecureStore`, `KeystoreDPoPKeys`, `CredentialManagerPasskeyPlatform`, `CredentialManagerSavedPasswordPlatform` and `AuthTabWebPresenter`. `ui` holds the default Jetpack Compose (Material 3) screens and `PushApprovalsScreen`. `push` adds Firebase Cloud Messaging. The Android modules need minSdk 28 (Android 9); they are built against SDK 37 and apps compile against them with compileSdk 36 or later (the floor their AndroidX dependencies set). The libraries target Java 17 bytecode.
 
 From 0.3.0 the four modules are on Maven Central under the group `io.phasetwo.keycloak.nativeauth`, so `mavenCentral()` is the only repository you need:
 
@@ -28,6 +28,10 @@ dependencies {
 ```
 
 `keycloak-native-core` comes in transitively. Each [GitHub release](../README.md#releases) also carries `keycloak-native-android-<version>-maven-repo.zip`, the same artifacts as a Maven repository you can unzip and add with `maven { url = uri(...) }`; 0.2.0 is only available that way. Before 1.0 any release may change the API, so pin exact versions. The SDKs and the server share one version line (see [Releases](../README.md#releases)).
+
+### Kotlin version
+
+Your app needs Kotlin 2.2 or later. A Kotlin compiler reads class metadata written by its own version and the next one, so a library built with a newer Kotlin can be unusable from an older app ("Module was compiled with an incompatible version of Kotlin"). The SDK is built with Kotlin 2.4 but compiles its four libraries at language and API level 2.2 and declares `kotlin-stdlib` 2.2.20, so they carry 2.2 metadata and use only the 2.2 standard library. The floor of 2.2 comes from the dependencies the libraries expose: kotlinx.serialization 1.11 is built with Kotlin 2.3 (and pulls `kotlin-stdlib` 2.3.20 into your build), which a 2.2 compiler can read and a 2.1 compiler cannot. kotlinx.serialization 1.12 and later are built with Kotlin 2.4; if your app adds one of them, it needs Kotlin 2.3 or later itself. Kotlin 2.2 is React Native 0.88's default, so cross-platform wrappers can depend on the SDK without making their apps raise Kotlin. The `ui` module additionally needs the Compose compiler plugin matching your Kotlin version, as every Compose library does.
 
 Configure a public Keycloak client using the [server setup](README.md#practical-quick-start). Use the **issuer URL including `/realms/<realm>`**, not the challenge endpoint; the client ID is separate. PKCE S256 must be required on the client. Register a callback such as `demoapp://auth/callback` for browser fallback; native success itself does not redirect. Use HTTPS outside the local demo; debug builds of the demo allow plain HTTP only to `10.0.2.2` and `localhost` through a network security config. Keep one SDK instance per issuer/client so credentials, DPoP key, metadata cache and refresh coordination remain consistent.
 

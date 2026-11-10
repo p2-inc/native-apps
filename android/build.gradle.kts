@@ -14,6 +14,33 @@ allprojects {
   version = providers.gradleProperty("releaseVersion").getOrElse("0.3.0-SNAPSHOT")
 }
 
+// Apps compile against the libraries with their own Kotlin compiler, which reads class metadata up to
+// one version newer than itself. The libraries are written at language and API level 2.2 and depend on
+// a 2.2 standard library, so apps on Kotlin 2.2 or later (React Native 0.88's default) can use them
+// while the build runs Kotlin 2.4 (docs/android-integration.md "Kotlin version"). The demo app is not
+// consumed by anything and keeps the compiler's own level.
+subprojects {
+  if (name == "demo") return@subprojects
+  tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+    compilerOptions {
+      languageVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2
+      apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2
+    }
+  }
+  // Apps compile against the libraries with compileSdk 36 or later: AGP 9 would otherwise record the
+  // libraries' own compileSdk (37) as the minimum, while their dependencies need 36 and the code
+  // calls nothing newer at runtime than minSdk allows.
+  plugins.withId("com.android.library") {
+    extensions.configure<com.android.build.api.dsl.LibraryExtension> {
+      defaultConfig { aarMetadata { minCompileSdk = 36 } }
+    }
+  }
+  // After the module's plugins: the Android plugin registers the kotlin extension late.
+  afterEvaluate {
+    extensions.findByType<org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension>()?.coreLibrariesVersion = "2.2.20"
+  }
+}
+
 // The libraries publish to a Maven repository under build/maven-repo, which the release workflow
 // zips, attaches to the GitHub release and uploads to Maven Central (README "Releases"). Central
 // requires signatures: with SIGNING_KEY (an ASCII-armored private key) set, every publication is signed.
