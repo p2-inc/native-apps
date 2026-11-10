@@ -4,7 +4,7 @@
 
 ## Installation and configuration
 
-The [Gradle build](../android/settings.gradle.kts) has four library modules. `core` is plain Kotlin/JVM (coroutines, kotlinx.serialization): the challenge state machine, PKCE, DPoP, tokens and credentials, passkey and saved-password models, and the push protocol. `android` adds the platform pieces: `KeystoreSecureStore`, `KeystoreDPoPKeys`, `CredentialManagerPasskeyPlatform`, `CredentialManagerSavedPasswordPlatform` and `AuthTabWebPresenter`. `ui` holds the default Jetpack Compose (Material 3) screens and `PushApprovalsScreen`. `push` adds Firebase Cloud Messaging. The Android modules need minSdk 28 (Android 9) and compile against SDK 37; the libraries target Java 17 bytecode.
+The [Gradle build](../android/settings.gradle.kts) has four library modules. `core` is plain Kotlin/JVM (coroutines, kotlinx.serialization): the challenge state machine, PKCE, DPoP, tokens and credentials, passkey and saved-password models, and the push protocol. `android` adds the platform pieces: `KeystoreSecureStore`, `KeystoreDPoPKeys`, `CredentialManagerPasskeyPlatform`, `CredentialManagerSavedPasswordPlatform` and `AuthTabWebPresenter`. `ui` holds the default Jetpack Compose (Material 3) screens and `PushApprovalsScreen`. `push` adds Firebase Cloud Messaging. The Android modules need minSdk 28 (Android 9); they are built against SDK 37 and apps compile against them with compileSdk 36 or later (the floor their AndroidX dependencies set). The libraries target Java 17 bytecode.
 
 From 0.3.0 the four modules are on Maven Central under the group `io.phasetwo.keycloak.nativeauth`, so `mavenCentral()` is the only repository you need:
 

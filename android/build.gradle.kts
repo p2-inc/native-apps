@@ -27,6 +27,14 @@ subprojects {
       apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2
     }
   }
+  // Apps compile against the libraries with compileSdk 36 or later: AGP 9 would otherwise record the
+  // libraries' own compileSdk (37) as the minimum, while their dependencies need 36 and the code
+  // calls nothing newer at runtime than minSdk allows.
+  plugins.withId("com.android.library") {
+    extensions.configure<com.android.build.api.dsl.LibraryExtension> {
+      defaultConfig { aarMetadata { minCompileSdk = 36 } }
+    }
+  }
   // After the module's plugins: the Android plugin registers the kotlin extension late.
   afterEvaluate {
     extensions.findByType<org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension>()?.coreLibrariesVersion = "2.2.20"
