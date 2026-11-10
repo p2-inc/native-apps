@@ -1,0 +1,20 @@
+pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'phasetwo.reactnativekeycloaknative.example'
+include ':app'
+includeBuild('../node_modules/@react-native/gradle-plugin')
+
+// Inside this repository the Android SDK comes from source: a composite build of the SDK's Gradle build
+// replaces the io.phasetwo.keycloak.nativeauth artifacts the module depends on, so the module and the
+// SDK change together and nothing waits on a release (spec/19 §8). An app outside the repository gets
+// the artifacts from Maven Central instead and has no such block.
+def keycloakNativeSdk = file('../../../../android')
+if (keycloakNativeSdk.directory) {
+  includeBuild(keycloakNativeSdk) {
+    dependencySubstitution {
+      substitute module('io.phasetwo.keycloak.nativeauth:keycloak-native-core') using project(':core')
+      substitute module('io.phasetwo.keycloak.nativeauth:keycloak-native-android') using project(':android')
+    }
+  }
+}

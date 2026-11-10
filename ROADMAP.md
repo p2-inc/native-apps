@@ -11,6 +11,8 @@ Where the project stands and what comes next. The design record behind it, inclu
 
 ## In progress
 
+- **React Native module** ([spec/19](spec/19-react-native-plan.md), `react-native/keycloak-native-react-native/`): a TurboModule over both SDKs with a typed challenge model, default React screens for every challenge type, passkeys, saved passwords, push enrollment and approvals, and an Expo config plugin. Not yet on npm.
+
 - **Real-device verification on Android**: passkeys and saved passwords behind a public hostname with `assetlinks.json`, the browser fallback, and real FCM delivery on a phone.
 - **Android integration guide** in `docs/`, alongside the iOS one.
 
@@ -25,7 +27,7 @@ Where the project stands and what comes next. The design record behind it, inclu
 ## Later
 
 - Native SSO between several first-party apps (OpenID Native SSO) instead of repeating the login per app.
-- React Native and Flutter wrappers.
+- Flutter wrapper.
 - Account-console support for listing and removing native devices (push credentials, DPoP-bound sessions).
 - Publishing the challenge profile as an Internet-Draft profile of OAuth 2.0 for First-Party Applications.
 - Optional: completion-handler and Combine variants of the iOS API, and the well-known `authorization_challenge_endpoint` override.

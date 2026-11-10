@@ -1,0 +1,7 @@
+# Example app
+
+A React Native app that signs in to the demo realm of `keycloak-native-auth/demo` with the module's default screens (clients `demo-native`, `demo-native-passkey` with the passkey prompt shown at once, and `demo-native-otp`), then shows the token, refreshes it, builds resource request headers, steps up, registers a passkey, enrolls the device for push and answers sign-in requests, and logs out.
+
+Start the compose stack (`cd keycloak-native-auth/demo && docker compose up --wait`, after `mvn -f ../pom.xml -DskipTests -DskipITs package`), then from `react-native/keycloak-native-react-native`: `yarn example start` and `yarn example android` or `yarn example ios`. The issuer defaults to `http://10.0.2.2:8080/realms/demo` on the Android emulator and `http://localhost:8080/realms/demo` on the iOS simulator. Passkeys need a public hostname with AASA / `assetlinks.json` (see docs/sample-app.md); push needs a signed-in user with DPoP-bound tokens and works without FCM or APNs, since the approvals list reads the pending requests itself.
+
+Inside this repository the native SDKs are built from source: `android/settings.gradle` includes `../../../../android` as a composite build (which pins the example to the SDK's Android Gradle plugin 9.5.0 and Kotlin 2.4.21, and to Gradle 9.6.1, the line that runs both AGP 9.5 and React Native's Gradle plugin), and the pod resolves `KeycloakNativeCore` and `KeycloakNativePush` from the Swift package at the repository root.

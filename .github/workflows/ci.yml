@@ -8,6 +8,7 @@ on:
       - "ios/**"
       - "android/**"
       - "flutter/**"
+      - "react-native/**"
       - "Package.swift"
       - ".github/workflows/ci.yml"
   # Every pull request, docs-only ones too: the six jobs above `flutter` are required checks on
@@ -181,3 +182,34 @@ jobs:
           cache: true
       - name: Example app for the simulator (compiles the iOS SDK through the local Swift package)
         run: flutter build ios --simulator --debug --no-codesign
+
+  react-native:
+    # Not a required check: it is new (spec/19 §9), and a branch protection rule names required jobs.
+    name: React Native module (typecheck, lint, Jest transcript replay, example app Android build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: react-native/keycloak-native-react-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: react-native/keycloak-native-react-native/.nvmrc
+      - name: Install (Yarn 4 from .yarn/releases, workspaces with the example app)
+        run: yarn install --immutable
+      - name: Typecheck
+        run: yarn typecheck
+      - name: Lint
+        run: yarn lint
+      - name: Jest (model, controller, screens; replays keycloak-native-auth/demo/transcripts through a mock native module)
+        run: yarn test --ci
+      - uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Example app (assembleDebug; the Android SDK is built from ../../android through a composite build)
+        working-directory: react-native/keycloak-native-react-native/example/android
+        run: ./gradlew --no-daemon --console=plain :app:assembleDebug -PreactNativeArchitectures=x86_64
