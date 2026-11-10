@@ -21,7 +21,7 @@ dependencies:
 
 **iOS.** Raise the deployment target to 17.0 (`IPHONEOS_DEPLOYMENT_TARGET` in the Runner project). For passkeys and the saved-password sheet, add the Associated Domains entitlement `webcredentials:<rp_id>` and serve the AASA file, as for the [Swift SDK](ios-integration.md). The browser fallback needs no URL scheme registration. For plain HTTP to a local Keycloak during development, add `NSAllowsLocalNetworking` to `NSAppTransportSecurity` in `Info.plist`.
 
-**Android.** Raise `minSdk` to 28 and `compileSdk` to 37 in `android/app/build.gradle.kts`. The browser fallback registers an activity result launcher, which Android only allows while the activity is being created, and needs a `ComponentActivity` for it; make `MainActivity` a `FlutterFragmentActivity`:
+**Android.** Raise `minSdk` to 28 and `compileSdk` to at least 36 in `android/app/build.gradle.kts`. The browser fallback registers an activity result launcher, which Android only allows while the activity is being created, and needs a `ComponentActivity` for it; make `MainActivity` a `FlutterFragmentActivity`:
 
 ```kotlin
 import io.flutter.embedding.android.FlutterFragmentActivity

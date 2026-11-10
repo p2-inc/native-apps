@@ -16,6 +16,9 @@
 | `keycloak-native-auth/demo` | Realm export, Compose stack, walkthrough, resource-server example, integration tests/transcripts |
 | `Package.swift`, `ios/KeycloakNative` | Swift package manifest (repository root) and the Core, UI and Push sources and Swift Testing suites |
 | `ios/KeycloakNativeDemo` | Swift package sample model/views, generated Xcode application and XCUITests |
+| `android/` | Android SDK: `core` (plain Kotlin/JVM), `android` (Keystore, Credential Manager, Auth Tab), `ui` (Compose screens), `push` (FCM) and the `demo` app |
+| `flutter/keycloak_native_flutter` | Flutter plugin over the iOS and Android SDKs (Pigeon channels), its widgets and example app |
+| `react-native/keycloak-native-react-native` | React Native TurboModule over the iOS and Android SDKs, its React screens, Expo config plugin and example app |
 | `spec/` | Original protocol/design documents and historical decisions/plans |
 
 The [parent POM](../keycloak-native-auth/pom.xml) pins Keycloak **26.8.1**, Java release **21**, push MFA **2.3.7**, JUnit **6.1.3**, Testcontainers **2.0.5**, REST Assured **6.1.0**. Keycloak server private SPIs/services are compile dependencies; binary compatibility across other versions is not promised. Test realm/container version and production provider build must match. Compose adds Postgres 17 Alpine, mailpit v1.27 and Node 22 Alpine. Resource server uses Node built-ins without npm dependencies.
