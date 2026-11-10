@@ -27,7 +27,7 @@ dependencies {
 }
 ```
 
-`keycloak-native-core` comes in transitively. Each [GitHub release](../README.md#releases) also carries `keycloak-native-android-<version>-maven-repo.zip`, the same artifacts as a Maven repository you can unzip and add with `maven { url = uri(...) }`; 0.2.0 is only available that way. Before 1.0 any release may change the API, so pin exact versions. The SDKs and the server share one version line (see [Releases](../README.md#releases)).
+`keycloak-native-core` comes in transitively. Each [GitHub release](../CONTRIBUTING.md#releases) also carries `keycloak-native-android-<version>-maven-repo.zip`, the same artifacts as a Maven repository you can unzip and add with `maven { url = uri(...) }`; 0.2.0 is only available that way. Before 1.0 any release may change the API, so pin exact versions. The SDKs and the server share one version line (see [Releases](../CONTRIBUTING.md#releases)).
 
 ### Kotlin version
 
