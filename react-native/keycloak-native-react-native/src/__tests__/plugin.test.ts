@@ -1,4 +1,5 @@
 // The Expo config plugin's transforms, on the shapes of Expo's and React Native's templates.
+export {};
 const plugin = require('../../app.plugin.js');
 const {
   addRegisterCall,
@@ -87,7 +88,7 @@ describe('Expo config plugin', () => {
     ]);
     const value = (key: string) => props.find((p: any) => p.key === key)?.value;
     expect(value('android.minSdkVersion')).toBe('28');
-    expect(value('android.compileSdkVersion')).toBe('37');
+    expect(value('android.compileSdkVersion')).toBe('36');
     expect(value('android.kotlinVersion')).toBe('2.10.0');
     expect(compareVersions('2.2.0', '2.10.1')).toBe(-1);
   });
