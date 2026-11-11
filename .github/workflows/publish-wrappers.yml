@@ -1,0 +1,68 @@
+# Publishes the React Native module to npm and the Flutter plugin to pub.dev when a release tag is pushed
+# (CONTRIBUTING "Releases"). `gh release create` pushes the tag, so this runs next to the Release workflow.
+# Both registries trust this workflow through GitHub's OIDC token, so the repository holds no npm or pub.dev
+# credentials: npm through the package's trusted publisher, pub.dev through the package's automated publishing
+# setting (tag pattern `{{version}}`). pub.dev accepts OIDC tokens only from tag pushes, which is why this is
+# its own workflow and not a job of release.yml.
+name: Publish wrappers
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  npm:
+    name: React Native module to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: react-native/keycloak-native-react-native
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stamp the release version
+        working-directory: .
+        run: scripts/set-wrapper-versions.sh "$GITHUB_REF_NAME"
+      # Trusted publishing needs npm 11.5.1 or later, which Node 24 ships.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn prepare
+      - name: Publish
+        run: |
+          tag=latest
+          case "$GITHUB_REF_NAME" in *-*) tag=next ;; esac
+          npm publish --access public --tag "$tag"
+
+  pub:
+    name: Flutter plugin to pub.dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: flutter/keycloak_native_flutter
+    steps:
+      - uses: actions/checkout@v4
+      # Sets up the pub.dev OIDC token; Flutter's pub reads the same credentials.
+      - uses: dart-lang/setup-dart@v1
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      # pub warns about modified checked-in files, so the stamp (and any lockfile change from pub get) is committed
+      # in the runner, never pushed.
+      - name: Stamp the release version
+        working-directory: .
+        run: scripts/set-wrapper-versions.sh "$GITHUB_REF_NAME"
+      - run: flutter pub get
+      - name: Commit the stamp locally
+        run: git -c user.name=release -c user.email=release@localhost commit -q -am "Release $GITHUB_REF_NAME"
+      - run: flutter pub publish --dry-run
+      - run: flutter pub publish --force

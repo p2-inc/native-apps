@@ -2155,9 +2155,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@phasetwo/keycloak-native-react-native-example@workspace:example":
+"@phasetwo.io/keycloak-native-react-native-example@workspace:example":
   version: 0.0.0-use.local
-  resolution: "@phasetwo/keycloak-native-react-native-example@workspace:example"
+  resolution: "@phasetwo.io/keycloak-native-react-native-example@workspace:example"
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@babel/preset-env": "npm:^7.25.3"
@@ -2177,9 +2177,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@phasetwo/keycloak-native-react-native@workspace:.":
+"@phasetwo.io/keycloak-native-react-native@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@phasetwo/keycloak-native-react-native@workspace:."
+  resolution: "@phasetwo.io/keycloak-native-react-native@workspace:."
   dependencies:
     "@eslint/compat": "npm:^2.1.1"
     "@eslint/eslintrc": "npm:^3.3.7"

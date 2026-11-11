@@ -1,6 +1,6 @@
 {
-  "name": "@phasetwo/keycloak-native-react-native",
-  "version": "0.3.0-dev",
+  "name": "@phasetwo.io/keycloak-native-react-native",
+  "version": "0.4.0-dev",
   "description": "React Native module for native authentication with Keycloak (wraps the iOS and Android SDKs)",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -34,7 +34,7 @@
     "!**/.*"
   ],
   "scripts": {
-    "example": "yarn workspace @phasetwo/keycloak-native-react-native-example",
+    "example": "yarn workspace @phasetwo.io/keycloak-native-react-native-example",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
     "typecheck": "tsc",

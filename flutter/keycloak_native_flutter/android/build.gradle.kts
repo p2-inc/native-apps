@@ -4,7 +4,7 @@
 // (example/android/settings.gradle.kts), so nothing waits on a published artifact; apps that use the
 // plugin from pub.dev resolve it from Maven Central.
 group = "io.phasetwo.keycloak.nativeauth.flutter"
-version = "0.3.0-SNAPSHOT"
+version = "0.4.0-SNAPSHOT"
 
 buildscript {
     repositories {
@@ -32,7 +32,7 @@ plugins {
 }
 
 /** The SDK version this plugin release is built against; the plugin and the SDKs share one version line. */
-val keycloakNativeVersion = "0.3.0-SNAPSHOT"
+val keycloakNativeVersion = "0.4.0-SNAPSHOT"
 
 android {
     namespace = "io.phasetwo.keycloak.nativeauth.flutter"

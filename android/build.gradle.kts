@@ -11,7 +11,7 @@ plugins {
 allprojects {
   group = "io.phasetwo.keycloak.nativeauth"
   // The release workflow passes the tag (.github/workflows/release.yml).
-  version = providers.gradleProperty("releaseVersion").getOrElse("0.3.0-SNAPSHOT")
+  version = providers.gradleProperty("releaseVersion").getOrElse("0.4.0-SNAPSHOT")
 }
 
 // Apps compile against the libraries with their own Kotlin compiler, which reads class metadata up to

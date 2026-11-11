@@ -2,7 +2,7 @@
 // `npx expo prebuild` and EAS Build. Expo Go cannot load the module; use a development build.
 //
 //   // app.json
-//   { "expo": { "plugins": [["@phasetwo/keycloak-native-react-native", {
+//   { "expo": { "plugins": [["@phasetwo.io/keycloak-native-react-native", {
 //       "redirectUri": "demoapp://auth/callback",
 //       "associatedDomains": ["idp.example.com"]
 //   }]] } }

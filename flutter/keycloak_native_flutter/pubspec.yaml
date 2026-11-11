@@ -1,7 +1,7 @@
 name: keycloak_native_flutter
 description: "Native authentication for Keycloak in Flutter apps: wraps the Keycloak Native iOS and Android SDKs."
 # One version line with the server and the native SDKs (README "Releases").
-version: 0.3.0-dev
+version: 0.4.0-dev
 homepage: https://phasetwo.io
 repository: https://github.com/p2-inc/native-apps/tree/main/flutter/keycloak_native_flutter
 issue_tracker: https://github.com/p2-inc/native-apps/issues
@@ -15,6 +15,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Imported by the Pigeon-generated lib/src/messages.g.dart.
+  meta: ^1.15.0
 
 dev_dependencies:
   flutter_test:
