@@ -175,8 +175,17 @@ public abstract class NativeAuthenticatorBase implements NativeAuthenticator {
 
   /** Re-issue the set with {@code error} on this challenge and count it as a failed attempt. */
   protected void failAndRechallenge(AuthenticationFlowContext context, String code, String message) {
+    failAndRechallenge(context, code, message, retryAfterThisFailure(context));
+  }
+
+  /**
+   * Like {@link #failAndRechallenge(AuthenticationFlowContext, String, String)} with an explicit
+   * {@code retry} for this challenge, for factors with an attempt limit of their own (a PIN,
+   * spec/03 §4.17); {@code null} leaves {@code retry} out.
+   */
+  protected void failAndRechallenge(
+      AuthenticationFlowContext context, String code, String message, ChallengeDescriptor.Retry retry) {
     List<ChallengeDescriptor> set = buildChallengeSet(context, new ChallengeDescriptor.ChallengeError(code, message));
-    ChallengeDescriptor.Retry retry = retryAfterThisFailure(context);
     if (retry != null) {
       String current = context.getExecution().getId();
       set.stream().filter(d -> current.equals(d.getId())).findFirst().ifPresent(d -> d.setRetry(retry));

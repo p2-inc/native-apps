@@ -41,13 +41,13 @@ Optional, best effort: when a user has no `phasetwo-pin` but has please-open.it'
 `pin` — the PIN factor (`native-pin`, display "Native: PIN"):
 - params: `{ "length": 4 }` (the stored credential's length; clients show that many slots and a numeric keypad).
 - response: `pin=<digits>`.
-- errors: wrong PIN → descriptor `error.code = invalid_credential` with `retry.remaining` = `max-attempts − failures` (when `max-attempts` > 0). Locked → descriptor `error.code = credential_locked`, `retry.remaining = 0`; the client shows that the PIN is locked and must be reset (on the web or by an administrator) and offers cancel.
+- errors: empty `pin` → `missing_credential` (not counted); wrong PIN → descriptor `error.code = invalid_credential` with `retry.remaining` = `max-attempts − failures` (when `max-attempts` > 0). Locked → descriptor `error.code = credential_locked`, `retry.remaining = 0`, also on the first descriptor of a login when the PIN is already locked; the client shows that the PIN is locked and must be reset (on the web or by an administrator) and offers cancel.
 - Eligible like `native-totp`: requires a user, offered only when the user has a `phasetwo-pin` credential.
 
 `pin_setup` — set a PIN (required action `native-configure-pin`, substitutes `phasetwo-configure-pin` per 03 §4.11):
 - params: `{ "length": 4 }` (the realm's required-action config).
 - response: `pin=<digits>&pin_confirm=<digits>`.
-- errors on the descriptor: `pin_mismatch`, `invalid_format` (wrong length or non-digits), `weak_pin`.
+- errors on the descriptor: `missing_credential` (empty `pin`), `pin_mismatch`, `invalid_format` (wrong length or non-digits), `weak_pin`.
 
 Metadata: `pin` and `pin_setup` appear in `challenge_types_supported` only when `native-auth-pin` and `keycloak-pin` are installed. `native-auth-core` `ChallengeType` gains `PIN("pin")` and `PIN_SETUP("pin_setup")`.
 
