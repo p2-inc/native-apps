@@ -58,6 +58,7 @@ public final class DemoModel {
     case .passkey: config.passkeyClientId
     case .stepUp: config.stepUpClientId
     case .otp: config.otpClientId
+    case .pin: config.pinClientId
     }
   }
 

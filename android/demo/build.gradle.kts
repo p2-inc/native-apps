@@ -45,6 +45,7 @@ android {
     buildConfigField("String", "PASSKEY_CLIENT_ID", quoted(demoSetting("passkeyClientId", "demo-native-passkey")))
     buildConfigField("String", "STEP_UP_CLIENT_ID", quoted(demoSetting("stepUpClientId", "demo-native-stepup")))
     buildConfigField("String", "OTP_CLIENT_ID", quoted(demoSetting("otpClientId", "demo-native-otp")))
+    buildConfigField("String", "PIN_CLIENT_ID", quoted(demoSetting("pinClientId", "demo-native-pin")))
     buildConfigField("String", "RESOURCE_SERVER", quoted(demoSetting("resourceServer", "http://10.0.2.2:8091")))
     buildConfigField("boolean", "ALLOW_RP_ID_MISMATCH", demoSetting("allowRpIdMismatch", "false"))
     buildConfigField("String", "DEVICE_NAME", quoted(demoSetting("deviceName", "KeycloakNativeDemo Android")))

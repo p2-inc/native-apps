@@ -64,6 +64,7 @@ data class DemoConfig(
   val passkeyClientId: String,
   val stepUpClientId: String,
   val otpClientId: String,
+  val pinClientId: String,
   /** The step-up demo API (S6): `GET /transfer` demands acr 2. */
   val resourceServer: URI,
   /** Needed when the realm's passkey RP ID (a tunnel host) is not the issuer host. */
@@ -79,6 +80,7 @@ data class DemoConfig(
       passkeyClientId = BuildConfig.PASSKEY_CLIENT_ID,
       stepUpClientId = BuildConfig.STEP_UP_CLIENT_ID,
       otpClientId = BuildConfig.OTP_CLIENT_ID,
+      pinClientId = BuildConfig.PIN_CLIENT_ID,
       resourceServer = URI(BuildConfig.RESOURCE_SERVER),
       allowRpIdMismatch = BuildConfig.ALLOW_RP_ID_MISMATCH,
       deviceName = BuildConfig.DEVICE_NAME,
