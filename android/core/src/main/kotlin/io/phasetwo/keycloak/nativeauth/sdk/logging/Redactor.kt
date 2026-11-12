@@ -11,7 +11,7 @@ import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * Masks secrets before anything reaches a log or the app's flow log: `auth_session`, codes, tokens,
- * passwords, OTPs, WebAuthn assertion/attestation material, push enrolment / confirm / device tokens
+ * passwords, OTPs, PINs, WebAuthn assertion/attestation material, push enrolment / confirm / device tokens
  * (spec/05 §3.3). The same key list as the iOS SDK's `Redactor`.
  */
 public object Redactor {
@@ -28,6 +28,8 @@ public object Redactor {
     // Push MFA (spec/03 §4.15, §7): the realm-signed enrolment token, the device-signed JWTs
     // (`token`, above), the confirm token and the APNs / FCM device token.
     "enrollment_token", "confirmtoken", "confirm_token", "pushproviderid", "push_provider_id", "device_token",
+    // PIN extension (spec/03 §4.17, §4.18).
+    "pin", "pin_confirm",
   )
 
   public fun isSensitive(key: String): Boolean {

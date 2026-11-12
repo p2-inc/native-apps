@@ -220,6 +220,68 @@ class NativeLoginModelTest {
     assertEquals("cancel", f.transport.field(2, "action"))
   }
 
+  private fun pinSet(type: String = "pin", error: String? = null, remaining: Int? = null): HttpResponse {
+    val id = if (type == "pin") "pin-exec" else "native-configure-pin"
+    val extra = (error?.let { ""","error":{"code":"$it"}""" } ?: "") + (remaining?.let { ""","retry":{"remaining":$it}""" } ?: "")
+    return set("""{"type":"$type","id":"$id","required":true$extra,"params":{"length":6}}""")
+  }
+
+  @Test
+  fun aWrongPinStaysOnThePinAndALockedPinOnlyOffersCancel() = runTest {
+    val f = fixture(
+      { json(200, METADATA) },
+      { pinSet() },
+      { pinSet(error = "invalid_credential", remaining = 1) },
+      { pinSet(error = "credential_locked", remaining = 0) },
+      { json(400, """{"error":"invalid_session"}""") },
+    )
+    f.model.startIfNeeded()
+    advanceUntilIdle()
+    val pin = f.model.selected!!
+    assertEquals(ChallengeType.Pin, pin.type)
+    assertEquals(6, pin.pinParams?.length)
+    f.model.submit(ChallengeAnswer.Pin("000000"), pin)
+    advanceUntilIdle()
+    val wrong = f.model.selected!!
+    assertEquals(1, wrong.retry?.remaining)
+    assertTrue(!wrong.isLocked && pinErrorText(wrong.error?.code) == R.string.nl_pin_incorrect)
+    f.model.submit(ChallengeAnswer.Pin("111111"), wrong)
+    advanceUntilIdle()
+    val locked = f.model.selected!!
+    assertTrue(locked.isLocked && locked.retry?.remaining == 0)
+    f.model.cancel()
+    advanceUntilIdle()
+    assertEquals(NativeLoginResult.Cancelled, f.results.single())
+    assertEquals(listOf("000000", "111111"), (2..3).map { f.transport.field(it, "pin") })
+  }
+
+  @Test
+  fun setPinAnswersBothFieldsAndItsErrorsAreLocalized() = runTest {
+    val f = fixture({ json(200, METADATA) }, { pinSet("pin_setup") }, { pinSet("pin_setup", error = "weak_pin") })
+    f.model.startIfNeeded()
+    advanceUntilIdle()
+    val setup = f.model.selected!!
+    assertEquals(ChallengeType.PinSetup, setup.type)
+    assertEquals(6, setup.pinSetupParams?.length)
+    f.model.submit(ChallengeAnswer.PinSetup("135790", "135790"), setup)
+    advanceUntilIdle()
+    assertEquals("weak_pin", f.model.selected?.error?.code)
+    assertEquals(listOf("135790", "135790", "pin_setup"), listOf(f.transport.field(2, "pin"), f.transport.field(2, "pin_confirm"), f.transport.field(2, "challenge_type")))
+    assertEquals(R.string.nl_pin_mismatch, pinErrorText("pin_mismatch"))
+    assertEquals(R.string.nl_pin_weak, pinErrorText("weak_pin"))
+    assertEquals(R.string.nl_pin_invalid_format, pinErrorText("invalid_format"))
+    assertNull("unknown codes keep the server's message", pinErrorText("x-other"))
+  }
+
+  @Test
+  fun everyStringHasAGermanTranslation() {
+    fun names(dir: String): Set<String> =
+      Regex("""<(?:string|plurals) name="([a-z_]+)"""").findAll(java.io.File("src/main/res/$dir/strings.xml").readText()).map { it.groupValues[1] }.toSet()
+    val english = names("values")
+    assertTrue(english.containsAll(listOf("nl_use_pin", "nl_pin_title", "nl_pin_locked", "nl_pin_weak", "nl_delete")))
+    assertEquals(emptySet<String>(), english - names("values-de"))
+  }
+
   @Test
   fun redirectToWebBecomesItsOwnPhase() = runTest {
     val f = fixture(
