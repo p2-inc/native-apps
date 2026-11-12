@@ -39,6 +39,8 @@ Format:
   SDK's mock transport treats `code_challenge`/`device_id` as presence-only and replays the recorded
   WebAuthn responses through a scripted passkey platform so every other field matches exactly.
 
+`hand-written/` holds transcripts written by hand from the spec for challenge types whose server module does not exist yet (today the PIN extension's `pin` and `pin_setup`, spec/03 §4.17–§4.18). They have the same format plus `"hand_written": true`, are replayed only by the SDK tests that name them, and are left out of the "every transcript" checks (those read this directory only). Delete one once the integration test it anticipates records the real exchange, and point the SDK tests at the recording.
+
 Refresh after a server change: `mvn verify && scripts/update-transcripts.sh`, then run the SDK tests.
 The script copies everything under `target/transcripts/`, so delete the recordings of renamed or
 removed tests there first (they are not cleaned by `mvn verify`).
