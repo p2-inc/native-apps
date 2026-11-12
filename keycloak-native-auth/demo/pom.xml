@@ -67,6 +67,16 @@
       <groupId>io.phasetwo.keycloak</groupId>
       <artifactId>native-auth-push-apns</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-pin</artifactId>
+    </dependency>
+    <!-- Phase Two's PIN extension, deployed next to native-auth-pin (spec/20 D1). -->
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>keycloak-pin</artifactId>
+      <scope>runtime</scope>
+    </dependency>
     <!-- ba-itsys push MFA (the Java 21 rebuild), deployed next to the bridge. -->
     <dependency>
       <groupId>io.phasetwo.keycloak</groupId>

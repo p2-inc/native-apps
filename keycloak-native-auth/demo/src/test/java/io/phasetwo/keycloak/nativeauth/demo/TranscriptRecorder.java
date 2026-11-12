@@ -58,7 +58,7 @@ public final class TranscriptRecorder implements Filter, BeforeEachCallback, Aft
 
   /** Form fields whose values are never written to a transcript. */
   public static final Set<String> MASKED_FORM_FIELDS =
-      Set.of("password", "password_confirm", "totp", "otp", "recovery_code", "code_verifier", "client_secret", "refresh_token", "token");
+      Set.of("password", "password_confirm", "pin", "pin_confirm", "totp", "otp", "recovery_code", "code_verifier", "client_secret", "refresh_token", "token");
 
   /**
    * Masked only on the challenge endpoint: there {@code code} is the e-mail verification code
