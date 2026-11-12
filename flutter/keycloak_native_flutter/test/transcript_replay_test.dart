@@ -108,6 +108,57 @@ void main() {
     );
   });
 
+  // Hand-written until native-auth-pin records them (transcripts/hand-written/); the drift check
+  // above reads only the recorded top-level set.
+  test('pin: a wrong PIN, then the right one', () async {
+    final (_, flow, _) = await _begin('hand-written/PinIT.aliceSignsInWithHerPinAfterAWrongOne');
+    var step = await flow.start() as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.username('alice'), step.challenges.single) as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.password('secret'), step.challenges.single) as ChallengesStep;
+    final pin = step.challenges.single as PinChallenge;
+    expect(pin.length, 4);
+    expect(pin.type.isRequiredAction, isFalse);
+    step = await flow.respond(const ChallengeAnswer.pin('0000'), pin) as ChallengesStep;
+    final retried = step.challenges.single as PinChallenge;
+    expect(retried.error?.code, ChallengeError.invalidCredential);
+    expect(retried.retryRemaining, 4);
+    expect(retried.isLocked, isFalse);
+    expect(await flow.respond(const ChallengeAnswer.pin('2580'), retried), isA<AuthorizedStep>());
+  });
+
+  test('pin_setup: pin_mismatch, weak_pin and invalid_format, then the PIN is set', () async {
+    final (_, flow, _) = await _begin('hand-written/PinIT.aliceSetsAPinInBand');
+    var step = await flow.start() as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.username('alice'), step.challenges.single) as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.password('secret'), step.challenges.single) as ChallengesStep;
+    var setup = step.challenges.single as PinSetupChallenge;
+    expect(setup.type.isRequiredAction, isTrue);
+    expect(setup.length, 4);
+    expect(setup.isWellFormed('2580'), isTrue);
+    expect(setup.isWellFormed('258'), isFalse);
+    expect(setup.isWellFormed('25a0'), isFalse);
+    final errors = <String?>[];
+    for (final (pin, confirm) in [('2580', '2581'), ('1234', '1234'), ('258', '258')]) {
+      step = await flow.respond(ChallengeAnswer.pinSetup(pin, confirm: confirm), setup) as ChallengesStep;
+      setup = step.challenges.single as PinSetupChallenge;
+      errors.add(setup.error?.code);
+    }
+    expect(errors, [ChallengeError.pinMismatch, ChallengeError.weakPin, ChallengeError.invalidFormat]);
+    expect(await flow.respond(const ChallengeAnswer.pinSetup('2580', confirm: '2580'), setup), isA<AuthorizedStep>());
+  });
+
+  test('pin: credential_locked marks the challenge locked with no attempts left', () async {
+    final (_, flow, _) = await _begin('hand-written/PinIT.aLockedPinCanOnlyBeCancelled');
+    var step = await flow.start() as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.username('alice'), step.challenges.single) as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.password('secret'), step.challenges.single) as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.pin('0000'), step.challenges.single) as ChallengesStep;
+    final locked = step.challenges.single as PinChallenge;
+    expect(locked.isLocked, isTrue);
+    expect(locked.error?.code, ChallengeError.credentialLocked);
+    expect(locked.retryRemaining, 0);
+  });
+
   test('a request the native SDK would not send fails the replay', () async {
     final (_, flow, _) = await _begin('NativeAuthIT.happyPathUsernamePasswordTotpYieldsTokensWithoutRedirectUri');
     final step = await flow.start() as ChallengesStep;
@@ -202,6 +253,10 @@ void _readEveryGetter(Challenge challenge) {
       [c.emailMasked, c.digits, c.ttl, c.sent, c.resendAllowedAt];
     case TermsChallenge c:
       [c.text, c.url, c.version];
+    case PinChallenge c:
+      [c.length, c.isLocked];
+    case PinSetupChallenge c:
+      [c.length, c.isWellFormed('0000')];
     case UnknownChallenge():
       break;
   }

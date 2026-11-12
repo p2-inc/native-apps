@@ -33,6 +33,8 @@ void main() {
         'update_password': UpdatePasswordChallenge,
         'verify_email': VerifyEmailChallenge,
         'terms': TermsChallenge,
+        'pin': PinChallenge,
+        'pin_setup': PinSetupChallenge,
         'select': UnknownChallenge,
         'x_face_scan': UnknownChallenge,
       };
@@ -50,6 +52,24 @@ void main() {
       expect(ChallengeType.select.isSupported, isFalse);
       expect(ChallengeType.totp.isSupported, isTrue);
       expect(ChallengeType.terms.isRequiredAction, isTrue);
+      expect(ChallengeType.pinSetup.isRequiredAction, isTrue);
+      expect(ChallengeType.pin.isRequiredAction, isFalse);
+      expect(ChallengeType.pin.isSupported, isTrue);
+    });
+
+    test('pin and pin_setup params, the locked state and the PIN shape', () {
+      final pin = challengeFromMessage(_message('pin', '{"length":6}')) as PinChallenge;
+      expect(pin.length, 6);
+      expect(pin.isLocked, isFalse);
+      expect((challengeFromMessage(_message('pin', '{}')) as PinChallenge).length, 4);
+      final locked = challengeFromMessage(_message('pin', '{"length":4}', errorCode: 'credential_locked', retry: 0)) as PinChallenge;
+      expect(locked.isLocked, isTrue);
+      final setup = challengeFromMessage(_message('pin_setup', '{"length":4}')) as PinSetupChallenge;
+      expect(setup.isWellFormed('2580'), isTrue);
+      expect(setup.isWellFormed('258'), isFalse);
+      expect(setup.isWellFormed('25800'), isFalse);
+      expect(setup.isWellFormed('25a0'), isFalse);
+      expect(setup.isWellFormed('２５８０'), isFalse);
     });
 
     test('descriptor fields and typed params', () {
@@ -102,6 +122,10 @@ void main() {
       final update = answerToMessage(const ChallengeAnswer.updatePassword('n3w', confirm: 'n3w'));
       expect((update.kind, update.value, update.confirm), (AnswerKind.updatePassword, 'n3w', 'n3w'));
       expect(answerToMessage(const ChallengeAnswer.terms(accepted: true)).accepted, isTrue);
+      final pin = answerToMessage(const ChallengeAnswer.pin('2580'));
+      expect((pin.kind, pin.value), (AnswerKind.pin, '2580'));
+      final pinSetup = answerToMessage(const ChallengeAnswer.pinSetup('2580', confirm: '2580'));
+      expect((pinSetup.kind, pinSetup.value, pinSetup.confirm), (AnswerKind.pinSetup, '2580', '2580'));
       final skip = answerToMessage(const ChallengeAnswer.skip(ChallengeType.passkeyRegistration));
       expect((skip.kind, skip.type), (AnswerKind.skip, 'passkey_registration'));
       final custom = answerToMessage(const ChallengeAnswer.custom(ChallengeType.unknown('x_face_scan'), [('x_score', '0.9'), ('x_id', '7')]));
@@ -126,6 +150,8 @@ void main() {
 
     test('secrets are not printed', () {
       expect(const ChallengeAnswer.password('hunter2').toString(), isNot(contains('hunter2')));
+      expect(const ChallengeAnswer.pin('2580').toString(), isNot(contains('2580')));
+      expect(const ChallengeAnswer.pinSetup('2580', confirm: '2580').toString(), isNot(contains('2580')));
     });
   });
 

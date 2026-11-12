@@ -36,6 +36,12 @@ sealed class ChallengeAnswer {
   /// `push_enrollment`: the device enrolled through the push device API.
   const factory ChallengeAnswer.pushEnrollmentCheck() = PushEnrollmentCheckAnswer;
 
+  /// `pin` (spec/03 §4.17): the user's PIN, sent as `pin`.
+  const factory ChallengeAnswer.pin(String pin) = PinAnswer;
+
+  /// `pin_setup` (spec/03 §4.18): the new PIN, sent as `pin` + `pin_confirm`.
+  const factory ChallengeAnswer.pinSetup(String pin, {required String confirm}) = PinSetupAnswer;
+
   /// `action=skip` (spec/03 §4.11): decline a required action whose challenge `isSkippable`.
   const factory ChallengeAnswer.skip(ChallengeType type) = SkipAnswer;
 
@@ -139,6 +145,27 @@ final class PushEnrollmentCheckAnswer extends ChallengeAnswer {
   const PushEnrollmentCheckAnswer();
   @override
   ChallengeType get challengeType => ChallengeType.pushEnrollment;
+}
+
+final class PinAnswer extends ChallengeAnswer {
+  const PinAnswer(this.pin);
+  final String pin;
+  @override
+  ChallengeType get challengeType => ChallengeType.pin;
+
+  @override
+  String toString() => 'PinAnswer(***)';
+}
+
+final class PinSetupAnswer extends ChallengeAnswer {
+  const PinSetupAnswer(this.pin, {required this.confirm});
+  final String pin;
+  final String confirm;
+  @override
+  ChallengeType get challengeType => ChallengeType.pinSetup;
+
+  @override
+  String toString() => 'PinSetupAnswer(***)';
 }
 
 final class SkipAnswer extends ChallengeAnswer {

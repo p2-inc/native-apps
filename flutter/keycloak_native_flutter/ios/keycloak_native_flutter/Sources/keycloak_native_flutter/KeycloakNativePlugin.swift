@@ -458,6 +458,8 @@ extension AnswerMessage {
     case .pushResend: return .pushResend
     case .pushPoll: return .pushPoll
     case .pushEnrollmentCheck: return .pushEnrollmentCheck
+    case .pin: return .pin(try required("value", value))
+    case .pinSetup: return .pinSetup(pin: try required("value", value), confirm: try required("confirm", confirm))
     case .skip: return .skip(ChallengeType(wire: try required("type", type)))
     case .custom:
       return .custom(type: ChallengeType(wire: try required("type", type)), fields: (fields ?? []).map { FormField($0.name, $0.value) })

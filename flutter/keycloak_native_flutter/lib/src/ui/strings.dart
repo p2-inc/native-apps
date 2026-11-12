@@ -106,6 +106,23 @@ class NativeLoginStrings {
   String accountNeedsAttention(String action) => 'Your account needs attention ($action). Finish it on the web, then you will be returned here.';
   String get completeOnWeb => 'This sign-in has to be completed on the web.';
   String attemptsLeft(int remaining) => remaining == 1 ? '1 attempt left' : '$remaining attempts left';
+  String get usePin => 'Use your PIN';
+  String get pinTitle => 'Enter your PIN';
+  String pinSubtitle(int length) => 'Enter your $length-digit PIN.';
+  String get pinIncorrect => 'Incorrect PIN';
+  String get pinEnter => 'Enter your PIN.';
+  String get pinLockedTitle => 'PIN locked';
+  String get pinTooMany => 'Too many incorrect PINs.';
+  String get pinLocked => 'Your PIN is locked. Reset it on the web or ask your administrator, then sign in again.';
+  String get pinChooseTitle => 'Choose a PIN';
+  String pinChooseSubtitle(int length) => 'Choose a $length-digit PIN. Avoid easy sequences like 1234 or 1111.';
+  String get pinConfirmTitle => 'Confirm your PIN';
+  String pinConfirmSubtitle(int length) => 'Enter the same $length digits again.';
+  String get pinMismatch => 'The PINs do not match. Try again.';
+  String get pinWeak => 'This PIN is too easy to guess. Choose another one.';
+  String pinInvalidFormat(int length) => 'The PIN must be exactly $length digits.';
+  String pinDigitsEntered(int filled, int length) => '$filled of $length digits entered';
+  String get delete => 'Delete';
 
   /// The label of an alternative in the "Try another way" list.
   String chooserTitle(String type, {String? otpChannel}) => switch (type) {
@@ -115,6 +132,7 @@ class NativeLoginStrings {
     'otp' => otpChannel == 'sms' ? textMeCode : emailMeCode,
     'recovery_code' => useRecoveryCode,
     'push' => approveOnPhone,
+    'pin' => usePin,
     _ => type,
   };
 
@@ -327,6 +345,40 @@ class NativeLoginStringsDe extends NativeLoginStrings {
   String get completeOnWeb => 'Diese Anmeldung muss im Web abgeschlossen werden.';
   @override
   String attemptsLeft(int remaining) => remaining == 1 ? 'Noch 1 Versuch' : 'Noch $remaining Versuche';
+  @override
+  String get usePin => 'PIN verwenden';
+  @override
+  String get pinTitle => 'PIN eingeben';
+  @override
+  String pinSubtitle(int length) => 'Geben Sie Ihre $length-stellige PIN ein.';
+  @override
+  String get pinIncorrect => 'Falsche PIN';
+  @override
+  String get pinEnter => 'Geben Sie Ihre PIN ein.';
+  @override
+  String get pinLockedTitle => 'PIN gesperrt';
+  @override
+  String get pinTooMany => 'Zu viele falsche PIN-Eingaben.';
+  @override
+  String get pinLocked => 'Ihre PIN ist gesperrt. Setzen Sie sie im Web zurück oder wenden Sie sich an Ihren Administrator und melden Sie sich dann erneut an.';
+  @override
+  String get pinChooseTitle => 'PIN festlegen';
+  @override
+  String pinChooseSubtitle(int length) => 'Wählen Sie eine $length-stellige PIN. Vermeiden Sie einfache Folgen wie 1234 oder 1111.';
+  @override
+  String get pinConfirmTitle => 'PIN bestätigen';
+  @override
+  String pinConfirmSubtitle(int length) => 'Geben Sie dieselben $length Ziffern erneut ein.';
+  @override
+  String get pinMismatch => 'Die PINs stimmen nicht überein. Versuchen Sie es erneut.';
+  @override
+  String get pinWeak => 'Diese PIN ist zu leicht zu erraten. Wählen Sie eine andere.';
+  @override
+  String pinInvalidFormat(int length) => 'Die PIN muss genau $length Ziffern haben.';
+  @override
+  String pinDigitsEntered(int filled, int length) => '$filled von $length Ziffern eingegeben';
+  @override
+  String get delete => 'Löschen';
 
   @override
   List<String> passwordPolicyHints(Map<String, Object?> policy) => [
