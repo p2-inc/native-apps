@@ -248,10 +248,10 @@ void main() {
     expect(login.host.savedPasswords, [('alice', 'secret')]);
   });
 
-  // The PIN transcripts are hand-written until native-auth-pin records them (transcripts/hand-written/).
+  // PinIT's recordings on demo-native-pin.
   testWidgets('pin: a wrong PIN shows the localized error and the attempts left, the next one signs in', (tester) async {
-    final login = await _pump(tester, 'hand-written/PinIT.aliceSignsInWithHerPinAfterAWrongOne', clientId: 'demo-native');
-    await login.signIn('alice');
+    final login = await _pump(tester, 'PinIT.piaSignsInWithHerPinAfterAWrongOne', clientId: 'demo-native-pin');
+    await login.signIn('pia');
     expect(find.text('Enter your PIN'), findsOneWidget);
     expect(find.bySemanticsLabel('0 of 4 digits entered'), findsOneWidget);
     await login.pin('19');
@@ -260,17 +260,20 @@ void main() {
     await login.pin('000');
     expect(find.text('Incorrect PIN'), findsOneWidget);
     expect(find.text('Invalid PIN'), findsNothing);
-    expect(find.text('4 attempts left'), findsOneWidget);
+    expect(find.text('2 attempts left'), findsOneWidget);
     expect(find.bySemanticsLabel('0 of 4 digits entered'), findsOneWidget);
     await login.pin('2580', last: true);
     expect(login.results.single, isA<NativeLoginAuthorized>());
   });
 
   testWidgets('pin: a locked PIN explains the reset and leaves only cancel', (tester) async {
-    final login = await _pump(tester, 'hand-written/PinIT.aLockedPinCanOnlyBeCancelled', clientId: 'demo-native');
-    await login.signIn('alice');
+    final login = await _pump(tester, 'PinIT.aLockedPinCanOnlyBeCancelled', clientId: 'demo-native-pin');
+    await login.signIn('rita');
+    await login.pin('0001');
+    expect(find.text('2 attempts left'), findsOneWidget);
+    await login.pin('0002');
     expect(find.text('1 attempt left'), findsOneWidget);
-    await login.pin('0000');
+    await login.pin('0009');
     expect(find.text('PIN locked'), findsOneWidget);
     expect(find.text('Too many incorrect PINs.'), findsOneWidget);
     expect(find.byKey(const ValueKey('pinLocked')), findsOneWidget);
@@ -281,8 +284,8 @@ void main() {
   });
 
   testWidgets('pin_setup: a local mismatch starts over; server errors are localized until a PIN is accepted', (tester) async {
-    final login = await _pump(tester, 'hand-written/PinIT.aliceSetsAPinInBand', clientId: 'demo-native');
-    await login.signIn('alice');
+    final login = await _pump(tester, 'PinIT.peteSetsAPinInBand', clientId: 'demo-native-pin');
+    await login.signIn('pete');
     expect(find.text('Choose a PIN'), findsOneWidget);
     // A local mismatch never reaches the server.
     await login.pin('1111');
@@ -294,8 +297,10 @@ void main() {
     await login.pin('1111');
     await login.tapKey('pinDelete');
     expect(find.text('Choose a PIN'), findsOneWidget);
-    // The recording masks the PINs, so its server answers come back in order: pin_mismatch, weak_pin,
-    // invalid_format, then success. Each is shown in the screen's own words.
+    // The recording masks the PINs, so its server answers come back in order: missing_credential,
+    // pin_mismatch, weak_pin, invalid_format, then success. Each is shown in the screen's own words.
+    await login.pin('25802580');
+    expect(find.text('Enter your PIN.'), findsOneWidget);
     await login.pin('25802580');
     expect(find.text('The PINs do not match. Try again.'), findsOneWidget);
     await login.pin('12341234');

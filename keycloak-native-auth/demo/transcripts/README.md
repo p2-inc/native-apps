@@ -14,7 +14,7 @@ Format:
   "recorded_at": "2026-10-14T14:36:33Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
   "base_url": "http://localhost:64092",
-  "masked_form_fields": ["client_secret", "code_verifier", "otp", "password", "recovery_code", "refresh_token", "token", "totp"],
+  "masked_form_fields": ["client_secret", "code_verifier", "otp", "password", "password_confirm", "pin", "pin_confirm", "recovery_code", "refresh_token", "token", "totp"],
   "exchanges": [
     { "seq": 1,
       "request":  { "method": "POST", "path": "/realms/demo/native-auth/challenge", "headers": { "...": "..." },
@@ -38,8 +38,6 @@ Format:
 - Per-run values (`code_challenge`, challenge ids, WebAuthn material) differ between recordings; the
   SDK's mock transport treats `code_challenge`/`device_id` as presence-only and replays the recorded
   WebAuthn responses through a scripted passkey platform so every other field matches exactly.
-
-`hand-written/` holds transcripts written by hand from the spec for challenge types whose server module does not exist yet (today the PIN extension's `pin` and `pin_setup`, spec/03 §4.17–§4.18). They have the same format plus `"hand_written": true`, are replayed only by the SDK tests that name them, and are left out of the "every transcript" checks (those read this directory only). Delete one once the integration test it anticipates records the real exchange, and point the SDK tests at the recording.
 
 Refresh after a server change: `mvn verify && scripts/update-transcripts.sh`, then run the SDK tests.
 The script copies everything under `target/transcripts/`, so delete the recordings of renamed or

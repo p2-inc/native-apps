@@ -108,12 +108,11 @@ void main() {
     );
   });
 
-  // Hand-written until native-auth-pin records them (transcripts/hand-written/); the drift check
-  // above reads only the recorded top-level set.
+  // PinIT's recordings on demo-native-pin: pia has a PIN, pete sets one, rita's locks after 3 attempts.
   test('pin: a wrong PIN, then the right one', () async {
-    final (_, flow, _) = await _begin('hand-written/PinIT.aliceSignsInWithHerPinAfterAWrongOne');
+    final (_, flow, _) = await _begin('PinIT.piaSignsInWithHerPinAfterAWrongOne');
     var step = await flow.start() as ChallengesStep;
-    step = await flow.respond(const ChallengeAnswer.username('alice'), step.challenges.single) as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.username('pia'), step.challenges.single) as ChallengesStep;
     step = await flow.respond(const ChallengeAnswer.password('secret'), step.challenges.single) as ChallengesStep;
     final pin = step.challenges.single as PinChallenge;
     expect(pin.length, 4);
@@ -121,15 +120,15 @@ void main() {
     step = await flow.respond(const ChallengeAnswer.pin('0000'), pin) as ChallengesStep;
     final retried = step.challenges.single as PinChallenge;
     expect(retried.error?.code, ChallengeError.invalidCredential);
-    expect(retried.retryRemaining, 4);
+    expect(retried.retryRemaining, 2);
     expect(retried.isLocked, isFalse);
     expect(await flow.respond(const ChallengeAnswer.pin('2580'), retried), isA<AuthorizedStep>());
   });
 
-  test('pin_setup: pin_mismatch, weak_pin and invalid_format, then the PIN is set', () async {
-    final (_, flow, _) = await _begin('hand-written/PinIT.aliceSetsAPinInBand');
+  test('pin_setup: missing_credential, pin_mismatch, weak_pin and invalid_format, then the PIN is set', () async {
+    final (_, flow, _) = await _begin('PinIT.peteSetsAPinInBand');
     var step = await flow.start() as ChallengesStep;
-    step = await flow.respond(const ChallengeAnswer.username('alice'), step.challenges.single) as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.username('pete'), step.challenges.single) as ChallengesStep;
     step = await flow.respond(const ChallengeAnswer.password('secret'), step.challenges.single) as ChallengesStep;
     var setup = step.challenges.single as PinSetupChallenge;
     expect(setup.type.isRequiredAction, isTrue);
@@ -138,21 +137,25 @@ void main() {
     expect(setup.isWellFormed('258'), isFalse);
     expect(setup.isWellFormed('25a0'), isFalse);
     final errors = <String?>[];
-    for (final (pin, confirm) in [('2580', '2581'), ('1234', '1234'), ('258', '258')]) {
+    for (final (pin, confirm) in [('', ''), ('1357', '1358'), ('1111', '1111'), ('12', '12')]) {
       step = await flow.respond(ChallengeAnswer.pinSetup(pin, confirm: confirm), setup) as ChallengesStep;
       setup = step.challenges.single as PinSetupChallenge;
       errors.add(setup.error?.code);
     }
-    expect(errors, [ChallengeError.pinMismatch, ChallengeError.weakPin, ChallengeError.invalidFormat]);
+    expect(errors, [ChallengeError.missingCredential, ChallengeError.pinMismatch, ChallengeError.weakPin, ChallengeError.invalidFormat]);
     expect(await flow.respond(const ChallengeAnswer.pinSetup('2580', confirm: '2580'), setup), isA<AuthorizedStep>());
   });
 
   test('pin: credential_locked marks the challenge locked with no attempts left', () async {
-    final (_, flow, _) = await _begin('hand-written/PinIT.aLockedPinCanOnlyBeCancelled');
+    final (_, flow, _) = await _begin('PinIT.aLockedPinCanOnlyBeCancelled');
     var step = await flow.start() as ChallengesStep;
-    step = await flow.respond(const ChallengeAnswer.username('alice'), step.challenges.single) as ChallengesStep;
+    step = await flow.respond(const ChallengeAnswer.username('rita'), step.challenges.single) as ChallengesStep;
     step = await flow.respond(const ChallengeAnswer.password('secret'), step.challenges.single) as ChallengesStep;
-    step = await flow.respond(const ChallengeAnswer.pin('0000'), step.challenges.single) as ChallengesStep;
+    for (final (pin, remaining) in [('0001', 2), ('0002', 1)]) {
+      step = await flow.respond(ChallengeAnswer.pin(pin), step.challenges.single) as ChallengesStep;
+      expect((step.challenges.single as PinChallenge).retryRemaining, remaining);
+    }
+    step = await flow.respond(const ChallengeAnswer.pin('0009'), step.challenges.single) as ChallengesStep;
     final locked = step.challenges.single as PinChallenge;
     expect(locked.isLocked, isTrue);
     expect(locked.error?.code, ChallengeError.credentialLocked);

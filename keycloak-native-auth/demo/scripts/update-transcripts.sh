@@ -10,7 +10,7 @@ EXCLUDE=()   # e.g. ("NativeAuthIT.someNoisyTest.json")
 
 [[ -d "$SRC" ]] || { echo "no $SRC: run 'mvn verify' (needs Docker) first" >&2; exit 1; }
 mkdir -p "$DST"
-find "$DST" -maxdepth 1 -name '*.json' -delete   # hand-written/ is kept
+find "$DST" -maxdepth 1 -name '*.json' -delete
 for f in "$SRC"/*.json; do
   name=$(basename "$f")
   skip=false

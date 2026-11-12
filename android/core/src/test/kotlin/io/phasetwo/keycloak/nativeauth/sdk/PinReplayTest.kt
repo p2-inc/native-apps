@@ -22,19 +22,19 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * PIN extension contract tests (spec/03 §4.17, §4.18, spec/20 D7). The transcripts under
- * `transcripts/hand-written/` were written from the spec before the server module (`native-auth-pin`)
- * existed; they are replaced by its recorded integration tests. Twin of `PinReplayTests.swift`.
+ * PIN extension contract tests (spec/03 §4.17, §4.18, spec/20 D7), replaying `PinIT`'s recorded
+ * transcripts (client `demo-native-pin`: username, password, then the PIN; pia has the PIN 2580, pete
+ * sets one, rita's PIN locks after 3 attempts). Twin of `PinReplayTests.swift`.
  */
 class PinReplayTest {
-  private val client = TranscriptReplayTest.DEMO
+  private val client = "demo-native-pin"
   private val itParameters = TranscriptReplayTest.IT_PARAMETERS
 
-  private suspend fun loginToPinStep(h: Harness, type: ChallengeType): Pair<NativeLoginFlow, Challenge> {
+  private suspend fun loginToPinStep(h: Harness, user: String, type: ChallengeType): Pair<NativeLoginFlow, Challenge> {
     val flow = h.sdk.authentication().startLogin(itParameters)
     var step = flow.start()
-    step = flow.respond(ChallengeAnswer.Username("alice"), step.require(ChallengeType.Username))
-    step = flow.respond(ChallengeAnswer.Password("alice-password"), step.require(ChallengeType.Password))
+    step = flow.respond(ChallengeAnswer.Username(user), step.require(ChallengeType.Username))
+    step = flow.respond(ChallengeAnswer.Password(if (user == "rita") "pia-password" else "$user-password"), step.require(ChallengeType.Password))
     assertEquals(1, step.challenges?.size)
     return flow to step.require(type)
   }
@@ -44,7 +44,7 @@ class PinReplayTest {
 
   @Test
   fun metadataAdvertisesPinWhenTheExtensionIsInstalled() = runTest {
-    val (h, _, _) = Harness.replay(emptyList(), client, metadataFrom = "hand-written/PinIT.metadataAdvertisesPinWhenTheExtensionIsInstalled")
+    val (h, _, _) = Harness.replay(emptyList(), client, metadataFrom = "PinIT.metadataAdvertisesPinWhenTheExtensionIsInstalled")
     val metadata = h.sdk.metadata()
     assertTrue("pin" in metadata.challengeTypesSupported && "pin_setup" in metadata.challengeTypesSupported)
   }
@@ -91,15 +91,15 @@ class PinReplayTest {
   }
 
   @Test
-  fun aliceSignsInWithHerPinAfterAWrongOne() = runTest {
-    val (h, transport, t) = Harness.replay(listOf("hand-written/PinIT.aliceSignsInWithHerPinAfterAWrongOne"), client)
-    val (flow, challenge) = loginToPinStep(h, ChallengeType.Pin)
+  fun piaSignsInWithHerPinAfterAWrongOne() = runTest {
+    val (h, transport, t) = Harness.replay(listOf("PinIT.piaSignsInWithHerPinAfterAWrongOne"), client)
+    val (flow, challenge) = loginToPinStep(h, "pia", ChallengeType.Pin)
     assertTrue(challenge.required && challenge.pinParams?.length == 4 && challenge.error == null && !challenge.isLocked)
 
     var step = flow.respond(ChallengeAnswer.Pin("0000"), challenge)
     val wrong = step.require(ChallengeType.Pin)
     assertEquals(ChallengeError.Code.INVALID_CREDENTIAL, wrong.error?.code)
-    assertEquals(4, wrong.retry?.remaining)
+    assertEquals(2, wrong.retry?.remaining)
     assertFalse(wrong.isLocked)
 
     step = flow.respond(ChallengeAnswer.Pin("2580"), wrong)
@@ -112,11 +112,19 @@ class PinReplayTest {
 
   @Test
   fun aLockedPinCanOnlyBeCancelled() = runTest {
-    val (h, transport, _) = Harness.replay(listOf("hand-written/PinIT.aLockedPinCanOnlyBeCancelled"), client)
-    val (flow, challenge) = loginToPinStep(h, ChallengeType.Pin)
-    assertEquals(1, challenge.retry?.remaining, "the last attempt")
+    val (h, transport, _) = Harness.replay(listOf("PinIT.aLockedPinCanOnlyBeCancelled"), client)
+    val (flow, challenge) = loginToPinStep(h, "rita", ChallengeType.Pin)
+    assertTrue(challenge.error == null && !challenge.isLocked)
 
-    val step = flow.respond(ChallengeAnswer.Pin("0000"), challenge)
+    var step = flow.respond(ChallengeAnswer.Pin("0001"), challenge)
+    var pin = step.require(ChallengeType.Pin)
+    assertEquals(ChallengeError.Code.INVALID_CREDENTIAL, pin.error?.code)
+    assertEquals(2, pin.retry?.remaining)
+    step = flow.respond(ChallengeAnswer.Pin("0002"), pin)
+    pin = step.require(ChallengeType.Pin)
+    assertEquals(1, pin.retry?.remaining, "the last attempt")
+
+    step = flow.respond(ChallengeAnswer.Pin("0009"), pin)
     val locked = step.require(ChallengeType.Pin)
     assertEquals(ChallengeError.Code.CREDENTIAL_LOCKED, locked.error?.code)
     assertTrue(locked.isLocked)
@@ -127,13 +135,17 @@ class PinReplayTest {
   }
 
   @Test
-  fun aliceSetsAPinInBand() = runTest {
-    val (h, transport, _) = Harness.replay(listOf("hand-written/PinIT.aliceSetsAPinInBand"), client)
-    val (flow, challenge) = loginToPinStep(h, ChallengeType.PinSetup)
+  fun peteSetsAPinInBand() = runTest {
+    val (h, transport, _) = Harness.replay(listOf("PinIT.peteSetsAPinInBand"), client)
+    val (flow, challenge) = loginToPinStep(h, "pete", ChallengeType.PinSetup)
     assertTrue(challenge.id == "native-configure-pin" && challenge.required && challenge.type.isRequiredAction)
     assertEquals(4, challenge.pinSetupParams?.length)
 
-    var step = flow.respond(ChallengeAnswer.PinSetup("1357", "1358"), challenge)
+    var step = flow.respond(ChallengeAnswer.PinSetup("", ""), challenge)
+    val missing = step.require(ChallengeType.PinSetup)
+    assertEquals(ChallengeError.Code.MISSING_CREDENTIAL, missing.error?.code)
+
+    step = flow.respond(ChallengeAnswer.PinSetup("1357", "1358"), missing)
     val mismatch = step.require(ChallengeType.PinSetup)
     assertEquals(ChallengeError.Code.PIN_MISMATCH, mismatch.error?.code)
 
@@ -154,8 +166,8 @@ class PinReplayTest {
 
   @Test
   fun aPinAnswerIsRefusedForAnotherType() = runTest {
-    val (h, _, _) = Harness.replay(listOf("hand-written/PinIT.aliceSetsAPinInBand"), client)
-    val (flow, challenge) = loginToPinStep(h, ChallengeType.PinSetup)
+    val (h, _, _) = Harness.replay(listOf("PinIT.peteSetsAPinInBand"), client)
+    val (flow, challenge) = loginToPinStep(h, "pete", ChallengeType.PinSetup)
     val error = expectError { flow.respond(ChallengeAnswer.Pin("2580"), challenge) }
     assertEquals(NativeAuthError.Code.UNSUPPORTED_CHALLENGE, error.code)
   }
