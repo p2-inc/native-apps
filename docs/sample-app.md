@@ -16,7 +16,7 @@ xcodebuild -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo \
 
 Open the committed `KeycloakNativeDemo.xcodeproj` in Xcode, choose application scheme **KeycloakNativeDemo**, select a simulator, and Run. Package-library schemes are not executables. The generated project is committed; XcodeGen is needed only when regenerating from [project.yml](../ios/KeycloakNativeDemo/project.yml): `xcodegen generate` in that directory. Keep simulator ad hoc signing; disabling signing can cause Keychain `-34018`.
 
-[Config.plist](../ios/KeycloakNativeDemo/App/Config.plist) supplies `Issuer=http://localhost:8089/realms/demo`, `ClientId=demo-native`, `PasskeyClientId=demo-native-passkey`, `StepUpClientId=demo-native-stepup`, `OtpClientId=demo-native-otp`, `ResourceServer=http://localhost:8091`, `AllowRpIdMismatch=false`, `DeviceName=KeycloakNativeDemo`. [DemoConfig](../ios/KeycloakNativeDemo/Sources/KeycloakNativeDemoApp/DemoConfig.swift) loads these from the app bundle and has matching fallback defaults. There is no settings UI. On a physical device, `localhost` is that device; use a reachable correctly configured HTTPS server/issuer.
+[Config.plist](../ios/KeycloakNativeDemo/App/Config.plist) supplies `Issuer=http://localhost:8089/realms/demo`, `ClientId=demo-native`, `PasskeyClientId=demo-native-passkey`, `StepUpClientId=demo-native-stepup`, `OtpClientId=demo-native-otp`, `PinClientId=demo-native-pin`, `ResourceServer=http://localhost:8091`, `AllowRpIdMismatch=false`, `DeviceName=KeycloakNativeDemo`. [DemoConfig](../ios/KeycloakNativeDemo/Sources/KeycloakNativeDemoApp/DemoConfig.swift) loads these from the app bundle and has matching fallback defaults. There is no settings UI. On a physical device, `localhost` is that device; use a reachable correctly configured HTTPS server/issuer.
 
 Begin with S3 (alice/password/TOTP; current code from the walkthrough), or bob/password on a regular flow to skip second factor. Home's claims/token type/expiry and a successful `/token` exchange in Diagnostics confirm SDK completion. A `.challenges` username/context value alone does not mean authentication succeeded.
 
@@ -55,6 +55,7 @@ On authorized, `apply` sets in-memory credentials, clears flow and launches a ta
 | Carol, Grace, Hank | Password → native password update / email code verification / terms acceptance → tokens (declining terms fails) |
 | Ivy | Password → TOTP or recovery code; last recovery code triggers browser-only code generation |
 | Judy | Password → native push enrollment using same DPoP key → tokens; later login asks for push |
+| Pia, Pete | `demo-native-pin` / `native-pin`: pia's password → her PIN `2580` (3 attempts before it locks); pete's password → set a PIN in-band (`pin_setup`), then his next login asks for it |
 
 All usernames above use `<username>-password` initially. Consumed actions, codes and enrolled devices persist in the demo database. Resetting with `docker compose down -v` **deletes** that database; use it only for a disposable demo. SMS client and alternative-factor client have protocol/tests but no dedicated sample scenario/client-config key. Their server layouts and setup are documented in [flow examples](flow-examples.md).
 

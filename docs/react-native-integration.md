@@ -188,7 +188,7 @@ On iOS pass the APNs device token as hex with `type: 'apns'`, and forward the no
 
 ## Example and tests
 
-The [example app](../react-native/keycloak-native-react-native/example/) runs against the compose stack in `keycloak-native-auth/demo` (the Android emulator reaches the host at `10.0.2.2`): sign in on `demo-native`, `demo-native-passkey` or `demo-native-otp`, step up, create a passkey, enroll for push and answer sign-in requests. Inside this repository it builds the native SDKs from source: Android through a Gradle composite build of `../../android`, iOS through the Swift package at the repository root.
+The [example app](../react-native/keycloak-native-react-native/example/) runs against the compose stack in `keycloak-native-auth/demo` (the Android emulator reaches the host at `10.0.2.2`): sign in on `demo-native`, `demo-native-passkey`, `demo-native-otp` or `demo-native-pin`, step up, create a passkey, enroll for push and answer sign-in requests. Inside this repository it builds the native SDKs from source: Android through a Gradle composite build of `../../android`, iOS through the Swift package at the repository root.
 
 ```sh
 cd react-native/keycloak-native-react-native

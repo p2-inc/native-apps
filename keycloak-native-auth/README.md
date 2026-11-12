@@ -11,7 +11,7 @@ bearer-authenticated endpoints), **email / SMS one-time codes**, **step-up / re-
 with the post-login `auth_session`, **native required actions** for update-password / verify-email /
 terms (serving Keycloak's own `UPDATE_PASSWORD`, `VERIFY_EMAIL`, `TERMS_AND_CONDITIONS` in-band),
 **redirect-to-web** for required actions the native flow cannot serve, and **DPoP binding** of
-`auth_session` and code at the challenge endpoint. Push MFA is Phase 3.
+`auth_session` and code at the challenge endpoint. Push MFA is Phase 3. **PIN codes** (spec/20) come from Phase Two's [keycloak-pin](https://github.com/p2-inc/keycloak-pin) through `native-auth-pin`.
 Decisions are recorded in `../spec/09-phase0-decisions.md` (Phase 0), `../spec/11-phase1-decisions.md`
 (Phase 1a), `../spec/12-phase1b-decisions.md` (iOS SDK), `../spec/13-phase2-decisions.md` (Phase 2) and
 `../spec/14-phase2b-3-decisions.md` (Phase 2b / 3).
@@ -27,6 +27,7 @@ Decisions are recorded in `../spec/09-phase0-decisions.md` (Phase 0), `../spec/1
 | `native-auth-endpoint` | yes | `RealmResourceProvider` id `native-auth`: `GET /metadata`, `POST /challenge`, `POST /passkey/register/options|finish`, `POST /push/enroll/start`; `ChallengeFlowDriver`, `CodeIssuer`, `RequiredActionDriver`, `PasskeyRegistrationDriver`, `DPoPProofChecker`, `RedirectToWebBuilder` |
 | `push-mfa-extension-java21` | yes | ba-itsys [`keycloak-push-mfa-extension`](https://github.com/ba-itsys/keycloak-push-mfa-extension) (`push-mfa.version` in `pom.xml`) recompiled for Java 21 from its published sources jar: the published jars target Java 25 and the Keycloak 26.8.1 image runs Java 21 (spec/14 D9). Credential type `push-mfa`, `push-mfa-authenticator` (browser), `push-mfa-register`, the device API `/realms/{realm}/push-mfa/*` |
 | `native-auth-push` | yes | `native-push` authenticator (spec/03 §4.7), `native-push-enroll` required action (§4.15, substitutes for `push-mfa-register`), `PushEnrolment` (programmatic enrolment start/complete) and the `native-auth-push-enrolment` SPI behind `/push/enroll/start` and the metadata `push` block (spec/14 D9) |
+| `native-auth-pin` | yes | `native-pin` authenticator (spec/03 §4.17) and `native-configure-pin` required action (§4.18, substitutes for keycloak-pin's `phasetwo-configure-pin`); every PIN check and change goes through keycloak-pin's `PinCredentialProvider` (spec/20 D7). Requires `keycloak-pin` in `providers/`; the demo module copies it next to the other jars, so the providers zip carries it. Its version is the `keycloak-pin.version` property in `pom.xml` |
 | `native-auth-push-apns` | yes | `apns` push notification sender for ba-itsys' `push-notification-sender` SPI: HTTP/2, token-based provider auth, no third-party client (spec/14 D10) |
 | `demo` | no | `docker-compose.yml` (Keycloak, Postgres, mailpit, a Node resource server for the step-up demo), `realm-export/demo-realm.json`, `scripts/walkthrough.sh`, `scripts/passkey-walkthrough.md`, Testcontainers integration tests |
 
@@ -143,6 +144,7 @@ Demo realm contents:
   send URL and mounts the Firebase service account (`FCM_SERVICE_ACCOUNT`, default
   `~/.config/native-apps/fcm-service-account.json`) as `GOOGLE_APPLICATION_CREDENTIALS`
   (`android/demo/README.md` §2).
+- Flow `native-pin` (client `demo-native-pin`, spec/03 §4.17): `native-username` → `native-password` → CONDITIONAL *second factor* (*Condition - user configured* + `native-pin` REQUIRED, config `native-pin - attempts`: `max-attempts=3`). Users with a PIN are asked for it, users without one sign in with the password. Required actions `phasetwo-configure-pin` (keycloak-pin's *Configure PIN*, default config: 4 digits, weak PINs rejected) and `native-configure-pin` (its native substitute) are enabled. No browser flow uses keycloak-pin's own `phasetwo-pin`; the account console still lists the PIN because `native-pin`'s reference category is the PIN credential type. Setup, lockout and resets: [PIN codes](../docs/protocol-and-flows.md#pin-codes).
 - WebAuthn **Passwordless** policy: RP ID `localhost`, ES256/RS256, user verification `required`,
   resident key `required`, attestation `none`, no extra origins. Required actions
   `native-passkey-register`, `native-update-password`, `native-verify-email` and `native-terms` are
@@ -168,7 +170,7 @@ Demo realm contents:
   `IVY3-IVY3-IVY3` (seeded hashed; single use, consumed in order; after the last one Keycloak
   requires new codes, which the native flow hands to the browser); `judy` / `judy-password` with
   ba-itsys' `push-mfa-register` pending (served in-band by `native-push-enroll`, spec/03 §4.15: the
-  first native login enrols the phone as a push device). No passkey is pre-registered in
+  first native login enrols the phone as a push device); `pia` / `pia-password` with the PIN `2580` (seeded hashed; the `native-pin` flow asks for it, and three wrong PINs lock it until it is reset) and `pete` / `pete-password` with keycloak-pin's *Configure PIN* pending (served in-band by `native-configure-pin`, spec/03 §4.18). No passkey is pre-registered in
   the export; the integration tests register them. frank's native login ends with `403
   redirect_to_web` (a PAR `request_uri` for the browser, spec/03 §3.4). An unknown username gets a
   phantom `password` challenge that fails like a real user's wrong password and locks after
@@ -203,13 +205,15 @@ Demo realm contents:
 | required action `push-mfa-register` (config, ba-itsys) | `enrollmentChallengeTtlSeconds` | also the lifetime of `/push/enroll/start` tokens and of `native-push-enroll` challenges (spec/03 §4.15) | 300 |
 | SPI `push-notification-sender` / `apns` | `--spi-push-notification-sender--apns--team-id`, `--key-id`, `--key` or `--key-file`, `--topic`, `--environment`, `--url`, `--expiration-seconds` | Apple team, the `.p8` key id and PEM (or its path), the app's bundle id, `sandbox`/`production`, an override URL (tests), the notification's lifetime. Unset team/key = installed but inactive (spec/14 D10) | –, –, –, –, `sandbox`, by environment, 240 |
 | SPI `push-notification-sender` / `fcm` (ba-itsys) | `--spi-push-notification-sender--fcm--google-fcm-url`, and the environment variable `GOOGLE_APPLICATION_CREDENTIALS` | the HTTP v1 send URL `https://fcm.googleapis.com/v1/projects/<project id>/messages:send`, and the path of the Firebase project's service-account key file (JSON; its `token_uri` is where the sender gets its access token). Either unset = installed, but sends fail and are logged (`Missing FCM URL attribute` / `Failed to load FCM credentials`). Notification text: login theme messages `push-mfa-notification-title` / `push-mfa-notification-body` in the user's locale (spec/03 §7, `FcmPushIT`) | –, –; text `Push MFA` / `Please confirm your login` |
+| authenticator `native-pin` | `max-attempts` | consecutive wrong PINs before the PIN locks (`0` = no PIN limit; realm brute-force protection still applies). keycloak-pin's own setting, read through `PinConfig` | 5 |
+| required action `phasetwo-configure-pin` (config, keycloak-pin) | `length`, `reject-weak` | digits of a new PIN (4–12) and whether repeated digits or simple runs are refused; also what `native-configure-pin` asks for (it has no config of its own) | 4, `true` |
 | SPI `push-mfa` (ba-itsys) | `--spi-push-mfa--*`, e.g. `--dpop-require-for-enrollment` | see the ba-itsys README; the device API accepts `Authorization: DPoP <native access token>` whose `cnf.jkt` is the enrolled key (spec/03 §7.1, spec/14 D9) | ba-itsys defaults |
 
 `GET /realms/{realm}/native-auth/metadata` advertises the effective `redirect_uri` requirement under
 `code_exchange`, the passkey RP ID and registration endpoints under `passkey`, the installed
 `challenge_types_supported` (native authenticators and native required actions), the `push` block
 (`enroll_start_endpoint`, `device_api_base`, `device_token: "native"`, `push_provider_types`) when
-`native-auth-push` is installed, the realm's
+`native-auth-push` is installed, `pin` and `pin_setup` in `challenge_types_supported` when `native-auth-pin` (with keycloak-pin) is installed, the realm's
 `authorization_endpoint` (for `redirect_to_web`) and `dpop_signing_alg_values_supported` (the proof
 algorithms the challenge endpoint verifies).
 

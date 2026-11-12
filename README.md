@@ -82,7 +82,7 @@ Other demo users show other parts of the flow: `bob` gets an email code (read it
 
 Keycloak 26.4 or later.
 
-1. Download `keycloak-native-auth-providers-<version>.zip` from the [latest release](https://github.com/p2-inc/native-apps/releases) and put all its jars in Keycloak's `providers/` directory; they depend on each other.
+1. Download `keycloak-native-auth-providers-<version>.zip` from the [latest release](https://github.com/p2-inc/native-apps/releases) and put all its jars in Keycloak's `providers/` directory; they depend on each other. The zip also carries the optional factors' extensions (push MFA, and [keycloak-pin](https://github.com/p2-inc/keycloak-pin) for PIN codes); they do nothing until a flow uses them.
 2. Create an authentication flow named `native` from the native steps (`native-username`, `native-password`, `native-totp`, `native-passkey` and so on). Don't bind it as the browser flow: the native endpoint finds it by name, and a client or realm can choose another with the `native-auth.flow-alias` attribute. The [demo realm](keycloak-native-auth/demo/realm-export/demo-realm.json) is a working example to import or copy from.
 3. Create a public OpenID Connect client with PKCE S256 and the attribute `native-auth.enabled` set to `true`, and register a redirect URI such as `myapp://auth/callback` for logins that finish in the browser.
 
@@ -226,6 +226,7 @@ The SDKs, the React Native and Flutter wrappers and the demo setup are [Apache 2
 | `keycloak-native-auth/demo/` except `src/`: compose files, realm export, resource server, scripts and recorded transcripts | Apache-2.0 ([LICENSE](keycloak-native-auth/demo/LICENSE)) |
 | `keycloak-native-auth/push-mfa-extension-java21/`: ba-itsys' push MFA extension, rebuilt for Java 21 | Apache-2.0 ([LICENSE](keycloak-native-auth/push-mfa-extension-java21/LICENSE), [NOTICE](keycloak-native-auth/push-mfa-extension-java21/NOTICE)) |
 | Everything else in `keycloak-native-auth/`, including the integration tests in `demo/src/` | ELv2 ([COPYING](keycloak-native-auth/COPYING)) |
+| `keycloak-pin.jar` in the providers zip: Phase Two's PIN extension, built from [p2-inc/keycloak-pin](https://github.com/p2-inc/keycloak-pin) | ELv2 ([COPYING](keycloak-native-auth/COPYING)) |
 
 </details>
 
