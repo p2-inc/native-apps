@@ -66,6 +66,8 @@ class ProtocolJsonTest {
   @Test
   void challengeTypeParsesWireValues() {
     assertEquals(ChallengeType.RECOVERY_CODE, ChallengeType.fromWire("recovery_code"));
+    assertEquals(ChallengeType.PIN, ChallengeType.fromWire("pin"));
+    assertEquals(ChallengeType.PIN_SETUP, ChallengeType.fromWire("pin_setup"));
     assertEquals(null, ChallengeType.fromWire("x-vendor-foo"));
   }
 }
