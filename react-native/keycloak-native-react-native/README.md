@@ -32,7 +32,7 @@ Requirements: React Native 0.84 or later with the New Architecture (Expo SDK 56 
 yarn                 # installs the module and the example app (Yarn 4 workspaces)
 yarn typecheck
 yarn lint
-yarn test            # Jest, including the replay of ../../keycloak-native-auth/demo/transcripts
+yarn test            # Jest, including the replay of ../../keycloak-native-auth/demo/transcripts (and its hand-written/ PIN fixtures)
 yarn example android # or: cd example/android && ./gradlew :app:assembleDebug
 yarn example ios     # pod install runs on the first build
 ```
