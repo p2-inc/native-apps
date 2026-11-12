@@ -99,6 +99,23 @@ export interface NativeLoginStrings {
   accountNeedsAttention(action: string): string;
   completeOnWeb: string;
   attemptsLeft(remaining: number): string;
+  usePin: string;
+  pinTitle: string;
+  pinSubtitle(length: number): string;
+  pinIncorrect: string;
+  pinEnter: string;
+  pinLockedTitle: string;
+  pinTooMany: string;
+  pinLocked: string;
+  pinChooseTitle: string;
+  pinChooseSubtitle(length: number): string;
+  pinConfirmTitle: string;
+  pinConfirmSubtitle(length: number): string;
+  pinMismatch: string;
+  pinWeak: string;
+  pinInvalidFormat(length: number): string;
+  pinDigitsEntered(filled: number, length: number): string;
+  delete: string;
 }
 
 export const englishStrings: NativeLoginStrings = {
@@ -209,6 +226,25 @@ export const englishStrings: NativeLoginStrings = {
   completeOnWeb: 'This sign-in has to be completed on the web.',
   attemptsLeft: (remaining) =>
     remaining === 1 ? '1 attempt left' : `${remaining} attempts left`,
+  usePin: 'Use your PIN',
+  pinTitle: 'Enter your PIN',
+  pinSubtitle: (length) => `Enter your ${length}-digit PIN.`,
+  pinIncorrect: 'Incorrect PIN',
+  pinEnter: 'Enter your PIN.',
+  pinLockedTitle: 'PIN locked',
+  pinTooMany: 'Too many incorrect PINs.',
+  pinLocked:
+    'Your PIN is locked. Reset it on the web or ask your administrator, then sign in again.',
+  pinChooseTitle: 'Choose a PIN',
+  pinChooseSubtitle: (length) =>
+    `Choose a ${length}-digit PIN. Avoid easy sequences like 1234 or 1111.`,
+  pinConfirmTitle: 'Confirm your PIN',
+  pinConfirmSubtitle: (length) => `Enter the same ${length} digits again.`,
+  pinMismatch: 'The PINs do not match. Try again.',
+  pinWeak: 'This PIN is too easy to guess. Choose another one.',
+  pinInvalidFormat: (length) => `The PIN must be exactly ${length} digits.`,
+  pinDigitsEntered: (filled, length) => `${filled} of ${length} digits entered`,
+  delete: 'Delete',
 };
 
 export const germanStrings: NativeLoginStrings = {
@@ -324,6 +360,27 @@ export const germanStrings: NativeLoginStrings = {
   completeOnWeb: 'Diese Anmeldung muss im Web abgeschlossen werden.',
   attemptsLeft: (remaining) =>
     remaining === 1 ? 'Noch 1 Versuch' : `Noch ${remaining} Versuche`,
+  usePin: 'PIN verwenden',
+  pinTitle: 'PIN eingeben',
+  pinSubtitle: (length) => `Geben Sie Ihre ${length}-stellige PIN ein.`,
+  pinIncorrect: 'Falsche PIN',
+  pinEnter: 'Geben Sie Ihre PIN ein.',
+  pinLockedTitle: 'PIN gesperrt',
+  pinTooMany: 'Zu viele falsche PIN-Eingaben.',
+  pinLocked:
+    'Ihre PIN ist gesperrt. Setzen Sie sie im Web zurück oder wenden Sie sich an Ihren Administrator und melden Sie sich dann erneut an.',
+  pinChooseTitle: 'PIN festlegen',
+  pinChooseSubtitle: (length) =>
+    `Wählen Sie eine ${length}-stellige PIN. Vermeiden Sie einfache Folgen wie 1234 oder 1111.`,
+  pinConfirmTitle: 'PIN bestätigen',
+  pinConfirmSubtitle: (length) =>
+    `Geben Sie dieselben ${length} Ziffern erneut ein.`,
+  pinMismatch: 'Die PINs stimmen nicht überein. Versuchen Sie es erneut.',
+  pinWeak: 'Diese PIN ist zu leicht zu erraten. Wählen Sie eine andere.',
+  pinInvalidFormat: (length) => `Die PIN muss genau ${length} Ziffern haben.`,
+  pinDigitsEntered: (filled, length) =>
+    `${filled} von ${length} Ziffern eingegeben`,
+  delete: 'Löschen',
 };
 
 /** The catalogue for a BCP 47 locale (`de-AT` → German); English for every other language. */

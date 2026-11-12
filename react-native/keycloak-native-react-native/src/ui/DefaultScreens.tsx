@@ -11,6 +11,8 @@ import {
   type TextInputProps,
 } from 'react-native';
 import {
+  ChallengeErrorCode,
+  isChallengeLocked,
   millisUntil,
   type Challenge,
   type ChallengeAnswer,
@@ -98,6 +100,10 @@ export function DefaultChallengeScreen(props: ChallengePresentationProps) {
       return <PushScreen {...p} />;
     case 'push_enrollment':
       return <PushEnrollmentScreen {...p} />;
+    case 'pin':
+      return <PinScreen {...p} />;
+    case 'pin_setup':
+      return <PinSetupScreen {...p} />;
     default:
       return <UnsupportedScreen {...props} />;
   }
@@ -110,11 +116,14 @@ export function ChallengeFrame({
   presentation,
   title,
   subtitle,
+  errorText,
   children,
 }: {
   presentation: ChallengePresentationProps;
   title: string;
   subtitle?: string;
+  /** Replaces the descriptor's `error.message` (screens that localize known error codes). */
+  errorText?: string;
   children?: ReactNode;
 }) {
   const { flowContext, challenge, strings } = presentation;
@@ -134,10 +143,12 @@ export function ChallengeFrame({
       {subtitle !== undefined && <Text style={styles.caption}>{subtitle}</Text>}
       {challenge.error !== undefined && (
         <Text style={styles.error} accessibilityRole="alert" testID="kc-error">
-          {challenge.error.message ?? challenge.error.code}
+          {errorText ?? challenge.error.message ?? challenge.error.code}
         </Text>
       )}
       {challenge.error !== undefined &&
+        // A locked credential (spec/03 §4.17) has no attempts left to count.
+        !isChallengeLocked(challenge) &&
         challenge.retry?.remaining !== undefined && (
           // spec/03 §3.3: attempts left before brute-force protection locks the account.
           <Text style={styles.caption} testID="kc-retry">
@@ -955,6 +966,249 @@ export function PushScreen(presentation: ChallengePresentationProps<'push'>) {
   );
 }
 
+/** The localized text for a `pin` / `pin_setup` error code, else `undefined` (the server's message is shown). */
+function pinErrorText(
+  code: string | undefined,
+  length: number,
+  strings: NativeLoginStrings
+): string | undefined {
+  switch (code) {
+    case ChallengeErrorCode.invalidCredential:
+      return strings.pinIncorrect;
+    case ChallengeErrorCode.missingCredential:
+      return strings.pinEnter;
+    case ChallengeErrorCode.pinMismatch:
+      return strings.pinMismatch;
+    case ChallengeErrorCode.weakPin:
+      return strings.pinWeak;
+    case ChallengeErrorCode.invalidFormat:
+      return strings.pinInvalidFormat(length);
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * `pin` (spec/03 §4.17): one slot per digit, a numeric keypad, masked entry; submits when every slot
+ * is filled. A `credential_locked` descriptor replaces the keypad with an explanation: the PIN must be
+ * reset (on the web or by an administrator), so only cancel (or another way) is left.
+ */
+export function PinScreen(presentation: ChallengePresentationProps<'pin'>) {
+  const { challenge, isSubmitting, strings, submit } = presentation;
+  const { length } = challenge.params;
+  const [pin, setPin] = useState('');
+  if (isChallengeLocked(challenge)) {
+    return (
+      <ChallengeFrame
+        presentation={presentation as ChallengePresentationProps}
+        title={strings.pinLockedTitle}
+        errorText={strings.pinTooMany}
+      >
+        <Text style={styles.body} testID="kc-pin-locked">
+          {strings.pinLocked}
+        </Text>
+      </ChallengeFrame>
+    );
+  }
+  const digit = (d: string) => {
+    if (pin.length >= length) return;
+    const next = pin + d;
+    if (next.length === length) {
+      setPin('');
+      submit({ kind: 'pin', pin: next });
+    } else {
+      setPin(next);
+    }
+  };
+  return (
+    <ChallengeFrame
+      presentation={presentation as ChallengePresentationProps}
+      title={strings.pinTitle}
+      subtitle={strings.pinSubtitle(length)}
+      errorText={pinErrorText(challenge.error?.code, length, strings)}
+    >
+      <PinSlots length={length} filled={pin.length} strings={strings} />
+      <PinKeypad
+        enabled={!isSubmitting}
+        strings={strings}
+        onDigit={digit}
+        onDelete={() => setPin((p) => p.slice(0, -1))}
+      />
+    </ChallengeFrame>
+  );
+}
+
+/**
+ * `pin_setup` (spec/03 §4.18): the new PIN, then the same PIN again; a local mismatch starts over
+ * without a round trip. The server's `pin_mismatch`, `invalid_format` and `weak_pin` are shown above
+ * the slots.
+ */
+export function PinSetupScreen(
+  presentation: ChallengePresentationProps<'pin_setup'>
+) {
+  const { challenge, isSubmitting, strings, submit } = presentation;
+  const { length } = challenge.params;
+  const [pin, setPin] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [localMismatch, setLocalMismatch] = useState(false);
+  const digit = (d: string) => {
+    if (confirming) {
+      if (confirm.length >= length) return;
+      const second = confirm + d;
+      if (second.length < length) {
+        setConfirm(second);
+        return;
+      }
+      setPin('');
+      setConfirm('');
+      setConfirming(false);
+      if (second === pin) submit({ kind: 'pinSetup', pin, confirm: second });
+      else setLocalMismatch(true);
+    } else if (pin.length < length) {
+      const first = pin + d;
+      setPin(first);
+      if (first.length === length) {
+        setLocalMismatch(false);
+        setConfirming(true);
+      }
+    }
+  };
+  const remove = () => {
+    if (confirming && confirm.length === 0) {
+      setConfirming(false);
+      setPin('');
+    } else if (confirming) {
+      setConfirm((c) => c.slice(0, -1));
+    } else {
+      setPin((p) => p.slice(0, -1));
+    }
+  };
+  return (
+    <ChallengeFrame
+      presentation={presentation as ChallengePresentationProps}
+      title={confirming ? strings.pinConfirmTitle : strings.pinChooseTitle}
+      subtitle={
+        confirming
+          ? strings.pinConfirmSubtitle(length)
+          : strings.pinChooseSubtitle(length)
+      }
+      errorText={pinErrorText(challenge.error?.code, length, strings)}
+    >
+      {localMismatch && (
+        <Text
+          style={styles.error}
+          accessibilityRole="alert"
+          testID="kc-pin-mismatch"
+        >
+          {strings.pinMismatch}
+        </Text>
+      )}
+      <PinSlots
+        length={length}
+        filled={confirming ? confirm.length : pin.length}
+        strings={strings}
+      />
+      <PinKeypad
+        enabled={!isSubmitting}
+        strings={strings}
+        onDigit={digit}
+        onDelete={remove}
+      />
+      {challenge.skippable && (
+        <SecondaryButton
+          title={strings.notNow}
+          onPress={() => submit({ kind: 'skip' })}
+          disabled={isSubmitting}
+          testID="kc-skip"
+        />
+      )}
+    </ChallengeFrame>
+  );
+}
+
+/** One slot per digit; filled slots show a dot, never the digit. */
+export function PinSlots({
+  length,
+  filled,
+  strings,
+}: {
+  length: number;
+  filled: number;
+  strings: NativeLoginStrings;
+}) {
+  return (
+    <View
+      style={styles.pinSlots}
+      accessible
+      accessibilityLabel={strings.pinDigitsEntered(filled, length)}
+      testID="kc-pin-slots"
+    >
+      {Array.from({ length }, (_, index) => (
+        <View
+          key={index}
+          style={[styles.pinSlot, index < filled && styles.pinSlotFilled]}
+        />
+      ))}
+    </View>
+  );
+}
+
+const PIN_KEYS = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  [undefined, '0', 'delete'],
+] as const;
+
+/** A 3×4 numeric keypad (1–9, 0, delete): never the system keyboard, so no autofill or suggestions. */
+export function PinKeypad({
+  enabled,
+  strings,
+  onDigit,
+  onDelete,
+}: {
+  enabled: boolean;
+  strings: NativeLoginStrings;
+  onDigit(digit: string): void;
+  onDelete(): void;
+}) {
+  return (
+    <View style={styles.pinKeypad}>
+      {PIN_KEYS.map((row, r) => (
+        <View key={r} style={styles.pinRow}>
+          {row.map((key, k) =>
+            key === undefined ? (
+              <View key={k} style={styles.pinKeySpacer} />
+            ) : (
+              <Pressable
+                key={k}
+                accessibilityRole="button"
+                accessibilityLabel={key === 'delete' ? strings.delete : key}
+                accessibilityState={{ disabled: !enabled }}
+                disabled={!enabled}
+                onPress={() => (key === 'delete' ? onDelete() : onDigit(key))}
+                style={({ pressed }) => [
+                  styles.pinKey,
+                  !enabled && styles.buttonDisabled,
+                  pressed && styles.buttonPressed,
+                ]}
+                testID={
+                  key === 'delete' ? 'kc-pin-delete' : `kc-pin-key-${key}`
+                }
+              >
+                <Text style={styles.pinKeyText}>
+                  {key === 'delete' ? '⌫' : key}
+                </Text>
+              </Pressable>
+            )
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** Shown for `select` and unknown types: offer the alternatives or the web. */
 export function UnsupportedScreen(presentation: ChallengePresentationProps) {
   const { strings, challenge } = presentation;
@@ -987,6 +1241,8 @@ export function chooserTitle(
       return strings.useRecoveryCode;
     case 'push':
       return strings.approveOnPhone;
+    case 'pin':
+      return strings.usePin;
     default:
       return challenge.label ?? challenge.wireType;
   }
@@ -1110,4 +1366,31 @@ export const styles = StyleSheet.create({
   bigNumber: { fontSize: 44, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   termsText: { maxHeight: 220 },
+  pinSlots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  pinSlot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#6b7280',
+  },
+  pinSlotFilled: { backgroundColor: '#111827', borderColor: '#111827' },
+  pinKeypad: { alignItems: 'center', gap: 8 },
+  pinRow: { flexDirection: 'row', gap: 12 },
+  pinKey: {
+    width: 72,
+    height: 52,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#9ca3af',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinKeySpacer: { width: 72, height: 52 },
+  pinKeyText: { fontSize: 22, fontWeight: '500' },
 });
