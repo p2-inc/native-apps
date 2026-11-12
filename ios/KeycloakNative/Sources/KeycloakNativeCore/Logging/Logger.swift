@@ -40,7 +40,7 @@ public struct NoopLogger: NativeAuthLogger {
 }
 
 /// Masks secrets before anything reaches a log or the app's flow log: `auth_session`, codes, tokens,
-/// passwords, OTPs, WebAuthn assertion/attestation material, push enrolment / confirm / device
+/// passwords, OTPs, PINs, WebAuthn assertion/attestation material, push enrolment / confirm / device
 /// tokens (spec/05 §3.3, task rule "never log").
 public enum Redactor {
   public static let mask = "***"
@@ -56,6 +56,8 @@ public enum Redactor {
     // Push MFA (spec/03 §4.15, §7): the realm-signed enrolment token, the device-signed JWTs
     // (`token`, above), the APNs confirm token and the APNs device token.
     "enrollment_token", "confirmtoken", "confirm_token", "pushproviderid", "push_provider_id", "device_token",
+    // PIN extension (spec/03 §4.17, §4.18).
+    "pin", "pin_confirm",
   ]
 
   public static func isSensitive(_ key: String) -> Bool {

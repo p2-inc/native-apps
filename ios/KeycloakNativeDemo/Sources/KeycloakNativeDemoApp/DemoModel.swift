@@ -42,6 +42,9 @@ public final class DemoModel {
   public var newPasswordConfirm = ""
   public var verifyEmailCode = ""
   public var recoveryCode = ""
+  /// PIN extension (spec/03 §4.17, §4.18).
+  public var pin = ""
+  public var pinConfirm = ""
 
   private var sdks: [String: KeycloakNative] = [:]
 
@@ -105,6 +108,8 @@ public final class DemoModel {
     newPasswordConfirm = ""
     verifyEmailCode = ""
     recoveryCode = ""
+    pin = ""
+    pinConfirm = ""
     resourceResult = nil
     step = nil
     flow = nil

@@ -19,6 +19,8 @@ struct DefaultChallengeScreen: View {
     case .recoveryCode: RecoveryCodeScreen(presentation: presentation)
     case .push: PushScreen(presentation: presentation)
     case .pushEnrollment: PushEnrollmentScreen(presentation: presentation)
+    case .pin: PinScreen(presentation: presentation)
+    case .pinSetup: PinSetupScreen(presentation: presentation)
     case .select, .unknown: UnsupportedScreen(presentation: presentation)
     }
   }
@@ -29,6 +31,8 @@ struct ChallengeFrame<Content: View>: View {
   let presentation: ChallengePresentationContext
   let title: String
   let subtitle: String?
+  /// Replaces the descriptor's `error.message` (screens that localize known error codes).
+  var errorText: String? = nil
   @ViewBuilder let content: () -> Content
   @Environment(\.nativeLoginStrings) private var l
 
@@ -42,10 +46,11 @@ struct ChallengeFrame<Content: View>: View {
       }
       if let subtitle { Text(subtitle).font(.footnote).foregroundStyle(.secondary) }
       if let error = presentation.challenge.error {
-        Label(error.message ?? error.code, systemImage: "exclamationmark.triangle")
+        Label(errorText ?? error.message ?? error.code, systemImage: "exclamationmark.triangle")
           .font(.footnote).foregroundStyle(.red)
           .accessibilityIdentifier("challengeError")
-        if let remaining = presentation.challenge.retry?.remaining {
+        // A locked credential (spec/03 §4.17) has no attempts left to count.
+        if let remaining = presentation.challenge.retry?.remaining, !presentation.challenge.isLocked {
           // spec/03 §3.3: attempts left before the realm's brute-force protection locks the account.
           Text(remaining == 1 ? l("1 attempt left") : l("%lld attempts left", remaining)).font(.footnote).foregroundStyle(.secondary)
             .accessibilityIdentifier("retryRemaining")
@@ -404,6 +409,197 @@ struct TermsScreen: View {
   }
 }
 
+/// `pin` (spec/03 §4.17): one slot per digit, a numeric keypad, masked entry. Submits when every
+/// slot is filled. A `credential_locked` descriptor replaces the keypad with an explanation: the
+/// PIN must be reset (on the web or by an administrator), so only cancel (or another way) is left.
+struct PinScreen: View {
+  let presentation: ChallengePresentationContext
+  @State private var pin = ""
+  @Environment(\.nativeLoginStrings) private var l
+
+  var body: some View {
+    let challenge = presentation.challenge
+    let length = challenge.pinParams?.length ?? 4
+    if challenge.isLocked {
+      ChallengeFrame(presentation: presentation, title: l("PIN locked"), subtitle: nil, errorText: l("Too many incorrect PINs.")) {
+        Label(l("Your PIN is locked. Reset it on the web or ask your administrator, then sign in again."), systemImage: "lock.fill")
+          .font(.footnote)
+          .accessibilityIdentifier("pinLocked")
+      }
+    } else {
+      ChallengeFrame(presentation: presentation, title: l("Enter your PIN"), subtitle: l("Enter your %lld-digit PIN.", length), errorText: Self.errorText(challenge.error, l)) {
+        PinSlots(length: length, filled: pin.count)
+        PinKeypad(enabled: !presentation.isSubmitting) { digit in
+          guard pin.count < length else { return }
+          pin.append(digit)
+          if pin.count == length { submit() }
+        } onDelete: {
+          if !pin.isEmpty { pin.removeLast() }
+        }
+      }
+    }
+  }
+
+  private func submit() {
+    let value = pin
+    pin = ""
+    presentation.submit(.pin(value))
+  }
+
+  nonisolated static func errorText(_ error: ChallengeError?, _ l: NativeLoginStrings) -> String? {
+    switch error?.code {
+    case ChallengeError.Code.invalidCredential?: l("Incorrect PIN")
+    case ChallengeError.Code.missingCredential?: l("Enter your PIN.")
+    default: nil
+    }
+  }
+}
+
+/// `pin_setup` (spec/03 §4.18): the new PIN, then the same PIN again; a local mismatch starts over
+/// without a round trip. The server's `pin_mismatch`, `invalid_format` and `weak_pin` are shown
+/// above the slots.
+struct PinSetupScreen: View {
+  let presentation: ChallengePresentationContext
+  @State private var pin = ""
+  @State private var confirm = ""
+  @State private var confirming = false
+  @State private var localMismatch = false
+  @Environment(\.nativeLoginStrings) private var l
+
+  var body: some View {
+    let challenge = presentation.challenge
+    let length = challenge.pinSetupParams?.length ?? 4
+    let entered = confirming ? confirm : pin
+    ChallengeFrame(
+      presentation: presentation,
+      title: confirming ? l("Confirm your PIN") : l("Choose a PIN"),
+      subtitle: confirming ? l("Enter the same %lld digits again.", length) : l("Choose a %lld-digit PIN. Avoid easy sequences like 1234 or 1111.", length),
+      errorText: Self.errorText(challenge.error, length: length, l)
+    ) {
+      if localMismatch {
+        Text(l("The PINs do not match. Try again.")).font(.footnote).foregroundStyle(.red)
+          .accessibilityIdentifier("pinMismatch")
+      }
+      PinSlots(length: length, filled: entered.count)
+      PinKeypad(enabled: !presentation.isSubmitting) { digit in
+        if confirming {
+          guard confirm.count < length else { return }
+          confirm.append(digit)
+          if confirm.count == length { finish() }
+        } else {
+          guard pin.count < length else { return }
+          pin.append(digit)
+          if pin.count == length {
+            localMismatch = false
+            confirming = true
+          }
+        }
+      } onDelete: {
+        if confirming {
+          if confirm.isEmpty { confirming = false; pin = "" } else { confirm.removeLast() }
+        } else if !pin.isEmpty {
+          pin.removeLast()
+        }
+      }
+      if challenge.isSkippable {
+        Button(l("Not now")) { presentation.submit(.skip(challenge.type)) }
+          .disabled(presentation.isSubmitting)
+          .accessibilityIdentifier("skipChallenge")
+      }
+    }
+  }
+
+  private func finish() {
+    let (first, second) = (pin, confirm)
+    pin = ""
+    confirm = ""
+    confirming = false
+    guard first == second else {
+      localMismatch = true
+      return
+    }
+    presentation.submit(.pinSetup(pin: first, confirm: second))
+  }
+
+  nonisolated static func errorText(_ error: ChallengeError?, length: Int, _ l: NativeLoginStrings) -> String? {
+    switch error?.code {
+    case ChallengeError.Code.pinMismatch?: l("The PINs do not match. Try again.")
+    case ChallengeError.Code.weakPin?: l("This PIN is too easy to guess. Choose another one.")
+    case ChallengeError.Code.invalidFormat?: l("The PIN must be exactly %lld digits.", length)
+    case ChallengeError.Code.missingCredential?: l("Enter your PIN.")
+    default: nil
+    }
+  }
+}
+
+/// One slot per digit; filled slots show a dot, never the digit.
+struct PinSlots: View {
+  let length: Int
+  let filled: Int
+  @Environment(\.nativeLoginStrings) private var l
+
+  var body: some View {
+    HStack(spacing: 12) {
+      ForEach(0..<length, id: \.self) { index in
+        Circle()
+          .strokeBorder(Color.secondary, lineWidth: 1.5)
+          .background(Circle().fill(index < filled ? Color.primary : Color.clear))
+          .frame(width: 16, height: 16)
+      }
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 8)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(l("%lld of %lld digits entered", filled, length))
+    .accessibilityIdentifier("pinSlots")
+  }
+}
+
+/// A 3×4 numeric keypad (1–9, 0, delete): the same on every platform and never a system keyboard
+/// with autofill or suggestions.
+struct PinKeypad: View {
+  let enabled: Bool
+  let onDigit: (Character) -> Void
+  let onDelete: () -> Void
+  @Environment(\.nativeLoginStrings) private var l
+
+  private let rows: [[Character?]] = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], [nil, "0", "⌫"]]
+
+  var body: some View {
+    Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+      ForEach(rows.indices, id: \.self) { row in
+        GridRow {
+          ForEach(rows[row].indices, id: \.self) { column in
+            key(rows[row][column])
+          }
+        }
+      }
+    }
+    .frame(maxWidth: .infinity)
+    .disabled(!enabled)
+  }
+
+  @ViewBuilder private func key(_ value: Character?) -> some View {
+    switch value {
+    case nil:
+      Color.clear.frame(width: 64, height: 48)
+    case "⌫"?:
+      Button(action: onDelete) {
+        Image(systemName: "delete.left").frame(width: 64, height: 48)
+      }
+      .buttonStyle(.bordered)
+      .accessibilityLabel(l("Delete"))
+      .accessibilityIdentifier("pinDelete")
+    case let digit?:
+      Button { onDigit(digit) } label: {
+        Text(String(digit)).font(.title2.monospacedDigit()).frame(width: 64, height: 48)
+      }
+      .buttonStyle(.bordered)
+      .accessibilityIdentifier("pinKey-\(digit)")
+    }
+  }
+}
+
 struct UnsupportedScreen: View {
   let presentation: ChallengePresentationContext
   @Environment(\.nativeLoginStrings) private var l
@@ -442,6 +638,7 @@ struct DefaultChallengeChooser: View {
     case .otp: challenge.otpParams?.channel == "sms" ? l("Text me a code") : l("Email me a code")
     case .recoveryCode: l("Use a recovery code")
     case .push: l("Approve on your phone")
+    case .pin: l("Use your PIN")
     default: challenge.label ?? challenge.type.wire
     }
   }

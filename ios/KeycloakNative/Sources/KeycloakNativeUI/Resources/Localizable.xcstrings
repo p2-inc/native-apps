@@ -31,6 +31,16 @@
         }
       }
     },
+    "%lld of %lld digits entered": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld von %lld Ziffern eingegeben"
+          }
+        }
+      }
+    },
     "1 attempt left": {
       "localizations": {
         "de": {
@@ -111,6 +121,26 @@
         }
       }
     },
+    "Choose a %lld-digit PIN. Avoid easy sequences like 1234 or 1111.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie eine %lld-stellige PIN. Vermeiden Sie einfache Folgen wie 1234 oder 1111."
+          }
+        }
+      }
+    },
+    "Choose a PIN": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN festlegen"
+          }
+        }
+      }
+    },
     "Choose a new password": {
       "localizations": {
         "de": {
@@ -157,6 +187,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Neues Passwort bestätigen"
+          }
+        }
+      }
+    },
+    "Confirm your PIN": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN bestätigen"
           }
         }
       }
@@ -241,6 +281,16 @@
         }
       }
     },
+    "Delete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
+        }
+      }
+    },
     "Deny": {
       "localizations": {
         "de": {
@@ -321,6 +371,46 @@
         }
       }
     },
+    "Enter the same %lld digits again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geben Sie dieselben %lld Ziffern erneut ein."
+          }
+        }
+      }
+    },
+    "Enter your %lld-digit PIN.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geben Sie Ihre %lld-stellige PIN ein."
+          }
+        }
+      }
+    },
+    "Enter your PIN": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN eingeben"
+          }
+        }
+      }
+    },
+    "Enter your PIN.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geben Sie Ihre PIN ein."
+          }
+        }
+      }
+    },
     "Enter your password": {
       "localizations": {
         "de": {
@@ -337,6 +427,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Läuft ab %@"
+          }
+        }
+      }
+    },
+    "Incorrect PIN": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falsche PIN"
           }
         }
       }
@@ -377,6 +477,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Browser öffnen"
+          }
+        }
+      }
+    },
+    "PIN locked": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN gesperrt"
           }
         }
       }
@@ -631,6 +741,36 @@
         }
       }
     },
+    "The PIN must be exactly %lld digits.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die PIN muss genau %lld Ziffern haben."
+          }
+        }
+      }
+    },
+    "The PINs do not match. Try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die PINs stimmen nicht überein. Versuchen Sie es erneut."
+          }
+        }
+      }
+    },
+    "This PIN is too easy to guess. Choose another one.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese PIN ist zu leicht zu erraten. Wählen Sie eine andere."
+          }
+        }
+      }
+    },
     "This device": {
       "localizations": {
         "de": {
@@ -667,6 +807,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diese App-Version unterstützt die Anmeldemethode „%@“ nicht. Aktualisieren Sie die App oder melden Sie sich im Web an."
+          }
+        }
+      }
+    },
+    "Too many incorrect PINs.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu viele falsche PIN-Eingaben."
           }
         }
       }
@@ -757,6 +907,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Verwenden Sie den für dieses Konto registrierten Passkey."
+          }
+        }
+      }
+    },
+    "Use your PIN": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN verwenden"
           }
         }
       }
@@ -887,6 +1047,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ihre Wiederherstellungscodes gehen zur Neige; erzeugen Sie nach der Anmeldung neue."
+          }
+        }
+      }
+    },
+    "Your PIN is locked. Reset it on the web or ask your administrator, then sign in again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihre PIN ist gesperrt. Setzen Sie sie im Web zurück oder wenden Sie sich an Ihren Administrator und melden Sie sich dann erneut an."
           }
         }
       }

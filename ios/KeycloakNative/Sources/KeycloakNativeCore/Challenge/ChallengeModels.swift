@@ -17,6 +17,10 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
   case verifyEmail
   case terms
   case pushEnrollment
+  /// PIN extension (spec/03 §4.17, §4.18): the PIN factor and its set-PIN required action. Servers
+  /// advertise them only when the extension is installed.
+  case pin
+  case pinSetup
   case unknown(String)
 
   public init(wire: String) {
@@ -34,6 +38,8 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     case "verify_email": self = .verifyEmail
     case "terms": self = .terms
     case "push_enrollment": self = .pushEnrollment
+    case "pin": self = .pin
+    case "pin_setup": self = .pinSetup
     default: self = .unknown(wire)
     }
   }
@@ -53,6 +59,8 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     case .verifyEmail: "verify_email"
     case .terms: "terms"
     case .pushEnrollment: "push_enrollment"
+    case .pin: "pin"
+    case .pinSetup: "pin_setup"
     case .unknown(let value): value
     }
   }
@@ -61,7 +69,7 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
   /// §4.9) but no server-side authenticator emits it yet.
   public var isSupported: Bool {
     switch self {
-    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp, .push, .recoveryCode, .updatePassword, .verifyEmail, .terms, .pushEnrollment: true
+    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp, .push, .recoveryCode, .updatePassword, .verifyEmail, .terms, .pushEnrollment, .pin, .pinSetup: true
     default: false
     }
   }
@@ -70,7 +78,7 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
   /// `id` is the native required action's provider id.
   public var isRequiredAction: Bool {
     switch self {
-    case .passkeyRegistration, .updatePassword, .verifyEmail, .terms, .pushEnrollment: true
+    case .passkeyRegistration, .updatePassword, .verifyEmail, .terms, .pushEnrollment, .pinSetup: true
     default: false
     }
   }
@@ -97,6 +105,15 @@ public struct ChallengeError: Sendable, Equatable {
     public static let denied = "denied"
     /// `push`: the pending approval expired unanswered; `pushResend` may ask again.
     public static let expired = "expired"
+    /// `pin`: the PIN reached its attempt limit and must be reset (on the web or by an
+    /// administrator); every further attempt fails, `retry.remaining` is 0 (spec/03 §4.17).
+    public static let credentialLocked = "credential_locked"
+    /// `pin_setup`: `pin_confirm` differed (spec/03 §4.18).
+    public static let pinMismatch = "pin_mismatch"
+    /// `pin_setup`: not exactly `length` digits.
+    public static let invalidFormat = "invalid_format"
+    /// `pin_setup`: rejected as easy to guess (all the same digit, a simple run).
+    public static let weakPin = "weak_pin"
   }
 
   public let code: String
@@ -174,6 +191,38 @@ public struct Challenge: Sendable, Identifiable, Equatable {
   public var termsParams: TermsParams? { type == .terms ? TermsParams(json: params) : nil }
   public var pushParams: PushParams? { type == .push ? PushParams(json: params) : nil }
   public var pushEnrollmentParams: PushEnrollmentParams? { type == .pushEnrollment ? PushEnrollmentParams(json: params) : nil }
+  public var pinParams: PinParams? { type == .pin ? PinParams(json: params) : nil }
+  public var pinSetupParams: PinSetupParams? { type == .pinSetup ? PinSetupParams(json: params) : nil }
+
+  /// `pin` with `credential_locked` (spec/03 §4.17): the PIN cannot be used until it is reset;
+  /// another attempt always fails, so offer cancel (or another alternative) instead.
+  public var isLocked: Bool { error?.code == ChallengeError.Code.credentialLocked }
+}
+
+/// spec/03 §4.17 — the PIN factor.
+public struct PinParams: Sendable, Equatable {
+  /// The length of the user's stored PIN: show that many slots and a numeric keypad.
+  public let length: Int
+
+  public init(json: JSONValue) {
+    length = json["length"]?.intValue ?? 4
+  }
+}
+
+/// spec/03 §4.18 — set a PIN (required action).
+public struct PinSetupParams: Sendable, Equatable {
+  /// The PIN length the realm asks for.
+  public let length: Int
+
+  public init(json: JSONValue) {
+    length = json["length"]?.intValue ?? 4
+  }
+
+  /// Whether `pin` has the shape the server accepts (exactly `length` ASCII digits); the server
+  /// always validates (and also rejects weak PINs).
+  public func isWellFormed(_ pin: String) -> Bool {
+    pin.count == length && pin.allSatisfy { $0.isASCII && $0.isNumber }
+  }
 }
 
 /// spec/03 §4.7 — approve the sign-in on an enrolled device.
@@ -615,6 +664,10 @@ public enum ChallengeAnswer: Sendable, Equatable {
   case pushEnrollment(token: String)
   /// `push_enrollment`: `action=check` — the device enrolled through `/push-mfa/enroll/complete`.
   case pushEnrollmentCheck
+  /// `pin` (spec/03 §4.17): the user's PIN, sent as `pin`.
+  case pin(String)
+  /// `pin_setup` (spec/03 §4.18): the new PIN, sent as `pin` + `pin_confirm`.
+  case pinSetup(pin: String, confirm: String)
   /// `action=skip` (spec/03 §4.11): decline a required action whose challenge `isSkippable`
   /// ("Not now"); pass the challenge's type. The flow continues like after any answer.
   case skip(ChallengeType)
@@ -640,6 +693,8 @@ public enum ChallengeAnswer: Sendable, Equatable {
     case .recoveryCode: .recoveryCode
     case .pushResend, .pushPoll: .push
     case .pushEnrollment, .pushEnrollmentCheck: .pushEnrollment
+    case .pin: .pin
+    case .pinSetup: .pinSetup
     case .skip(let type): type
     case .custom(let type, _): type
     }
@@ -684,6 +739,10 @@ public enum ChallengeAnswer: Sendable, Equatable {
       return [("token", token)]
     case .pushEnrollmentCheck:
       return [("action", "check")]
+    case .pin(let pin):
+      return [("pin", pin)]
+    case .pinSetup(let pin, let confirm):
+      return [("pin", pin), ("pin_confirm", confirm)]
     case .skip:
       return [("action", "skip")]
     case .custom(_, let fields):
