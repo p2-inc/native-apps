@@ -240,7 +240,9 @@ describe('native required actions', () => {
  */
 describe('PIN', () => {
   it('signs in with the PIN after a wrong one', async () => {
-    const { start, results } = setup('PinIT.piaSignsInWithHerPinAfterAWrongOne');
+    const { start, results } = setup(
+      'PinIT.piaSignsInWithHerPinAfterAWrongOne'
+    );
     const c = await start();
     await signInWithPassword(c, 'pia');
     const pin = shown(c);

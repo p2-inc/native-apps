@@ -26,7 +26,12 @@ const DEFAULT_ISSUER =
   Platform.OS === 'android'
     ? 'http://10.0.2.2:8080/realms/demo'
     : 'http://localhost:8080/realms/demo';
-const CLIENTS = ['demo-native', 'demo-native-passkey', 'demo-native-otp', 'demo-native-pin'];
+const CLIENTS = [
+  'demo-native',
+  'demo-native-passkey',
+  'demo-native-otp',
+  'demo-native-pin',
+];
 
 type Screen = 'home' | 'login' | 'approvals';
 
