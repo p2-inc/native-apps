@@ -2,7 +2,7 @@
 
 [Index](README.md) · [Protocol](protocol-and-flows.md) · [iOS integration](ios-integration.md) · [Android integration](android-integration.md) · [Plan (spec/19)](../spec/19-react-native-plan.md)
 
-`@phasetwo.io/keycloak-native-react-native` (in [`react-native/keycloak-native-react-native/`](../react-native/keycloak-native-react-native/)) signs users in to Keycloak with your app's React Native screens instead of a browser. It is a New Architecture TurboModule over the iOS and Android SDKs: the native side runs the challenge protocol, keeps credentials in the Keychain or Android Keystore, holds the DPoP key in the Secure Enclave or Keystore and runs the passkey, saved-password, browser and push ceremonies; JavaScript gets the challenge loop as a typed model and default React screens that can be replaced one challenge type at a time. The module is below 1.0 and not yet on npm.
+`@p2-inc/keycloak-native-react-native` (in [`react-native/keycloak-native-react-native/`](../react-native/keycloak-native-react-native/)) signs users in to Keycloak with your app's React Native screens instead of a browser. It is a New Architecture TurboModule over the iOS and Android SDKs: the native side runs the challenge protocol, keeps credentials in the Keychain or Android Keystore, holds the DPoP key in the Secure Enclave or Keystore and runs the passkey, saved-password, browser and push ceremonies; JavaScript gets the challenge loop as a typed model and default React screens that can be replaced one challenge type at a time. The module is below 1.0 and not yet on npm.
 
 ## Requirements
 
@@ -50,7 +50,7 @@ The package ships a config plugin that does both platforms' setup during `npx ex
 {
   "expo": {
     "plugins": [
-      ["@phasetwo.io/keycloak-native-react-native", {
+      ["@p2-inc/keycloak-native-react-native", {
         "redirectUri": "demoapp://auth/callback",
         "associatedDomains": ["idp.example.com"]
       }]
@@ -66,7 +66,7 @@ It adds the `register` call to `MainActivity.onCreate`, declares `NativeAuthRedi
 Keep one instance per issuer and client for the life of the app, so credentials, the DPoP key, the metadata cache and refreshes stay consistent:
 
 ```ts
-import { KeycloakNative } from '@phasetwo.io/keycloak-native-react-native';
+import { KeycloakNative } from '@p2-inc/keycloak-native-react-native';
 
 export const kc = KeycloakNative.configure({
   issuer: 'https://idp.example.com/realms/demo', // including /realms/<realm>
@@ -79,7 +79,7 @@ Options: `dpop` (`automatic` by default: Secure Enclave or Keystore when availab
 ## Sign in with the default screens
 
 ```tsx
-import { NativeLoginScreen, type NativeLoginFlow } from '@phasetwo.io/keycloak-native-react-native';
+import { NativeLoginScreen, type NativeLoginFlow } from '@p2-inc/keycloak-native-react-native';
 
 function Login({ onSignedIn }: { onSignedIn(): void }) {
   const [flow, setFlow] = useState<NativeLoginFlow>();
