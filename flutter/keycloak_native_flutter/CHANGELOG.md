@@ -1,6 +1,6 @@
 ## 0.4.0-dev
 
-- Nothing yet.
+- PIN (spec/20): the `pin` and `pin_setup` challenge types (`PinChallenge`, `PinSetupChallenge`, `Challenge.isLocked`), the answers `ChallengeAnswer.pin` and `ChallengeAnswer.pinSetup`, the error codes `credential_locked`, `pin_mismatch`, `invalid_format` and `weak_pin`, and the default `PinScreen` and `PinSetupScreen` with a numeric keypad, in English and German.
 
 ## 0.3.0
 

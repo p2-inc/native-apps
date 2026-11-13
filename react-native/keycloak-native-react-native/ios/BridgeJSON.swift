@@ -99,6 +99,8 @@ enum BridgeJSON {
     case "pushResend": return .pushResend
     case "pushPoll": return .pushPoll
     case "pushEnrollmentCheck": return .pushEnrollmentCheck
+    case "pin": return .pin(try field("pin"))
+    case "pinSetup": return .pinSetup(pin: try field("pin"), confirm: try field("confirm"))
     case "skip": return .skip(type)
     case "custom":
       let fields = try (o["fields"]?.arrayValue ?? []).map { entry -> FormField in

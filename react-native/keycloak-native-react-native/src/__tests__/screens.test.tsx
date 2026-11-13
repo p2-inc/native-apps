@@ -268,6 +268,110 @@ describe('default screens', () => {
     expect(s.calls).toEqual([['useSavedPassword']]);
   });
 
+  it('pin: keypad entry submits when every slot is filled; known errors are localized', () => {
+    const s = render({
+      type: 'pin',
+      id: 'p',
+      error: { code: 'invalid_credential', message: 'Invalid PIN' },
+      retry: { remaining: 4 },
+      params: { length: 4 },
+    });
+    expect(s.text()).toEqual(
+      expect.arrayContaining([
+        'Enter your PIN',
+        'Enter your 4-digit PIN.',
+        'Incorrect PIN',
+        '4 attempts left',
+      ])
+    );
+    expect(s.text()).not.toContain('Invalid PIN');
+    const slots = () =>
+      s.tree.root.find((n) => n.props.testID === 'kc-pin-slots').props
+        .accessibilityLabel;
+    expect(slots()).toBe('0 of 4 digits entered');
+    act(() => s.byId('kc-pin-key-1').props.onPress());
+    act(() => s.byId('kc-pin-key-9').props.onPress());
+    act(() => s.byId('kc-pin-delete').props.onPress());
+    expect(slots()).toBe('1 of 4 digits entered');
+    expect(s.calls).toEqual([]);
+    for (const d of ['2', '3', '4'])
+      act(() => s.byId(`kc-pin-key-${d}`).props.onPress());
+    expect(s.calls).toEqual([['submit', { kind: 'pin', pin: '1234' }]]);
+    expect(slots()).toBe('0 of 4 digits entered');
+  });
+
+  it('pin: a locked PIN explains the reset and offers only cancel', () => {
+    const s = render({
+      type: 'pin',
+      id: 'p',
+      error: { code: 'credential_locked', message: 'PIN locked' },
+      retry: { remaining: 0 },
+      params: { length: 4 },
+    });
+    expect(s.text()).toEqual(
+      expect.arrayContaining(['PIN locked', 'Too many incorrect PINs.'])
+    );
+    expect(s.has('kc-pin-locked')).toBe(true);
+    expect(s.has('kc-pin-slots')).toBe(false);
+    expect(s.has('kc-pin-key-1')).toBe(false);
+    expect(s.has('kc-retry')).toBe(false);
+    act(() => s.byId('kc-cancel').props.onPress());
+    expect(s.calls).toEqual([['cancel']]);
+  });
+
+  it('pin_setup: enter, confirm; a local mismatch starts over without a round trip', () => {
+    const s = render({
+      type: 'pin_setup',
+      id: 'native-configure-pin',
+      error: { code: 'weak_pin', message: 'This PIN is too easy to guess.' },
+      params: { length: 4 },
+    });
+    expect(s.text()).toEqual(
+      expect.arrayContaining([
+        'Choose a PIN',
+        'This PIN is too easy to guess. Choose another one.',
+      ])
+    );
+    const type = (digits: string) => {
+      for (const d of digits)
+        act(() => s.byId(`kc-pin-key-${d}`).props.onPress());
+    };
+    type('2580');
+    expect(s.text()).toContain('Confirm your PIN');
+    type('2581');
+    expect(s.calls).toEqual([]);
+    expect(s.has('kc-pin-mismatch')).toBe(true);
+    expect(s.text()).toContain('Choose a PIN');
+    type('2580');
+    expect(s.has('kc-pin-mismatch')).toBe(false);
+    // Deleting past the start of the confirmation goes back to the first entry.
+    act(() => s.byId('kc-pin-delete').props.onPress());
+    expect(s.text()).toContain('Choose a PIN');
+    type('2580');
+    type('2580');
+    expect(s.calls).toEqual([
+      ['submit', { kind: 'pinSetup', pin: '2580', confirm: '2580' }],
+    ]);
+  });
+
+  it('pin_setup: a server error without a localized text shows the message; skippable offers Not now', () => {
+    const s = render({
+      type: 'pin_setup',
+      id: 'native-configure-pin',
+      skippable: true,
+      error: { code: 'x_policy', message: 'Not allowed here' },
+      params: { length: 6 },
+    });
+    expect(s.text()).toEqual(
+      expect.arrayContaining([
+        'Not allowed here',
+        'Choose a 6-digit PIN. Avoid easy sequences like 1234 or 1111.',
+      ])
+    );
+    act(() => s.byId('kc-skip').props.onPress());
+    expect(s.calls).toEqual([['submit', { kind: 'skip' }]]);
+  });
+
   it('unknown types get the update screen', () => {
     const s = render({ type: 'x_face_scan', id: 'x' });
     expect(s.text()).toContain(

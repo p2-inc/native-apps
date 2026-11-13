@@ -28,6 +28,7 @@
     <module>push-mfa-extension-java21</module>
     <module>native-auth-push</module>
     <module>native-auth-push-apns</module>
+    <module>native-auth-pin</module>
     <module>demo</module>
     <!-- Later: native-auth-events, conformance (see spec/04 §1). -->
   </modules>
@@ -39,6 +40,9 @@
     <keycloak.version>26.8.1</keycloak.version>
     <!-- ba-itsys push MFA (spec/01 §3, spec/14 D9): the dependency behind native-auth-push and the APNs sender. -->
     <push-mfa.version>2.3.7</push-mfa.version>
+    <!-- Phase Two's PIN extension (spec/20 D1): the dependency behind native-auth-pin, shipped in the providers
+         zip. -->
+    <keycloak-pin.version>0.1</keycloak-pin.version>
     <keycloak.image>quay.io/keycloak/keycloak:${keycloak.version}</keycloak.image>
 
     <maven.compiler.release>21</maven.compiler.release>
@@ -138,6 +142,18 @@
         <groupId>io.phasetwo.keycloak</groupId>
         <artifactId>native-auth-push-apns</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.phasetwo.keycloak</groupId>
+        <artifactId>native-auth-pin</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <!-- keycloak-pin is compiled against (provided); the demo module copies it into the providers zip. -->
+      <dependency>
+        <groupId>io.phasetwo.keycloak</groupId>
+        <artifactId>keycloak-pin</artifactId>
+        <version>${keycloak-pin.version}</version>
+        <scope>provided</scope>
       </dependency>
       <!-- ba-itsys push MFA: our modules compile against the Java 21 rebuild (push-mfa-extension-java21). -->
       <dependency>

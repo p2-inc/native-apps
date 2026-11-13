@@ -1,6 +1,9 @@
 import {
   ChallengeTypes,
   NativeAuthError,
+  answerChallengeType,
+  isChallengeLocked,
+  isWellFormedPin,
   millisUntil,
   parseChallenge,
   parseCredentials,
@@ -93,6 +96,45 @@ describe('parseChallenge', () => {
         { id: 'c2', label: '' },
       ],
     });
+  });
+
+  it('types pin and pin_setup params; pin_setup is a required action', () => {
+    const pin = challenge('pin', {
+      type: 'pin',
+      id: 'e',
+      params: { length: 6 },
+    });
+    expect(pin.params).toEqual({ length: 6 });
+    expect(pin.supported).toBe(true);
+    expect(pin.requiredAction).toBe(false);
+    expect(isChallengeLocked(pin)).toBe(false);
+    expect(challenge('pin', { type: 'pin', id: 'e' }).params.length).toBe(4);
+
+    const setup = challenge('pin_setup', {
+      type: 'pin_setup',
+      id: 'native-configure-pin',
+      params: { length: 4 },
+    });
+    expect(setup.requiredAction).toBe(true);
+    expect(isWellFormedPin(setup.params, '2580')).toBe(true);
+    expect(isWellFormedPin(setup.params, '258')).toBe(false);
+    expect(isWellFormedPin(setup.params, '25800')).toBe(false);
+    expect(isWellFormedPin(setup.params, '25a0')).toBe(false);
+    expect(isWellFormedPin(setup.params, '２５８０')).toBe(false);
+    expect(answerChallengeType.pin).toBe('pin');
+    expect(answerChallengeType.pinSetup).toBe('pin_setup');
+  });
+
+  it('a credential_locked pin is locked', () => {
+    const locked = challenge('pin', {
+      type: 'pin',
+      id: 'e',
+      error: { code: 'credential_locked', message: 'PIN locked' },
+      retry: { remaining: 0 },
+      params: { length: 4 },
+    });
+    expect(isChallengeLocked(locked)).toBe(true);
+    expect(locked.retry).toEqual({ remaining: 0 });
   });
 
   it('types otp params with instants in milliseconds', () => {
@@ -269,6 +311,8 @@ const MODELED_PARAMS: Record<string, string[]> = {
   ],
   recovery_code: ['remaining', 'warning_threshold'],
   update_password: ['username', 'policy'],
+  pin: ['length'],
+  pin_setup: ['length'],
   verify_email: ['email_masked', 'digits', 'ttl', 'sent', 'resend_allowed_at'],
   terms: ['text', 'url', 'version'],
   push: [

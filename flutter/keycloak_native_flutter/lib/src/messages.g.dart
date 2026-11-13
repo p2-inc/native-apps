@@ -137,6 +137,8 @@ enum AnswerKind {
   pushResend,
   pushPoll,
   pushEnrollmentCheck,
+  pin,
+  pinSetup,
   skip,
   custom;
 }
@@ -704,10 +706,10 @@ class AnswerMessage {
   AnswerKind kind;
 
   /// The single value of `username`, `password`, `totp`, `otp`, `verifyEmail` (code),
-  /// `recoveryCode`, and the new password of `updatePassword`.
+  /// `recoveryCode`, `pin`, and the new password of `updatePassword` or PIN of `pinSetup`.
   String? value;
 
-  /// `updatePassword`: the confirmation.
+  /// `updatePassword` and `pinSetup`: the confirmation.
   String? confirm;
 
   /// `totp`: the chosen authenticator.

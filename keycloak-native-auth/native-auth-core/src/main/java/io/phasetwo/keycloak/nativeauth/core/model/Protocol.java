@@ -76,6 +76,9 @@ public final class Protocol {
   public static final String ACCEPTED = "accepted";
   // push_enrollment (spec/03 §4.15): the device-signed enrolment JWT
   public static final String TOKEN = "token";
+  // pin (spec/03 §4.17) and pin_setup (§4.18)
+  public static final String PIN = "pin";
+  public static final String PIN_CONFIRM = "pin_confirm";
   // redirect_to_web (spec/03 §3.4) and step-up (§5, §6)
   public static final String REQUEST_URI = "request_uri";
   public static final String REDIRECT_URI = "redirect_uri";
@@ -115,6 +118,14 @@ public final class Protocol {
   public static final String DESC_ERR_DENIED = "denied";
   /** {@code push}: the challenge expired unanswered (spec/03 §4.7). */
   public static final String DESC_ERR_EXPIRED = "expired";
+  /** {@code pin}: the PIN reached its attempt limit and must be reset (spec/03 §4.17). */
+  public static final String DESC_ERR_CREDENTIAL_LOCKED = "credential_locked";
+  /** {@code pin_setup}: {@code pin_confirm} differs (spec/03 §4.18). */
+  public static final String DESC_ERR_PIN_MISMATCH = "pin_mismatch";
+  /** {@code pin_setup}: not exactly {@code length} digits (spec/03 §4.18). */
+  public static final String DESC_ERR_INVALID_FORMAT = "invalid_format";
+  /** {@code pin_setup}: rejected as easy to guess (spec/03 §4.18). */
+  public static final String DESC_ERR_WEAK_PIN = "weak_pin";
 
   // ---- Keycloak client / realm attributes ----
   public static final String CLIENT_ATTR_ENABLED = "native-auth.enabled";

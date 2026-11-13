@@ -445,6 +445,8 @@ internal fun AnswerMessage.toSdk(): ChallengeAnswer {
     AnswerKind.PUSH_RESEND -> ChallengeAnswer.PushResend
     AnswerKind.PUSH_POLL -> ChallengeAnswer.PushPoll
     AnswerKind.PUSH_ENROLLMENT_CHECK -> ChallengeAnswer.PushEnrollmentCheck
+    AnswerKind.PIN -> ChallengeAnswer.Pin(required("value", value))
+    AnswerKind.PIN_SETUP -> ChallengeAnswer.PinSetup(required("value", value), required("confirm", confirm))
     AnswerKind.SKIP -> ChallengeAnswer.Skip(ChallengeType.fromWire(required("type", type)))
     AnswerKind.CUSTOM -> ChallengeAnswer.Custom(ChallengeType.fromWire(required("type", type)), fields.orEmpty().map { FormField(it.name, it.value) })
   }

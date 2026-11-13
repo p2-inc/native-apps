@@ -23,6 +23,8 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
   case hankTerms
   case ivyRecoveryCode
   case judyPushEnrol
+  case piaPin
+  case petePinSetup
 
   public var id: String { rawValue }
 
@@ -48,6 +50,8 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .hankTerms: "Accept terms and conditions (hank)"
     case .ivyRecoveryCode: "Recovery code instead of TOTP (ivy)"
     case .judyPushEnrol: "Enrol for push mid-flow (judy)"
+    case .piaPin: "PIN as the second factor (pia)"
+    case .petePinSetup: "Set a PIN on first login (pete)"
     }
   }
 
@@ -93,17 +97,22 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
       "judy / judy-password carries ba-itsys' push-mfa-register required action; native-push-enroll serves it in-band (spec/03 §4.15): after the password the app enrols this device with its DPoP key (token=<device JWT>) and the login completes. The next login of judy asks for push (sent at once, single option). Reset with docker compose down -v."
     case .ivyRecoveryCode:
       "ivy / ivy-password has TOTP and three recovery codes: the second factor offers [totp, recovery_code] (spec/03 §4.8). Codes IVY1-IVY1-IVY1, IVY2-IVY2-IVY2, IVY3-IVY3-IVY3 are single use and consumed in order; after the last one Keycloak requires new codes (redirect to web). Reset with docker compose down -v."
+    case .piaPin:
+      "Client demo-native-pin (flow native-pin, spec/03 §4.17). pia / pia-password, then her PIN 2580. The PIN allows 3 wrong attempts; the third locks it (credential_locked) until it is reset: delete it on pia's Credentials tab in the admin console, or docker compose down -v."
+    case .petePinSetup:
+      "Client demo-native-pin. pete / pete-password carries keycloak-pin's Configure PIN action; native-configure-pin serves it in-band (spec/03 §4.18): choose a 4-digit PIN and confirm it (1111 or 1234 are refused as weak). His next login asks for the PIN. Reset with docker compose down -v."
     }
   }
 
   /// Which SDK client the scenario uses.
-  public enum ClientRole: Sendable { case standard, passkey, stepUp, otp }
+  public enum ClientRole: Sendable { case standard, passkey, stepUp, otp, pin }
 
   public var client: ClientRole {
     switch self {
     case .s2DiscoverablePasskey: .passkey
     case .s4EmailOtp, .s5DefaultUI, .s13CustomPresenter: .otp
     case .s6StepUp: .stepUp
+    case .piaPin, .petePinSetup: .pin
     default: .standard
     }
   }
@@ -126,6 +135,8 @@ public enum Scenario: String, CaseIterable, Identifiable, Sendable {
     case .hankTerms: "hank"
     case .ivyRecoveryCode: "ivy"
     case .judyPushEnrol: "judy"
+    case .piaPin: "pia"
+    case .petePinSetup: "pete"
     case .s2DiscoverablePasskey: nil
     }
   }

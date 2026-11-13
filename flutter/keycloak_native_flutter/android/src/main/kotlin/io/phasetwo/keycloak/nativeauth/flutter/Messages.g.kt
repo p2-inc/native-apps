@@ -245,8 +245,10 @@ enum class AnswerKind(val raw: Int) {
   PUSH_RESEND(10),
   PUSH_POLL(11),
   PUSH_ENROLLMENT_CHECK(12),
-  SKIP(13),
-  CUSTOM(14);
+  PIN(13),
+  PIN_SETUP(14),
+  SKIP(15),
+  CUSTOM(16);
 
   companion object {
     fun ofRaw(raw: Int): AnswerKind? {
@@ -718,10 +720,10 @@ data class AnswerMessage (
   val kind: AnswerKind,
   /**
    * The single value of `username`, `password`, `totp`, `otp`, `verifyEmail` (code),
-   * `recoveryCode`, and the new password of `updatePassword`.
+   * `recoveryCode`, `pin`, and the new password of `updatePassword` or PIN of `pinSetup`.
    */
   val value: String? = null,
-  /** `updatePassword`: the confirmation. */
+  /** `updatePassword` and `pinSetup`: the confirmation. */
   val confirm: String? = null,
   /** `totp`: the chosen authenticator. */
   val credentialId: String? = null,

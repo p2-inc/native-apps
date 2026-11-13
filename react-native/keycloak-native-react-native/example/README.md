@@ -1,6 +1,6 @@
 # Example app
 
-A React Native app that signs in to the demo realm of `keycloak-native-auth/demo` with the module's default screens (clients `demo-native`, `demo-native-passkey` with the passkey prompt shown at once, and `demo-native-otp`), then shows the token, refreshes it, builds resource request headers, steps up, registers a passkey, enrolls the device for push and answers sign-in requests, and logs out.
+A React Native app that signs in to the demo realm of `keycloak-native-auth/demo` with the module's default screens (clients `demo-native`, `demo-native-passkey` with the passkey prompt shown at once, `demo-native-otp`, and `demo-native-pin` for PIN codes), then shows the token, refreshes it, builds resource request headers, steps up, registers a passkey, enrolls the device for push and answers sign-in requests, and logs out.
 
 Start the compose stack (`cd keycloak-native-auth/demo && docker compose up --wait`, after `mvn -f ../pom.xml -DskipTests -DskipITs package`), then from `react-native/keycloak-native-react-native`: `yarn example start` and `yarn example android` or `yarn example ios`. The issuer defaults to `http://10.0.2.2:8080/realms/demo` on the Android emulator and `http://localhost:8080/realms/demo` on the iOS simulator. Passkeys need a public hostname with AASA / `assetlinks.json` (see docs/sample-app.md); push needs a signed-in user with DPoP-bound tokens and works without FCM or APNs, since the approvals list reads the pending requests itself.
 

@@ -20,6 +20,12 @@ public enum ChallengeType {
   TERMS("terms"),
   /** Push-MFA enrolment mid-flow (spec/03 §4.15). */
   PUSH_ENROLLMENT("push_enrollment"),
+  /**
+   * PIN extension (spec/03 §4.17, §4.18, spec/20): the PIN factor and its set-PIN required action.
+   * Advertised only when {@code native-auth-pin} is installed.
+   */
+  PIN("pin"),
+  PIN_SETUP("pin_setup"),
   REDIRECT_TO_WEB("redirect_to_web");
 
   private final String wire;

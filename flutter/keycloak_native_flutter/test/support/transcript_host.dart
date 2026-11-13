@@ -40,6 +40,8 @@ List<(String, String)> nativeFormFields(AnswerMessage answer) => switch (answer.
   AnswerKind.recoveryCode => [('recovery_code', answer.value!)],
   AnswerKind.pushPoll => [('action', 'poll')],
   AnswerKind.pushEnrollmentCheck => [('action', 'check')],
+  AnswerKind.pin => [('pin', answer.value!)],
+  AnswerKind.pinSetup => [('pin', answer.value!), ('pin_confirm', answer.confirm!)],
   AnswerKind.skip => [('action', 'skip')],
   AnswerKind.custom => [for (final f in answer.fields ?? <FormFieldMessage>[]) (f.name, f.value)],
 };

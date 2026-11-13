@@ -36,6 +36,18 @@ class _Login {
     }
   }
 
+  /// Types [digits] on the PIN keypad; with [last] the final key is the one that finishes the login.
+  Future<void> pin(String digits, {bool last = false}) async {
+    for (var i = 0; i < digits.length; i++) {
+      final key = find.byKey(ValueKey('pinKey-${digits[i]}'));
+      if (last && i == digits.length - 1) {
+        await tapLast(key);
+      } else {
+        await tap(key);
+      }
+    }
+  }
+
   Future<void> signIn(String username) async {
     await type('username', username);
     await tapText('Continue');
@@ -234,6 +246,69 @@ void main() {
     await login.tapLast(find.text('Verify'));
     expect(login.results.single, isA<NativeLoginAuthorized>());
     expect(login.host.savedPasswords, [('alice', 'secret')]);
+  });
+
+  // PinIT's recordings on demo-native-pin.
+  testWidgets('pin: a wrong PIN shows the localized error and the attempts left, the next one signs in', (tester) async {
+    final login = await _pump(tester, 'PinIT.piaSignsInWithHerPinAfterAWrongOne', clientId: 'demo-native-pin');
+    await login.signIn('pia');
+    expect(find.text('Enter your PIN'), findsOneWidget);
+    expect(find.bySemanticsLabel('0 of 4 digits entered'), findsOneWidget);
+    await login.pin('19');
+    await login.tapKey('pinDelete');
+    expect(find.bySemanticsLabel('1 of 4 digits entered'), findsOneWidget);
+    await login.pin('000');
+    expect(find.text('Incorrect PIN'), findsOneWidget);
+    expect(find.text('Invalid PIN'), findsNothing);
+    expect(find.text('2 attempts left'), findsOneWidget);
+    expect(find.bySemanticsLabel('0 of 4 digits entered'), findsOneWidget);
+    await login.pin('2580', last: true);
+    expect(login.results.single, isA<NativeLoginAuthorized>());
+  });
+
+  testWidgets('pin: a locked PIN explains the reset and leaves only cancel', (tester) async {
+    final login = await _pump(tester, 'PinIT.aLockedPinCanOnlyBeCancelled', clientId: 'demo-native-pin');
+    await login.signIn('rita');
+    await login.pin('0001');
+    expect(find.text('2 attempts left'), findsOneWidget);
+    await login.pin('0002');
+    expect(find.text('1 attempt left'), findsOneWidget);
+    await login.pin('0009');
+    expect(find.text('PIN locked'), findsOneWidget);
+    expect(find.text('Too many incorrect PINs.'), findsOneWidget);
+    expect(find.byKey(const ValueKey('pinLocked')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pinKey-1')), findsNothing);
+    expect(find.byKey(const ValueKey('retryRemaining')), findsNothing);
+    await login.tapLast(find.text('Cancel'));
+    expect(login.results.single, isA<NativeLoginCancelled>());
+  });
+
+  testWidgets('pin_setup: a local mismatch starts over; server errors are localized until a PIN is accepted', (tester) async {
+    final login = await _pump(tester, 'PinIT.peteSetsAPinInBand', clientId: 'demo-native-pin');
+    await login.signIn('pete');
+    expect(find.text('Choose a PIN'), findsOneWidget);
+    // A local mismatch never reaches the server.
+    await login.pin('1111');
+    expect(find.text('Confirm your PIN'), findsOneWidget);
+    await login.pin('2222');
+    expect(find.byKey(const ValueKey('pinMismatch')), findsOneWidget);
+    expect(find.text('Choose a PIN'), findsOneWidget);
+    // Deleting past the start of the confirmation goes back to the first entry.
+    await login.pin('1111');
+    await login.tapKey('pinDelete');
+    expect(find.text('Choose a PIN'), findsOneWidget);
+    // The recording masks the PINs, so its server answers come back in order: missing_credential,
+    // pin_mismatch, weak_pin, invalid_format, then success. Each is shown in the screen's own words.
+    await login.pin('25802580');
+    expect(find.text('Enter your PIN.'), findsOneWidget);
+    await login.pin('25802580');
+    expect(find.text('The PINs do not match. Try again.'), findsOneWidget);
+    await login.pin('12341234');
+    expect(find.text('This PIN is too easy to guess. Choose another one.'), findsOneWidget);
+    await login.pin('25802580');
+    expect(find.text('The PIN must be exactly 4 digits.'), findsOneWidget);
+    await login.pin('25802580', last: true);
+    expect(login.results.single, isA<NativeLoginAuthorized>());
   });
 
   testWidgets('German texts for a German locale', (tester) async {

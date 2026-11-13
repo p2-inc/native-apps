@@ -165,6 +165,22 @@ struct LoginView: View {
       Button("Enrol this device") { Task { await model.enrolPushInFlow(challenge) } }
         .disabled(model.isBusy)
         .accessibilityIdentifier("pushEnrolInFlow")
+    case .pin:
+      let length = challenge.pinParams?.length ?? 4
+      if challenge.isLocked {
+        Text("The PIN is locked (spec/03 §4.17): reset it on the web or ask an administrator, then cancel.").font(.footnote).foregroundStyle(.orange)
+      } else {
+        SecureField("\(length)-digit PIN", text: $model.pin).accessibilityIdentifier("pin")
+        Button("Sign in with PIN") { Task { await model.answer(.pin(model.pin), to: challenge) } }
+          .disabled(model.isBusy || model.pin.count != length)
+      }
+    case .pinSetup:
+      let length = challenge.pinSetupParams?.length ?? 4
+      Text("Set a \(length)-digit PIN, served in-band by \(challenge.id) (spec/03 §4.18).").font(.footnote).foregroundStyle(.secondary)
+      SecureField("New PIN", text: $model.pin).accessibilityIdentifier("newPin")
+      SecureField("Confirm PIN", text: $model.pinConfirm).accessibilityIdentifier("newPinConfirm")
+      Button("Set PIN") { Task { await model.answer(.pinSetup(pin: model.pin, confirm: model.pinConfirm), to: challenge) } }
+        .disabled(model.isBusy || model.pin.isEmpty)
     case .select, .unknown:
       Text("Unsupported challenge type '\(challenge.type.wire)' in this app version: update the app or use the web.")
         .foregroundStyle(.orange)

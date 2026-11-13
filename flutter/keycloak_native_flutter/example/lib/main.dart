@@ -19,6 +19,7 @@ const Map<String, String> clients = {
   'demo-native-passkey': 'Passkey first (S2)',
   'demo-native-otp': 'Email code (S4, S5)',
   'demo-native-stepup': 'Step-up (S6)',
+  'demo-native-pin': 'PIN (pia has one, pete sets one)',
 };
 
 void main() => runApp(const ExampleApp());

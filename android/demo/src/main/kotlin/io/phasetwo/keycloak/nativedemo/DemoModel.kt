@@ -42,6 +42,7 @@ enum class DemoClient(val title: String, val description: String) {
   PASSKEY("Passkey first (S2)", "A discoverable passkey, or username and password. Needs an https RP ID (README)."),
   STEP_UP("Step-up (S6)", "Password for acr 1; Home → Transfer asks for acr 2 (TOTP)."),
   OTP("Email code (S4)", "bob / bob-password gets an email code; read it in mailpit on the host (http://localhost:8025)."),
+  PIN("PIN", "pia / pia-password, then her PIN 2580; pete / pete-password sets a PIN on his first login."),
 }
 
 enum class DemoTab { LOGIN, HOME, PUSH, DIAGNOSTICS }
@@ -95,6 +96,7 @@ class DemoModel(
     DemoClient.PASSKEY -> config.passkeyClientId
     DemoClient.STEP_UP -> config.stepUpClientId
     DemoClient.OTP -> config.otpClientId
+    DemoClient.PIN -> config.pinClientId
   }
 
   @Synchronized

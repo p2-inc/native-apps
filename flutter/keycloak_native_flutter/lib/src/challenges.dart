@@ -27,9 +27,14 @@ final class ChallengeType {
   static const terms = ChallengeType._('terms');
   static const pushEnrollment = ChallengeType._('push_enrollment');
 
+  // PIN extension (spec/03 §4.17, §4.18): the PIN factor and its set-PIN required action. Servers
+  // advertise them only when the extension is installed.
+  static const pin = ChallengeType._('pin');
+  static const pinSetup = ChallengeType._('pin_setup');
+
   static const List<ChallengeType> known = [
     username, password, passkey, passkeyRegistration, totp, otp, push, recoveryCode, select, //
-    updatePassword, verifyEmail, terms, pushEnrollment,
+    updatePassword, verifyEmail, terms, pushEnrollment, pin, pinSetup,
   ];
 
   static ChallengeType fromWire(String wire) =>
@@ -44,7 +49,12 @@ final class ChallengeType {
   /// A required action served in-band (spec/03 §4.11): the single entry of its set, whose `id` is
   /// the native required action's provider id.
   bool get isRequiredAction =>
-      this == passkeyRegistration || this == updatePassword || this == verifyEmail || this == terms || this == pushEnrollment;
+      this == passkeyRegistration ||
+      this == updatePassword ||
+      this == verifyEmail ||
+      this == terms ||
+      this == pushEnrollment ||
+      this == pinSetup;
 
   @override
   bool operator ==(Object other) => other is ChallengeType && other.wire == wire;
@@ -76,6 +86,19 @@ final class ChallengeError {
   static const invalidPassword = 'invalid_password';
   static const denied = 'denied';
   static const expired = 'expired';
+
+  /// `pin`: the PIN reached its attempt limit and must be reset (on the web or by an administrator);
+  /// every further attempt fails, `retryRemaining` is 0 (spec/03 §4.17).
+  static const credentialLocked = 'credential_locked';
+
+  /// `pin_setup`: `pin_confirm` differed (spec/03 §4.18).
+  static const pinMismatch = 'pin_mismatch';
+
+  /// `pin_setup`: not exactly `length` digits.
+  static const invalidFormat = 'invalid_format';
+
+  /// `pin_setup`: rejected as easy to guess (all the same digit, a simple run).
+  static const weakPin = 'weak_pin';
 
   @override
   bool operator ==(Object other) => other is ChallengeError && other.code == code && other.message == message;
@@ -135,6 +158,10 @@ sealed class Challenge {
   bool get isSkippable => descriptor.isSkippable;
   Map<String, Object?> get params => descriptor.params;
 
+  /// `pin` with `credential_locked` (spec/03 §4.17): the PIN cannot be used until it is reset;
+  /// another attempt always fails, so offer cancel (or another alternative) instead.
+  bool get isLocked => error?.code == ChallengeError.credentialLocked;
+
   /// The typed subclass for [descriptor.type]; [UnknownChallenge] for types this version cannot name.
   factory Challenge.fromDescriptor(ChallengeDescriptor descriptor) {
     final type = descriptor.type;
@@ -150,6 +177,8 @@ sealed class Challenge {
     if (type == ChallengeType.updatePassword) return UpdatePasswordChallenge(descriptor);
     if (type == ChallengeType.verifyEmail) return VerifyEmailChallenge(descriptor);
     if (type == ChallengeType.terms) return TermsChallenge(descriptor);
+    if (type == ChallengeType.pin) return PinChallenge(descriptor);
+    if (type == ChallengeType.pinSetup) return PinSetupChallenge(descriptor);
     return UnknownChallenge(descriptor);
   }
 
@@ -321,6 +350,26 @@ final class TermsChallenge extends Challenge {
     null => null,
   };
   String? get version => _string(params['version']);
+}
+
+/// spec/03 §4.17: the PIN factor (PIN extension).
+final class PinChallenge extends Challenge {
+  PinChallenge(super.descriptor);
+
+  /// The length of the user's stored PIN: show that many slots and a numeric keypad.
+  int get length => _int(params['length']) ?? 4;
+}
+
+/// spec/03 §4.18: set a PIN (required action of the PIN extension).
+final class PinSetupChallenge extends Challenge {
+  PinSetupChallenge(super.descriptor);
+
+  /// The PIN length the realm asks for.
+  int get length => _int(params['length']) ?? 4;
+
+  /// Whether [pin] has the shape the server accepts (exactly [length] ASCII digits); the server
+  /// always validates (and also rejects weak PINs).
+  bool isWellFormed(String pin) => pin.length == length && RegExp(r'^[0-9]*$').hasMatch(pin);
 }
 
 /// A type this version cannot answer (or `select`, which no server emits yet). Answer it with

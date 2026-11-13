@@ -28,17 +28,22 @@ class DefaultChallengeScreen extends StatelessWidget {
     RecoveryCodeChallenge() => RecoveryCodeScreen(presentation: presentation),
     PushChallenge() => PushScreen(presentation: presentation),
     PushEnrollmentChallenge() => PushEnrollmentScreen(presentation: presentation),
+    PinChallenge() => PinScreen(presentation: presentation),
+    PinSetupChallenge() => PinSetupScreen(presentation: presentation),
     UnknownChallenge() => UnsupportedScreen(presentation: presentation),
   };
 }
 
 /// Shared frame: title, context line, the descriptor's error, the content, a cancel button.
 class ChallengeFrame extends StatelessWidget {
-  const ChallengeFrame({super.key, required this.presentation, required this.title, this.subtitle, required this.children});
+  const ChallengeFrame({super.key, required this.presentation, required this.title, this.subtitle, this.errorText, required this.children});
 
   final ChallengePresentation presentation;
   final String title;
   final String? subtitle;
+
+  /// Replaces the descriptor's `error.message` (screens that localize known error codes).
+  final String? errorText;
   final List<Widget> children;
 
   @override
@@ -62,9 +67,14 @@ class ChallengeFrame extends StatelessWidget {
           ),
         if (subtitle case final subtitle?) Text(subtitle, style: muted),
         if (error != null) ...[
-          Text(error.message ?? error.code, key: const ValueKey('challengeError'), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+          Text(
+            errorText ?? error.message ?? error.code,
+            key: const ValueKey('challengeError'),
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+          ),
           // spec/03 §3.3: attempts left before the realm's brute-force protection locks the account.
-          if (presentation.challenge.retryRemaining case final remaining?)
+          // A locked credential (spec/03 §4.17) has none left to count.
+          if (presentation.challenge.retryRemaining case final remaining? when !presentation.challenge.isLocked)
             Text(strings.attemptsLeft(remaining), key: const ValueKey('retryRemaining'), style: theme.textTheme.bodySmall),
         ],
         if (presentation.message case final message?)
@@ -837,6 +847,240 @@ class UnsupportedScreen extends StatelessWidget {
     subtitle: presentation.strings.unsupported(presentation.challenge.type.wire),
     children: const [],
   );
+}
+
+/// The localized text for a `pin` / `pin_setup` error code, else `null` (the server's message is shown).
+String? _pinErrorText(String? code, int length, NativeLoginStrings strings) => switch (code) {
+  ChallengeError.invalidCredential => strings.pinIncorrect,
+  ChallengeError.missingCredential => strings.pinEnter,
+  ChallengeError.pinMismatch => strings.pinMismatch,
+  ChallengeError.weakPin => strings.pinWeak,
+  ChallengeError.invalidFormat => strings.pinInvalidFormat(length),
+  _ => null,
+};
+
+/// `pin` (spec/03 §4.17): one slot per digit, a numeric keypad, masked entry; submits when every slot
+/// is filled. A `credential_locked` descriptor replaces the keypad with an explanation: the PIN must
+/// be reset (on the web or by an administrator), so only cancel (or another way) is left.
+class PinScreen extends StatefulWidget {
+  const PinScreen({super.key, required this.presentation});
+
+  final ChallengePresentation presentation;
+
+  @override
+  State<PinScreen> createState() => _PinScreenState();
+}
+
+class _PinScreenState extends State<PinScreen> {
+  // Never a TextEditingController: the PIN stays out of the text input and autofill system.
+  String _pin = '';
+
+  void _digit(String digit, int length) {
+    if (_pin.length >= length) return;
+    final next = _pin + digit;
+    setState(() => _pin = next.length == length ? '' : next);
+    if (next.length == length) widget.presentation.submit(ChallengeAnswer.pin(next));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.presentation;
+    final c = p.challenge as PinChallenge;
+    final s = p.strings;
+    if (c.isLocked) {
+      return ChallengeFrame(
+        presentation: p,
+        title: s.pinLockedTitle,
+        errorText: s.pinTooMany,
+        children: [Text(s.pinLocked, key: const ValueKey('pinLocked'), style: Theme.of(context).textTheme.bodyMedium)],
+      );
+    }
+    return ChallengeFrame(
+      presentation: p,
+      title: s.pinTitle,
+      subtitle: s.pinSubtitle(c.length),
+      errorText: _pinErrorText(c.error?.code, c.length, s),
+      children: [
+        PinSlots(length: c.length, filled: _pin.length, strings: s),
+        PinKeypad(
+          enabled: !p.isSubmitting,
+          strings: s,
+          onDigit: (digit) => _digit(digit, c.length),
+          onDelete: () => setState(() => _pin = _pin.isEmpty ? '' : _pin.substring(0, _pin.length - 1)),
+        ),
+      ],
+    );
+  }
+}
+
+/// `pin_setup` (spec/03 §4.18): the new PIN, then the same PIN again; a local mismatch starts over
+/// without a round trip. The server's `pin_mismatch`, `invalid_format` and `weak_pin` are shown above
+/// the slots.
+class PinSetupScreen extends StatefulWidget {
+  const PinSetupScreen({super.key, required this.presentation});
+
+  final ChallengePresentation presentation;
+
+  @override
+  State<PinSetupScreen> createState() => _PinSetupScreenState();
+}
+
+class _PinSetupScreenState extends State<PinSetupScreen> {
+  String _pin = '';
+  String _confirm = '';
+  bool _confirming = false;
+  bool _localMismatch = false;
+
+  void _digit(String digit, int length) {
+    if (_confirming) {
+      if (_confirm.length >= length) return;
+      final second = _confirm + digit;
+      if (second.length < length) {
+        setState(() => _confirm = second);
+        return;
+      }
+      final first = _pin;
+      setState(() {
+        _pin = '';
+        _confirm = '';
+        _confirming = false;
+        _localMismatch = first != second;
+      });
+      if (first == second) widget.presentation.submit(ChallengeAnswer.pinSetup(first, confirm: second));
+    } else if (_pin.length < length) {
+      setState(() {
+        _pin += digit;
+        if (_pin.length == length) {
+          _localMismatch = false;
+          _confirming = true;
+        }
+      });
+    }
+  }
+
+  void _delete() => setState(() {
+    if (_confirming && _confirm.isEmpty) {
+      _confirming = false;
+      _pin = '';
+    } else if (_confirming) {
+      _confirm = _confirm.substring(0, _confirm.length - 1);
+    } else if (_pin.isNotEmpty) {
+      _pin = _pin.substring(0, _pin.length - 1);
+    }
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.presentation;
+    final c = p.challenge as PinSetupChallenge;
+    final s = p.strings;
+    final theme = Theme.of(context);
+    return ChallengeFrame(
+      presentation: p,
+      title: _confirming ? s.pinConfirmTitle : s.pinChooseTitle,
+      subtitle: _confirming ? s.pinConfirmSubtitle(c.length) : s.pinChooseSubtitle(c.length),
+      errorText: _pinErrorText(c.error?.code, c.length, s),
+      children: [
+        if (_localMismatch)
+          Text(s.pinMismatch, key: const ValueKey('pinMismatch'), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+        PinSlots(length: c.length, filled: _confirming ? _confirm.length : _pin.length, strings: s),
+        PinKeypad(enabled: !p.isSubmitting, strings: s, onDigit: (digit) => _digit(digit, c.length), onDelete: _delete),
+        if (c.isSkippable)
+          TextButton(key: const ValueKey('skipChallenge'), onPressed: p.isSubmitting ? null : () => p.submit(ChallengeAnswer.skip(c.type)), child: Text(s.notNow)),
+      ],
+    );
+  }
+}
+
+/// One slot per digit; filled slots show a dot, never the digit.
+class PinSlots extends StatelessWidget {
+  const PinSlots({super.key, required this.length, required this.filled, required this.strings});
+
+  final int length;
+  final int filled;
+  final NativeLoginStrings strings;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      container: true,
+      label: strings.pinDigitsEntered(filled, length),
+      child: ExcludeSemantics(
+        child: Row(
+          key: const ValueKey('pinSlots'),
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: 12,
+          children: [
+            for (var index = 0; index < length; index++)
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.outline, width: 1.5),
+                  color: index < filled ? colors.onSurface : Colors.transparent,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A 3×4 numeric keypad (1–9, 0, delete): never the system keyboard, so no autofill or suggestions.
+class PinKeypad extends StatelessWidget {
+  const PinKeypad({super.key, required this.enabled, required this.strings, required this.onDigit, required this.onDelete});
+
+  final bool enabled;
+  final NativeLoginStrings strings;
+  final ValueChanged<String> onDigit;
+  final VoidCallback onDelete;
+
+  static const _rows = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+    [null, '0', 'delete'],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    const size = Size(72, 52);
+    return Column(
+      spacing: 8,
+      children: [
+        for (final row in _rows)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 12,
+            children: [
+              for (final key in row)
+                switch (key) {
+                  null => SizedBox.fromSize(size: size),
+                  'delete' => SizedBox.fromSize(
+                    size: size,
+                    child: OutlinedButton(
+                      key: const ValueKey('pinDelete'),
+                      onPressed: enabled ? onDelete : null,
+                      child: Semantics(label: strings.delete, excludeSemantics: true, child: const Text('⌫')),
+                    ),
+                  ),
+                  final digit => SizedBox.fromSize(
+                    size: size,
+                    child: OutlinedButton(
+                      key: ValueKey('pinKey-$digit'),
+                      onPressed: enabled ? () => onDigit(digit) : null,
+                      child: Text(digit, style: Theme.of(context).textTheme.titleLarge),
+                    ),
+                  ),
+                },
+            ],
+          ),
+      ],
+    );
+  }
 }
 
 /// The default "Try another way" list under a screen.

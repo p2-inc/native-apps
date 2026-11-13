@@ -571,6 +571,10 @@ export function answerFields(answer: ChallengeAnswer): Record<string, string> {
       return { code: answer.code };
     case 'terms':
       return { accepted: String(answer.accepted) };
+    case 'pin':
+      return { pin: answer.pin };
+    case 'pinSetup':
+      return { pin: answer.pin, pin_confirm: answer.confirm };
     case 'otpResend':
     case 'verifyEmailResend':
     case 'pushResend':

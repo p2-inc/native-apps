@@ -8,7 +8,8 @@ dependencies):
   Enclave or software key; the server binds session, code and tokens to the key), the passkey bridge
   over `AuthenticationServices`, step-up / re-authentication with the post-login `auth_session`, the
   browser fallback (`WebFallback` over `ASWebAuthenticationSession`), email/SMS one-time codes, the
-  in-band required actions (`updatePassword`, `verifyEmail`, `terms`, `passkeyRegistration`), token
+  in-band required actions (`updatePassword`, `verifyEmail`, `terms`, `passkeyRegistration`, `pinSetup`), the
+  `pin` factor of the optional PIN extension, token
   exchange/refresh/revoke/logout and a Keychain-backed `CredentialsManager`.
 - `KeycloakNativePush`: push MFA for this device (spec/05 §5, spec/14 D9) — `kc.push()`: enrolment
   from inside the app (`enroll`, through `/native-auth/push/enroll/start` and ba-itsys'
@@ -20,7 +21,7 @@ dependencies):
 - `KeycloakNativeUI`: `NativeLoginView` drives a flow with default SwiftUI screens for every
   challenge type (username, password, TOTP, OTP with resend countdown, passkey, passkey registration,
   recovery code, update password with policy hints, verify email, terms, push with number match and
-  polling, push enrolment, browser fallback), `PushApprovalsView` (the pending sign-in requests with
+  polling, push enrolment, PIN entry and set-PIN with a numeric keypad, browser fallback), `PushApprovalsView` (the pending sign-in requests with
   approve / deny / number buttons and pull-to-refresh) and a
   "Try another way" chooser; any screen is replaceable with `.challengePresenter(for:)`, the chooser
   with `.challengeChooser`. Texts come from the package's `Localizable.xcstrings` (English, German);

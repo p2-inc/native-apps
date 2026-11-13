@@ -5,7 +5,11 @@ import {
   type NativeLoginResult,
 } from '../ui/LoginController';
 import { PushApprovalsController } from '../ui/PushApprovals';
-import type { Challenge, ChallengeType } from '../model';
+import {
+  isChallengeLocked,
+  type Challenge,
+  type ChallengeType,
+} from '../model';
 import { TranscriptNative } from './support/TranscriptNative';
 import { loadTranscript } from './support/transcripts';
 
@@ -227,6 +231,80 @@ describe('native required actions', () => {
       results.map((r) => (r.kind === 'failed' ? r.error.message : r.kind))
     ).toEqual(['authorized']);
     expect(native.savedPasswords).toEqual([]);
+  });
+});
+
+/**
+ * The PIN extension (spec/20): `PinIT`'s recordings on client `demo-native-pin` (pia has a PIN,
+ * pete sets one, rita's PIN locks after 3 attempts).
+ */
+describe('PIN', () => {
+  it('signs in with the PIN after a wrong one', async () => {
+    const { start, results } = setup(
+      'PinIT.piaSignsInWithHerPinAfterAWrongOne'
+    );
+    const c = await start();
+    await signInWithPassword(c, 'pia');
+    const pin = shown(c);
+    if (pin.type !== 'pin') throw new Error(pin.type);
+    expect(pin.params.length).toBe(4);
+    await c.submit({ kind: 'pin', pin: '0000' }, pin);
+    const retry = shown(c);
+    expect(retry.error?.code).toBe('invalid_credential');
+    expect(retry.retry?.remaining).toBe(2);
+    await c.submit({ kind: 'pin', pin: '2580' }, retry);
+    expect(results.map((r) => r.kind)).toEqual(['authorized']);
+  });
+
+  it('sets a PIN in band through missing_credential, pin_mismatch, weak_pin and invalid_format', async () => {
+    const { start, results } = setup('PinIT.peteSetsAPinInBand');
+    const c = await start();
+    await signInWithPassword(c, 'pete');
+    const setupPin = shown(c);
+    if (setupPin.type !== 'pin_setup') throw new Error(setupPin.type);
+    expect(setupPin.requiredAction).toBe(true);
+    expect(setupPin.params.length).toBe(4);
+    const errors: (string | undefined)[] = [];
+    for (const [pin, confirm] of [
+      ['', ''],
+      ['1357', '1358'],
+      ['1111', '1111'],
+      ['12', '12'],
+    ] as const) {
+      await c.submit({ kind: 'pinSetup', pin, confirm }, shown(c));
+      errors.push(shown(c).error?.code);
+    }
+    expect(errors).toEqual([
+      'missing_credential',
+      'pin_mismatch',
+      'weak_pin',
+      'invalid_format',
+    ]);
+    await c.submit(
+      { kind: 'pinSetup', pin: '2580', confirm: '2580' },
+      shown(c)
+    );
+    expect(results.map((r) => r.kind)).toEqual(['authorized']);
+  });
+
+  it('a locked PIN can only be cancelled', async () => {
+    const { start, results } = setup('PinIT.aLockedPinCanOnlyBeCancelled');
+    const c = await start();
+    await signInWithPassword(c, 'rita');
+    expect(shown(c).error).toBeUndefined();
+    for (const [pin, remaining] of [
+      ['0001', 2],
+      ['0002', 1],
+    ] as const) {
+      await c.submit({ kind: 'pin', pin }, shown(c));
+      expect(shown(c).retry?.remaining).toBe(remaining);
+    }
+    await c.submit({ kind: 'pin', pin: '0009' }, shown(c));
+    const locked = shown(c);
+    expect(isChallengeLocked(locked)).toBe(true);
+    expect(locked.retry?.remaining).toBe(0);
+    await c.cancel();
+    expect(results.map((r) => r.kind)).toEqual(['cancelled']);
   });
 });
 

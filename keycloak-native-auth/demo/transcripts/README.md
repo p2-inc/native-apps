@@ -14,7 +14,7 @@ Format:
   "recorded_at": "2026-10-14T14:36:33Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
   "base_url": "http://localhost:64092",
-  "masked_form_fields": ["client_secret", "code_verifier", "otp", "password", "recovery_code", "refresh_token", "token", "totp"],
+  "masked_form_fields": ["client_secret", "code_verifier", "otp", "password", "password_confirm", "pin", "pin_confirm", "recovery_code", "refresh_token", "token", "totp"],
   "exchanges": [
     { "seq": 1,
       "request":  { "method": "POST", "path": "/realms/demo/native-auth/challenge", "headers": { "...": "..." },

@@ -1,12 +1,16 @@
 package io.phasetwo.keycloak.nativeauth.sdk.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -37,6 +41,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -44,10 +49,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.Challenge
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.ChallengeAnswer
+import io.phasetwo.keycloak.nativeauth.sdk.challenge.ChallengeError
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.ChallengeType
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.RedirectToWebRequest
 import java.time.Instant
@@ -70,6 +77,8 @@ internal fun DefaultChallengeScreen(presentation: ChallengePresentationContext) 
     ChallengeType.RecoveryCode -> RecoveryCodeScreen(presentation)
     ChallengeType.Push -> PushScreen(presentation)
     ChallengeType.PushEnrollment -> PushEnrollmentScreen(presentation)
+    ChallengeType.Pin -> PinScreen(presentation)
+    ChallengeType.PinSetup -> PinSetupScreen(presentation)
     else -> UnsupportedScreen(presentation)
   }
 }
@@ -80,6 +89,8 @@ internal fun ChallengeFrame(
   presentation: ChallengePresentationContext,
   title: String,
   subtitle: String?,
+  /** Replaces the descriptor's `error.message` (screens that localize known error codes). */
+  errorText: String? = null,
   content: @Composable () -> Unit,
 ) {
   Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -94,8 +105,9 @@ internal fun ChallengeFrame(
     }
     subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     presentation.challenge.error?.let { error ->
-      Text(error.message ?: error.code, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("challengeError"))
-      presentation.challenge.retry?.remaining?.let { remaining ->
+      Text(errorText ?: error.message ?: error.code, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("challengeError"))
+      // A locked credential (spec/03 §4.17) has no attempts left to count.
+      presentation.challenge.retry?.remaining?.takeUnless { presentation.challenge.isLocked }?.let { remaining ->
         // spec/03 §3.3: attempts left before the realm's brute-force protection locks the account.
         Text(pluralStringResource(R.plurals.nl_attempts_left, remaining, remaining), style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("retryRemaining"))
       }
@@ -480,6 +492,166 @@ internal fun PushScreen(presentation: ChallengePresentationContext) {
   }
 }
 
+/** The string resource for a `pin` / `pin_setup` error code this SDK localizes, else `null` (the server's message is shown). */
+internal fun pinErrorText(code: String?): Int? = when (code) {
+  ChallengeError.Code.INVALID_CREDENTIAL -> R.string.nl_pin_incorrect
+  ChallengeError.Code.MISSING_CREDENTIAL -> R.string.nl_pin_enter
+  ChallengeError.Code.PIN_MISMATCH -> R.string.nl_pin_mismatch
+  ChallengeError.Code.WEAK_PIN -> R.string.nl_pin_weak
+  ChallengeError.Code.INVALID_FORMAT -> R.string.nl_pin_invalid_format
+  else -> null
+}
+
+@Composable
+private fun pinErrorString(code: String?, length: Int): String? = when (val res = pinErrorText(code)) {
+  null -> null
+  R.string.nl_pin_invalid_format -> stringResource(res, length)
+  else -> stringResource(res)
+}
+
+/**
+ * `pin` (spec/03 §4.17): one slot per digit, a numeric keypad, masked entry; submits when every slot
+ * is filled. A `credential_locked` descriptor replaces the keypad with an explanation: the PIN must be
+ * reset (on the web or by an administrator), so only cancel (or another way) is left.
+ */
+@Composable
+internal fun PinScreen(presentation: ChallengePresentationContext) {
+  val challenge = presentation.challenge
+  val length = challenge.pinParams?.length ?: 4
+  // Not saveable: a PIN is never written to the saved instance state.
+  var pin by androidx.compose.runtime.remember(challenge) { mutableStateOf("") }
+  if (challenge.isLocked) {
+    ChallengeFrame(presentation, stringResource(R.string.nl_pin_locked_title), null, errorText = stringResource(R.string.nl_pin_too_many)) {
+      Text(stringResource(R.string.nl_pin_locked), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("pinLocked"))
+    }
+    return
+  }
+  ChallengeFrame(presentation, stringResource(R.string.nl_pin_title), stringResource(R.string.nl_pin_subtitle, length), errorText = pinErrorString(challenge.error?.code, length)) {
+    PinSlots(length, pin.length)
+    PinKeypad(
+      enabled = !presentation.isSubmitting,
+      onDigit = { digit ->
+        if (pin.length < length) {
+          pin += digit
+          if (pin.length == length) {
+            val value = pin
+            pin = ""
+            presentation.submit(ChallengeAnswer.Pin(value))
+          }
+        }
+      },
+      onDelete = { pin = pin.dropLast(1) },
+    )
+  }
+}
+
+/**
+ * `pin_setup` (spec/03 §4.18): the new PIN, then the same PIN again; a local mismatch starts over
+ * without a round trip. The server's `pin_mismatch`, `invalid_format` and `weak_pin` are shown above
+ * the slots.
+ */
+@Composable
+internal fun PinSetupScreen(presentation: ChallengePresentationContext) {
+  val challenge = presentation.challenge
+  val length = challenge.pinSetupParams?.length ?: 4
+  var pin by androidx.compose.runtime.remember(challenge) { mutableStateOf("") }
+  var confirm by androidx.compose.runtime.remember(challenge) { mutableStateOf("") }
+  var confirming by androidx.compose.runtime.remember(challenge) { mutableStateOf(false) }
+  var localMismatch by androidx.compose.runtime.remember(challenge) { mutableStateOf(false) }
+  val finish = {
+    val (first, second) = pin to confirm
+    pin = ""
+    confirm = ""
+    confirming = false
+    if (first == second) presentation.submit(ChallengeAnswer.PinSetup(first, second)) else localMismatch = true
+  }
+  ChallengeFrame(
+    presentation,
+    stringResource(if (confirming) R.string.nl_pin_confirm_title else R.string.nl_pin_choose_title),
+    if (confirming) stringResource(R.string.nl_pin_confirm_subtitle, length) else stringResource(R.string.nl_pin_choose_subtitle, length),
+    errorText = pinErrorString(challenge.error?.code, length),
+  ) {
+    if (localMismatch) {
+      Text(stringResource(R.string.nl_pin_mismatch), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("pinMismatch"))
+    }
+    PinSlots(length, if (confirming) confirm.length else pin.length)
+    PinKeypad(
+      enabled = !presentation.isSubmitting,
+      onDigit = { digit ->
+        if (confirming) {
+          if (confirm.length < length) {
+            confirm += digit
+            if (confirm.length == length) finish()
+          }
+        } else if (pin.length < length) {
+          pin += digit
+          if (pin.length == length) {
+            localMismatch = false
+            confirming = true
+          }
+        }
+      },
+      onDelete = {
+        when {
+          confirming && confirm.isEmpty() -> { confirming = false; pin = "" }
+          confirming -> confirm = confirm.dropLast(1)
+          else -> pin = pin.dropLast(1)
+        }
+      },
+    )
+    if (challenge.isSkippable) {
+      TextButton(onClick = { presentation.submit(ChallengeAnswer.Skip(challenge.type)) }, enabled = !presentation.isSubmitting, modifier = Modifier.testTag("skipChallenge")) {
+        Text(stringResource(R.string.nl_not_now))
+      }
+    }
+  }
+}
+
+/** One slot per digit; filled slots show a dot, never the digit. */
+@Composable
+internal fun PinSlots(length: Int, filled: Int) {
+  val description = stringResource(R.string.nl_pin_digits_entered, filled, length)
+  Row(
+    Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = description }.testTag("pinSlots"),
+    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+  ) {
+    repeat(length) { index ->
+      Box(
+        Modifier.size(16.dp)
+          .border(1.5.dp, MaterialTheme.colorScheme.outline, CircleShape)
+          .background(if (index < filled) MaterialTheme.colorScheme.onSurface else Color.Transparent, CircleShape),
+      )
+    }
+  }
+}
+
+/** A 3×4 numeric keypad (1–9, 0, delete): never the system keyboard, so no autofill or suggestions. */
+@Composable
+internal fun PinKeypad(enabled: Boolean, onDigit: (Char) -> Unit, onDelete: () -> Unit) {
+  val rows = listOf(listOf('1', '2', '3'), listOf('4', '5', '6'), listOf('7', '8', '9'), listOf(null, '0', '⌫'))
+  val deleteLabel = stringResource(R.string.nl_delete)
+  Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    rows.forEach { row ->
+      Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        row.forEach { key ->
+          val keyModifier = Modifier.size(width = 72.dp, height = 52.dp)
+          when (key) {
+            null -> Box(keyModifier)
+            '⌫' -> OutlinedButton(
+              onClick = onDelete,
+              enabled = enabled,
+              modifier = keyModifier.semantics { contentDescription = deleteLabel }.testTag("pinDelete"),
+            ) { Text("⌫") }
+            else -> OutlinedButton(onClick = { onDigit(key) }, enabled = enabled, modifier = keyModifier.testTag("pinKey-$key")) {
+              Text(key.toString(), style = MaterialTheme.typography.titleLarge)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 @Composable
 internal fun UnsupportedScreen(presentation: ChallengePresentationContext) {
   ChallengeFrame(presentation, stringResource(R.string.nl_update_required), stringResource(R.string.nl_unsupported, presentation.challenge.type.wire)) {}
@@ -507,6 +679,7 @@ public fun chooserTitle(challenge: Challenge): String = when (challenge.type) {
   ChallengeType.Otp -> stringResource(if (challenge.otpParams?.channel == "sms") R.string.nl_text_me_code else R.string.nl_email_me_code)
   ChallengeType.RecoveryCode -> stringResource(R.string.nl_use_recovery_code)
   ChallengeType.Push -> stringResource(R.string.nl_approve_on_phone)
+  ChallengeType.Pin -> stringResource(R.string.nl_use_pin)
   else -> challenge.label ?: challenge.type.wire
 }
 

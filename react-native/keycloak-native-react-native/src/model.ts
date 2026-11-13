@@ -80,6 +80,9 @@ export const ChallengeTypes = [
   'verify_email',
   'terms',
   'push_enrollment',
+  // PIN extension (spec/03 §4.17, §4.18); servers advertise them only when it is installed.
+  'pin',
+  'pin_setup',
 ] as const;
 export type KnownChallengeType = (typeof ChallengeTypes)[number];
 
@@ -90,6 +93,7 @@ const REQUIRED_ACTIONS: ReadonlySet<string> = new Set([
   'verify_email',
   'terms',
   'push_enrollment',
+  'pin_setup',
 ]);
 
 /** `error` of a descriptor: the previous attempt at this challenge failed (spec/03 §3.3). */
@@ -113,6 +117,17 @@ export const ChallengeErrorCode = {
   denied: 'denied',
   /** `push`: the pending approval expired unanswered. */
   expired: 'expired',
+  /**
+   * `pin`: the PIN reached its attempt limit and must be reset (on the web or by an administrator);
+   * every further attempt fails, `retry.remaining` is 0 (spec/03 §4.17).
+   */
+  credentialLocked: 'credential_locked',
+  /** `pin_setup`: `pin_confirm` differed (spec/03 §4.18). */
+  pinMismatch: 'pin_mismatch',
+  /** `pin_setup`: not exactly `length` digits. */
+  invalidFormat: 'invalid_format',
+  /** `pin_setup`: rejected as easy to guess (all the same digit, a simple run). */
+  weakPin: 'weak_pin',
 } as const;
 
 // MARK: - Typed params (spec/03 §4.1–§4.15)
@@ -204,6 +219,18 @@ export interface PushEnrollmentParams {
   userId?: string;
 }
 
+/** spec/03 §4.17: the PIN factor. */
+export interface PinParams {
+  /** The length of the user's stored PIN: show that many slots and a numeric keypad. */
+  length: number;
+}
+
+/** spec/03 §4.18: set a PIN (required action). */
+export interface PinSetupParams {
+  /** The PIN length the realm asks for. */
+  length: number;
+}
+
 export interface PasskeyAssertionParams {
   challenge: string;
   rpId: string;
@@ -265,10 +292,28 @@ export type Challenge =
   | Typed<'update_password', UpdatePasswordParams>
   | Typed<'verify_email', VerifyEmailParams>
   | Typed<'terms', TermsParams>
+  | Typed<'pin', PinParams>
+  | Typed<'pin_setup', PinSetupParams>
   | Typed<'select', JsonObject>
   | Typed<'unknown', JsonObject>;
 
 export type ChallengeType = Challenge['type'];
+
+/**
+ * `pin` with `credential_locked` (spec/03 §4.17): the PIN cannot be used until it is reset; another
+ * attempt always fails, so offer cancel (or another alternative) instead.
+ */
+export function isChallengeLocked(challenge: Challenge): boolean {
+  return challenge.error?.code === ChallengeErrorCode.credentialLocked;
+}
+
+/**
+ * Whether `pin` has the shape a `pin_setup` server accepts (exactly `length` ASCII digits); the
+ * server always validates (and also rejects weak PINs).
+ */
+export function isWellFormedPin(params: PinSetupParams, pin: string): boolean {
+  return pin.length === params.length && /^[0-9]*$/.test(pin);
+}
 
 /** The challenge narrowed to one type. */
 export type ChallengeOf<T extends ChallengeType> = Extract<
@@ -480,6 +525,10 @@ function typedParams(type: string, p: JsonObject): unknown {
         deviceApiBase: str(p.device_api_base),
         userId: str(p.user_id),
       } satisfies PushEnrollmentParams;
+    case 'pin':
+      return { length: int(p.length) ?? 4 } satisfies PinParams;
+    case 'pin_setup':
+      return { length: int(p.length) ?? 4 } satisfies PinSetupParams;
     case 'passkey':
       return parsePasskeyAssertion(p);
     case 'passkey_registration':
@@ -692,6 +741,10 @@ export type ChallengeAnswer =
   | { kind: 'pushResend' }
   | { kind: 'pushPoll' }
   | { kind: 'pushEnrollmentCheck' }
+  /** `pin` (spec/03 §4.17): the user's PIN, sent as `pin`. */
+  | { kind: 'pin'; pin: string }
+  /** `pin_setup` (spec/03 §4.18): the new PIN, sent as `pin` + `pin_confirm`. */
+  | { kind: 'pinSetup'; pin: string; confirm: string }
   /** Declines a skippable required action for this login ("Not now"). */
   | { kind: 'skip' }
   /**
@@ -718,6 +771,8 @@ export const answerChallengeType: Record<
   pushResend: 'push',
   pushPoll: 'push',
   pushEnrollmentCheck: 'push_enrollment',
+  pin: 'pin',
+  pinSetup: 'pin_setup',
 };
 
 // MARK: - Errors

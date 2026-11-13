@@ -198,6 +198,27 @@
         "native-auth.enabled": "true",
         "native-auth.flow-alias": "native-sms"
       }
+    },
+    {
+      "clientId": "demo-native-pin",
+      "name": "Demo iOS App (PIN flow)",
+      "description": "Bound to the native-pin flow: a PIN as second factor (spec/03 \u00a74.17, spec/20)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "demoapp://auth/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "native-auth.enabled": "true",
+        "native-auth.flow-alias": "native-pin"
+      }
     }
   ],
   "users": [
@@ -395,6 +416,52 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "username": "pia",
+      "enabled": true,
+      "email": "pia@example.com",
+      "emailVerified": true,
+      "firstName": "Pia",
+      "lastName": "Haspin",
+      "requiredActions": [],
+      "realmRoles": [
+        "default-roles-demo"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "pia-password",
+          "temporary": false
+        },
+        {
+          "type": "phasetwo-pin",
+          "userLabel": "PIN",
+          "secretData": "{\"value\":\"fSpjFMTelbnlCmQUsLHwaSyyAl7IBrOTxpBo9FVJ+qI=\",\"salt\":\"bmF0aXZlLWRlbW8tcGlhMQ==\"}",
+          "credentialData": "{\"algorithm\":\"argon2\",\"hashIterations\":5,\"additionalParameters\":{\"type\":[\"id\"],\"version\":[\"1.3\"],\"hashLength\":[\"32\"],\"memory\":[\"7168\"],\"parallelism\":[\"1\"]},\"length\":4,\"failures\":0,\"locked\":false}"
+        }
+      ]
+    },
+    {
+      "username": "pete",
+      "enabled": true,
+      "email": "pete@example.com",
+      "emailVerified": true,
+      "firstName": "Pete",
+      "lastName": "Needspin",
+      "requiredActions": [
+        "phasetwo-configure-pin"
+      ],
+      "realmRoles": [
+        "default-roles-demo"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "pete-password",
+          "temporary": false
+        }
+      ]
     }
   ],
   "requiredActions": [
@@ -576,6 +643,24 @@
       "enabled": true,
       "defaultAction": false,
       "priority": 1000,
+      "config": {}
+    },
+    {
+      "alias": "phasetwo-configure-pin",
+      "name": "Configure PIN",
+      "providerId": "phasetwo-configure-pin",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 160,
+      "config": {}
+    },
+    {
+      "alias": "native-configure-pin",
+      "name": "Native: configure PIN",
+      "providerId": "native-configure-pin",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 161,
       "config": {}
     }
   ],
@@ -1007,6 +1092,60 @@
       ]
     },
     {
+      "alias": "native-pin",
+      "description": "Native flow with a PIN second factor (spec/03 \u00a74.17, spec/20): username -> password -> PIN when the user has one; client demo-native-pin",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "native-username"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "native-password"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "flowAlias": "native-pin - second factor"
+        }
+      ]
+    },
+    {
+      "alias": "native-pin - second factor",
+      "description": "Runs only when the user has a PIN (Condition - user configured); users without one sign in with the password alone",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-configured"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "native-pin",
+          "authenticatorConfig": "native-pin - attempts"
+        }
+      ]
+    },
+    {
       "alias": "browser-push",
       "description": "Browser flow with ba-itsys push MFA as a conditional second factor (spec/02 \u00a73 scenario A).",
       "providerId": "basic-flow",
@@ -1124,6 +1263,12 @@
         "userVerification": "number-match",
         "loginChallengeTtlSeconds": "240",
         "pollIntervalSeconds": "3"
+      }
+    },
+    {
+      "alias": "native-pin - attempts",
+      "config": {
+        "max-attempts": "3"
       }
     }
   ],

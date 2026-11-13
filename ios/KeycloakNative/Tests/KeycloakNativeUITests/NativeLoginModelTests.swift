@@ -250,6 +250,62 @@ import Testing
     #expect(error.code == NativeAuthError.Code.accessDenied)
   }
 
+  static func pinSet(_ type: String = "pin", error: String? = nil, remaining: Int? = nil) -> JSONValue {
+    var descriptor: [String: JSONValue] = ["type": .string(type), "id": type == "pin" ? "pin-exec" : "native-configure-pin", "required": true, "params": ["length": 6]]
+    if let error { descriptor["error"] = ["code": .string(error)] }
+    if let remaining { descriptor["retry"] = ["remaining": .number(Double(remaining))] }
+    return set([.object(descriptor)])
+  }
+
+  @Test @MainActor func aWrongPinStaysOnThePinAndALockedPinOnlyOffersCancel() async throws {
+    let (model, transport, collector) = makeModel([
+      { _ in ScriptedTransport.json(200, Self.metadata) },
+      { _ in ScriptedTransport.json(403, Self.pinSet()) },
+      { _ in ScriptedTransport.json(403, Self.pinSet(error: "invalid_credential", remaining: 1)) },
+      { _ in ScriptedTransport.json(403, Self.pinSet(error: "credential_locked", remaining: 0)) },
+      { _ in ScriptedTransport.json(400, ["error": "invalid_session", "error_description": "auth_session cancelled"]) },
+    ])
+    await model.startIfNeeded()
+    let pin = try #require(selected(model))
+    #expect(pin.type == .pin && pin.pinParams?.length == 6)
+    model.submit(.pin("000000"), to: pin)
+    await settle(model) { self.selected(model)?.error != nil }
+    let wrong = try #require(selected(model))
+    #expect(wrong.error?.code == "invalid_credential" && wrong.retry?.remaining == 1 && !wrong.isLocked)
+    #expect(PinScreen.errorText(wrong.error, NativeLoginStrings()) == "Incorrect PIN")
+    model.submit(.pin("111111"), to: wrong)
+    await settle(model) { self.selected(model)?.isLocked == true }
+    let locked = try #require(selected(model))
+    #expect(locked.isLocked && locked.retry?.remaining == 0)
+    model.cancel()
+    await settle(model) { !collector.results.isEmpty }
+    guard case .cancelled? = collector.results.first else { Issue.record("expected .cancelled, got \(collector.results)"); return }
+    let pins = transport.sent.compactMap(\.formFields).flatMap { $0 }.filter { $0.name == "pin" }.map(\.value)
+    #expect(pins == ["000000", "111111"])
+  }
+
+  @Test @MainActor func setPinErrorsAreLocalized() async throws {
+    let (model, transport, _) = makeModel([
+      { _ in ScriptedTransport.json(200, Self.metadata) },
+      { _ in ScriptedTransport.json(403, Self.pinSet("pin_setup")) },
+      { _ in ScriptedTransport.json(403, Self.pinSet("pin_setup", error: "weak_pin")) },
+    ])
+    await model.startIfNeeded()
+    let setup = try #require(selected(model))
+    #expect(setup.type == .pinSetup && setup.pinSetupParams?.length == 6)
+    model.submit(.pinSetup(pin: "123456", confirm: "123456"), to: setup)
+    await settle(model) { self.selected(model)?.error != nil }
+    #expect(selected(model)?.error?.code == "weak_pin")
+    let form = transport.sent[2].formFields?.map { "\($0.name)=\($0.value)" } ?? []
+    #expect(form.contains("pin=123456") && form.contains("pin_confirm=123456") && form.contains("challenge_type=pin_setup"))
+    let l = NativeLoginStrings()
+    #expect(PinSetupScreen.errorText(ChallengeError(code: "pin_mismatch", message: nil), length: 6, l) == "The PINs do not match. Try again.")
+    #expect(PinSetupScreen.errorText(ChallengeError(code: "weak_pin", message: nil), length: 6, l) == "This PIN is too easy to guess. Choose another one.")
+    #expect(PinSetupScreen.errorText(ChallengeError(code: "invalid_format", message: nil), length: 6, l) == "The PIN must be exactly 6 digits.")
+    #expect(PinSetupScreen.errorText(ChallengeError(code: "x-other", message: "m"), length: 6, l) == nil, "unknown codes keep the server's message")
+    #expect(DefaultChallengeChooser.title(for: Challenge(id: "p", type: .pin), strings: l) == "Use your PIN")
+  }
+
   @Test @MainActor func redirectToWebBecomesItsOwnPhase() async throws {
     let (model, _, _) = makeModel([
       { _ in ScriptedTransport.json(200, Self.metadata) },
@@ -276,6 +332,16 @@ import Testing
     #expect(german("XXXX-XXXX-XXXX") == "XXXX-XXXX-XXXX", "untranslated keys stay as they are")
     #expect(NativeLoginStrings(preferredLanguages: ["fr", "de"])("Accept") == "Akzeptieren", "the first available language wins")
     #expect(NativeLoginStrings(preferredLanguages: ["fr"])("Accept") == "Accept", "unknown languages fall back to the source text")
+  }
+
+  @Test func pinStringsAreTranslated() throws {
+    let german = NativeLoginStrings(preferredLanguages: ["de"])
+    #expect(german("Enter your PIN") == "PIN eingeben")
+    #expect(german("Enter your %lld-digit PIN.", 4) == "Geben Sie Ihre 4-stellige PIN ein.")
+    #expect(german("PIN locked") == "PIN gesperrt")
+    #expect(german("The PIN must be exactly %lld digits.", 6) == "Die PIN muss genau 6 Ziffern haben.")
+    #expect(german("%lld of %lld digits entered", 2, 4) == "2 von 4 Ziffern eingegeben")
+    #expect(PinSetupScreen.errorText(ChallengeError(code: "weak_pin", message: nil), length: 4, german) == "Diese PIN ist zu leicht zu erraten. Wählen Sie eine andere.")
   }
 
   @Test func overrideBundleWinsAndMissingKeysFallBack() throws {

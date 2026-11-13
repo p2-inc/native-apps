@@ -43,6 +43,11 @@ public sealed class ChallengeType(public val wire: String) {
   public object VerifyEmail : ChallengeType("verify_email")
   public object Terms : ChallengeType("terms")
   public object PushEnrollment : ChallengeType("push_enrollment")
+
+  // PIN extension (spec/03 §4.17, §4.18): the PIN factor and its set-PIN required action. Servers
+  // advertise them only when the extension is installed.
+  public object Pin : ChallengeType("pin")
+  public object PinSetup : ChallengeType("pin_setup")
   public class Unknown(wire: String) : ChallengeType(wire)
 
   /**
@@ -56,7 +61,7 @@ public sealed class ChallengeType(public val wire: String) {
    * is the native required action's provider id.
    */
   public val isRequiredAction: Boolean
-    get() = this == PasskeyRegistration || this == UpdatePassword || this == VerifyEmail || this == Terms || this == PushEnrollment
+    get() = this == PasskeyRegistration || this == UpdatePassword || this == VerifyEmail || this == Terms || this == PushEnrollment || this == PinSetup
 
   final override fun equals(other: Any?): Boolean = other is ChallengeType && other.wire == wire
 
@@ -66,7 +71,7 @@ public sealed class ChallengeType(public val wire: String) {
 
   public companion object {
     private val known: Map<String, ChallengeType> by lazy {
-      listOf(Username, Password, Passkey, PasskeyRegistration, Totp, Otp, Push, RecoveryCode, Select, UpdatePassword, VerifyEmail, Terms, PushEnrollment)
+      listOf(Username, Password, Passkey, PasskeyRegistration, Totp, Otp, Push, RecoveryCode, Select, UpdatePassword, VerifyEmail, Terms, PushEnrollment, Pin, PinSetup)
         .associateBy { it.wire }
     }
 
@@ -99,6 +104,21 @@ public data class ChallengeError(public val code: String, public val message: St
 
     /** `push`: the pending approval expired unanswered; `PushResend` may ask again. */
     public const val EXPIRED: String = "expired"
+
+    /**
+     * `pin`: the PIN reached its attempt limit and must be reset (on the web or by an administrator);
+     * every further attempt fails, `retry.remaining` is 0 (spec/03 §4.17).
+     */
+    public const val CREDENTIAL_LOCKED: String = "credential_locked"
+
+    /** `pin_setup`: `pin_confirm` differed (spec/03 §4.18). */
+    public const val PIN_MISMATCH: String = "pin_mismatch"
+
+    /** `pin_setup`: not exactly `length` digits. */
+    public const val INVALID_FORMAT: String = "invalid_format"
+
+    /** `pin_setup`: rejected as easy to guess (all the same digit, a simple run). */
+    public const val WEAK_PIN: String = "weak_pin"
   }
 }
 
@@ -136,6 +156,14 @@ public class Challenge(
   public val termsParams: TermsParams? get() = if (type == ChallengeType.Terms) TermsParams(params) else null
   public val pushParams: PushParams? get() = if (type == ChallengeType.Push) PushParams(params) else null
   public val pushEnrollmentParams: PushEnrollmentParams? get() = if (type == ChallengeType.PushEnrollment) PushEnrollmentParams(params) else null
+  public val pinParams: PinParams? get() = if (type == ChallengeType.Pin) PinParams(params) else null
+  public val pinSetupParams: PinSetupParams? get() = if (type == ChallengeType.PinSetup) PinSetupParams(params) else null
+
+  /**
+   * `pin` with `credential_locked` (spec/03 §4.17): the PIN cannot be used until it is reset; another
+   * attempt always fails, so offer cancel (or another alternative) instead.
+   */
+  public val isLocked: Boolean get() = error?.code == ChallengeError.Code.CREDENTIAL_LOCKED
 
   override fun equals(other: Any?): Boolean =
     other is Challenge && other.id == id && other.type == type && other.label == label && other.required == required &&
@@ -216,6 +244,24 @@ public class PushEnrollmentParams(json: JsonElement) {
 
   /** Unverified claims of the enrolment token, for display and for building the device JWT. */
   public val enrollmentClaims: JsonElement? get() = enrollmentToken?.let(Jwt::decodePayload)
+}
+
+/** spec/03 §4.17: the PIN factor. */
+public class PinParams(json: JsonElement) {
+  /** The length of the user's stored PIN: show that many slots and a numeric keypad. */
+  public val length: Int = json["length"].intValue ?: 4
+}
+
+/** spec/03 §4.18: set a PIN (required action). */
+public class PinSetupParams(json: JsonElement) {
+  /** The PIN length the realm asks for. */
+  public val length: Int = json["length"].intValue ?: 4
+
+  /**
+   * Whether [pin] has the shape the server accepts (exactly [length] ASCII digits); the server always
+   * validates (and also rejects weak PINs).
+   */
+  public fun isWellFormed(pin: String): Boolean = pin.length == length && pin.all { it in '0'..'9' }
 }
 
 /** spec/03 §4.8: how many single-use recovery codes are left before this attempt. */
@@ -536,6 +582,16 @@ public sealed class ChallengeAnswer {
   /** `push_enrollment`: `action=check`, the device enrolled through `/push-mfa/enroll/complete`. */
   public object PushEnrollmentCheck : ChallengeAnswer()
 
+  /** `pin` (spec/03 §4.17): the user's PIN, sent as `pin`. */
+  public data class Pin(public val pin: String) : ChallengeAnswer() {
+    override fun toString(): String = "Pin(***)"
+  }
+
+  /** `pin_setup` (spec/03 §4.18): the new PIN, sent as `pin` + `pin_confirm`. */
+  public data class PinSetup(public val pin: String, public val confirm: String) : ChallengeAnswer() {
+    override fun toString(): String = "PinSetup(***)"
+  }
+
   /**
    * `action=skip` (spec/03 §4.11): decline a required action whose challenge [Challenge.isSkippable]
    * ("Not now"); pass the challenge's type. The flow continues like after any answer.
@@ -566,6 +622,8 @@ public sealed class ChallengeAnswer {
       is RecoveryCode -> ChallengeType.RecoveryCode
       PushResend, PushPoll -> ChallengeType.Push
       is PushEnrollment, PushEnrollmentCheck -> ChallengeType.PushEnrollment
+      is Pin -> ChallengeType.Pin
+      is PinSetup -> ChallengeType.PinSetup
       is Skip -> type
       is Custom -> type
     }
@@ -589,6 +647,8 @@ public sealed class ChallengeAnswer {
       PushPoll -> listOf("action" to "poll")
       is PushEnrollment -> listOf("token" to token)
       PushEnrollmentCheck -> listOf("action" to "check")
+      is Pin -> listOf("pin" to pin)
+      is PinSetup -> listOf("pin" to pin, "pin_confirm" to confirm)
       is Skip -> listOf("action" to "skip")
       is Custom -> fields.map { it.name to it.value }
     }

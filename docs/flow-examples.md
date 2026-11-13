@@ -60,6 +60,13 @@ native-sms                                  client demo-native-sms
   R(10) native-username
   R(20) native-password
   R(30) native-otp                        config: native-otp - sms
+
+native-pin                                  client demo-native-pin
+  R(10) native-username
+  R(20) native-password
+  C(30) [native-pin - second factor]
+    R(10) conditional-user-configured
+    R(20) native-pin                      config: native-pin - attempts
 ```
 
 All subflows use `basic-flow`. Per-client selections use client attribute `native-auth.flow-alias`; the realm selects `native` by default. Config aliases and exact string-valued maps:
@@ -71,6 +78,7 @@ All subflows use `basic-flow`. Per-client selections use client attribute `nativ
 | `native-otp - email` | `channel=email`, `digits=6`, `ttl=300`, `resend-cooldown=10`, `max-attempts=3` |
 | `native-otp - sms` | `channel=sms-webhook`, `digits=6`, `ttl=300`, `resend-cooldown=10`, `max-attempts=3` |
 | `native-push - number match` | `userVerification=number-match`, `loginChallengeTtlSeconds=240`, `pollIntervalSeconds=3` |
+| `native-pin - attempts` | `max-attempts=3` |
 
 All native demo clients are public, standard-flow enabled, native-enabled and require S256. No passkeys or push credentials are preseeded. Conditional second factors reflect credential availability; a passkey in the primary stage does not automatically waive a later factor. To waive it, add Keycloak's stock **Condition - credential** (`conditional-credential`) as REQUIRED inside the second-factor subflow with credentials `webauthn-passwordless` and "included" off: `native-passkey` records that credential type on success, as Keycloak's own passwordless authenticator does. Selecting `webauthn` (the two-factor WebAuthn type) instead never matches a native passkey login. `CredentialConditionIT` covers both the username-first and passkey-first layouts. `native-alternatives` deliberately accepts password **or** TOTP, not both: it demonstrates choices, not two-factor login.
 
@@ -319,6 +327,19 @@ sequenceDiagram
 | Ivy: recovery alternative after password | 403 `[totp,recovery_code]`, recovery ID `<execution-recovery>`, params `{remaining:3,warning_threshold:<policy-value>}`. Show warning/count and code field. `.recoveryCode(input)` sends `auth_session=<latest>&challenge_type=recovery_code&challenge_id=<execution-recovery>&recovery_code=<code>`. Correct unused code consumes it and completes, unless it was the last: adds browser-only `CONFIGURE_RECOVERY_AUTHN_CODES` and returns `redirect_to_web`. Wrong/used code → 403 `invalid_credential`; TOTP remains another option. |
 
 Demo values: `carol-password`, `grace-password`, `hank-password`, `ivy-password`; seeded ivy codes `IVY1-IVY1-IVY1`, `IVY2-IVY2-IVY2`, `IVY3-IVY3-IVY3`, consumed in order by the demo tests. Required-action timeouts are 300 s, not the 1800 s factor timeout. These are operations for already authenticated users within login, not registration or forgotten-password recovery. Evidence: [RequiredActionsIT](../keycloak-native-auth/demo/src/test/java/io/phasetwo/keycloak/nativeauth/demo/RequiredActionsIT.java), [RecoveryCodeIT](../keycloak-native-auth/demo/src/test/java/io/phasetwo/keycloak/nativeauth/demo/RecoveryCodeIT.java).
+
+## PIN codes
+
+Use `demo-native-pin` / `native-pin` (spec/03 §4.17, §4.18; the PIN extension, spec/20). pia has the PIN `2580` seeded in the export; pete has keycloak-pin's **Configure PIN** (`phasetwo-configure-pin`) pending, which `native-configure-pin` serves in-band. Both start with the shared username/password prefix (`pia-password`, `pete-password`); each PIN response contains a **single** descriptor.
+
+| Ordered operation after the username/password prefix | Challenge params → SDK/UI → continuation → result |
+| --- | --- |
+| pete: set a PIN | 403 `type:pin_setup,id:native-configure-pin,required:true`, `params:{length:4}` (Configure PIN's `length`). Show two numeric entries of that length. `.pinSetup(pin,confirm:)` sends `auth_session=<latest>&challenge_type=pin_setup&challenge_id=native-configure-pin&pin=<digits>&pin_confirm=<digits>`. An empty `pin` → `missing_credential`; `pin_confirm` differs → `pin_mismatch`; `1111`, `1234` → `weak_pin`; `12` → `invalid_format`; none counts as a failed login. Success stores the PIN, removes `phasetwo-configure-pin` from the user, then shared completion. |
+| pia: PIN as second factor | 403 `type:pin,id:<execution-pin>,required:true`, `params:{length:4}` (the stored PIN's length). `.pin(digits)` sends `auth_session=<latest>&challenge_type=pin&challenge_id=<execution-pin>&pin=<digits>`. Wrong PIN → 403 descriptor `error.code:invalid_credential`, `retry:{remaining:2}` (the execution's `max-attempts` minus the PIN's failures); it is also a brute-force failure. Correct PIN → completion. |
+| A third wrong PIN | The attempt that reaches `max-attempts` returns `error.code:credential_locked`, `retry:{remaining:0}`. Later logins announce the lock on the first `pin` descriptor, and every answer, even the right PIN, gets `credential_locked` again. Show that the PIN must be reset and offer cancel (`action=cancel`); do not offer another try. |
+| Reset | An administrator deletes the PIN on the user's Credentials tab (the conditional sub-flow then skips it) or assigns **Configure PIN** (the next native login asks for `pin_setup`); the user can also use the realm's reset credentials flow with keycloak-pin's **Reset PIN** in the browser. A new PIN starts unlocked. |
+
+Evidence: [PinIT](../keycloak-native-auth/demo/src/test/java/io/phasetwo/keycloak/nativeauth/demo/PinIT.java) and its recorded transcripts. `PinIT` creates and deletes its own lockout users; locking pia in the compose stack lasts until a reset (`docker compose down -v` restores the export).
 
 ## Push enrollment and approval
 

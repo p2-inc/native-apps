@@ -71,6 +71,8 @@ AnswerMessage answerToMessage(ChallengeAnswer answer) => switch (answer) {
   PushResendAnswer() => AnswerMessage(kind: AnswerKind.pushResend),
   PushPollAnswer() => AnswerMessage(kind: AnswerKind.pushPoll),
   PushEnrollmentCheckAnswer() => AnswerMessage(kind: AnswerKind.pushEnrollmentCheck),
+  PinAnswer(:final pin) => AnswerMessage(kind: AnswerKind.pin, value: pin),
+  PinSetupAnswer(:final pin, :final confirm) => AnswerMessage(kind: AnswerKind.pinSetup, value: pin, confirm: confirm),
   SkipAnswer(:final type) => AnswerMessage(kind: AnswerKind.skip, type: type.wire),
   CustomAnswer(:final type, :final fields) => AnswerMessage(
     kind: AnswerKind.custom,

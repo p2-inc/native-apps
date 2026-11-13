@@ -112,6 +112,8 @@ internal object BridgeJson {
       "pushResend" -> ChallengeAnswer.PushResend
       "pushPoll" -> ChallengeAnswer.PushPoll
       "pushEnrollmentCheck" -> ChallengeAnswer.PushEnrollmentCheck
+      "pin" -> ChallengeAnswer.Pin(field("pin"))
+      "pinSetup" -> ChallengeAnswer.PinSetup(field("pin"), field("confirm"))
       "skip" -> ChallengeAnswer.Skip(type)
       "custom" -> ChallengeAnswer.Custom(
         type,

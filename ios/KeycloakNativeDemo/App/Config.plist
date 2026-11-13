@@ -13,6 +13,8 @@
   <string>demo-native-stepup</string>
   <key>OtpClientId</key>
   <string>demo-native-otp</string>
+  <key>PinClientId</key>
+  <string>demo-native-pin</string>
   <!-- S6: docker compose service resource-server (GET /transfer requires acr 2) -->
   <key>ResourceServer</key>
   <string>http://localhost:8091</string>

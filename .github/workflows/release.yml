@@ -40,6 +40,7 @@ jobs:
           mvn -B --no-transfer-progress versions:set -DnewVersion="$TAG" -DgenerateBackupPoms=false
           mvn -B --no-transfer-progress -DskipTests -DskipITs package
           mkdir -p ../dist/providers
+          # demo/target/providers holds every provider jar: ours, ba-itsys' push MFA rebuild and keycloak-pin (ELv2, COPYING).
           cp demo/target/providers/*.jar COPYING ../dist/providers/
           cp push-mfa-extension-java21/LICENSE ../dist/providers/LICENSE-keycloak-push-mfa-extension
           cp push-mfa-extension-java21/NOTICE ../dist/providers/NOTICE-keycloak-push-mfa-extension

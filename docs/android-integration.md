@@ -213,6 +213,8 @@ Note the argument order: the answer first, then the challenge it answers. Do not
 | `ChallengeType.Terms` / `termsParams` | `ChallengeAnswer.Terms(accepted = decision)` |
 | `ChallengeType.Push` / `pushParams` | `ChallengeAnswer.PushResend`, then `ChallengeAnswer.PushPoll` every `pollInterval` seconds while pending; display the number-match number |
 | `ChallengeType.PushEnrollment` / `pushEnrollmentParams` | Prepare the enrollment with `kc.push()`, respond with `prepared.answer`, and commit locally only after the server accepts it |
+| `ChallengeType.Pin` / `pinParams` (PIN extension) | `ChallengeAnswer.Pin(input)`; show `length` slots. `invalid_credential` carries `retry.remaining`; `credential_locked` (`challenge.isLocked`) means the PIN must be reset on the web or by an administrator, so offer cancel or another alternative, not a retry |
+| `ChallengeType.PinSetup` / `pinSetupParams` (PIN extension) | `ChallengeAnswer.PinSetup(input, confirm = confirmation)`; `isWellFormed(pin)` pre-checks the length; errors `pin_mismatch`, `invalid_format`, `weak_pin` |
 | any required action with `isSkippable` | `ChallengeAnswer.Skip(challenge.type)` declines it for this login ("Not now"); the default passkey-registration screen shows the button |
 | extension or otherwise unmodeled answer | `ChallengeAnswer.Custom(challenge.type, listOf(FormField("name", "value")))`, sent through the normal pipeline (DPoP, nonce retry, `auth_session` rotation, code exchange) |
 

@@ -126,6 +126,8 @@ Do not manufacture challenge IDs, select challenges from an old set, loop over a
 | `.terms` / `termsParams` | `.terms(accepted: decision)` |
 | `.push` / `pushParams` | `.pushResend`, then `.pushPoll` at `pollInterval` while pending; display number-match number |
 | `.pushEnrollment` / `pushEnrollmentParams` | Prepare enrollment with Push module, respond with `prepared.answer`, commit locally only after server accepts |
+| `.pin` / `pinParams` (PIN extension) | `.pin(input)`; show `length` slots. `invalid_credential` carries `retry.remaining`; `credential_locked` (`challenge.isLocked`) means the PIN must be reset on the web or by an administrator, so offer cancel or another alternative, not a retry |
+| `.pinSetup` / `pinSetupParams` (PIN extension) | `.pinSetup(pin: input, confirm: confirmation)`; `isWellFormed(_:)` pre-checks the length; errors `pin_mismatch`, `invalid_format`, `weak_pin` |
 | any required action with `isSkippable` | `.skip(challenge.type)` declines it for this login ("Not now"); the default passkey-registration screen shows the button |
 | extension or otherwise unmodeled answer | `.custom(type: challenge.type, fields: [FormField("name", "value")])`, sent through the normal pipeline (DPoP, nonce retry, `auth_session` rotation, code exchange) |
 

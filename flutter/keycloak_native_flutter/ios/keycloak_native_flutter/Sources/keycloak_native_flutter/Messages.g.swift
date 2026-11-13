@@ -218,8 +218,10 @@ enum AnswerKind: Int, CaseIterable {
   case pushResend = 10
   case pushPoll = 11
   case pushEnrollmentCheck = 12
-  case skip = 13
-  case custom = 14
+  case pin = 13
+  case pinSetup = 14
+  case skip = 15
+  case custom = 16
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
@@ -706,9 +708,9 @@ struct FormFieldMessage: Hashable, CustomStringConvertible {
 struct AnswerMessage: Hashable, CustomStringConvertible {
   var kind: AnswerKind
   /// The single value of `username`, `password`, `totp`, `otp`, `verifyEmail` (code),
-  /// `recoveryCode`, and the new password of `updatePassword`.
+  /// `recoveryCode`, `pin`, and the new password of `updatePassword` or PIN of `pinSetup`.
   var value: String? = nil
-  /// `updatePassword`: the confirmation.
+  /// `updatePassword` and `pinSetup`: the confirmation.
   var confirm: String? = nil
   /// `totp`: the chosen authenticator.
   var credentialId: String? = nil
