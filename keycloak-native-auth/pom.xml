@@ -41,8 +41,8 @@
     <!-- ba-itsys push MFA (spec/01 §3, spec/14 D9): the dependency behind native-auth-push and the APNs sender. -->
     <push-mfa.version>2.3.7</push-mfa.version>
     <!-- Phase Two's PIN extension (spec/20 D1): the dependency behind native-auth-pin, shipped in the providers
-         zip. One property, so moving to a released version is a one-line change. -->
-    <keycloak-pin.version>0.1.0-SNAPSHOT</keycloak-pin.version>
+         zip. -->
+    <keycloak-pin.version>0.1</keycloak-pin.version>
     <keycloak.image>quay.io/keycloak/keycloak:${keycloak.version}</keycloak.image>
 
     <maven.compiler.release>21</maven.compiler.release>
