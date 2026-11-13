@@ -18,7 +18,7 @@ A React Native app gets native authentication by **wrapping the two native SDK c
 
 ## 2. Package layout
 
-npm package `@phasetwo.io/keycloak-native-react-native` (§11), Apache-2.0 like the SDKs, in `react-native/keycloak-native-react-native/`:
+npm package `@p2-inc/keycloak-native-react-native` (§11), Apache-2.0 like the SDKs, in `react-native/keycloak-native-react-native/`:
 
 | Path | Content |
 |---|---|
@@ -136,7 +136,7 @@ The UI layer mirrors the native ones: `<NativeLoginScreen kc flow onResult prese
 
 ## 8. Distribution
 
-- **npm.** `@phasetwo.io/keycloak-native-react-native` on the repository's version line, published from the release tag once the SDKs it pins are public. `package.json` names the SDK release it wraps (`keycloakNativeSdkVersion`), read by the podspec and the Gradle file, so one bump moves both platforms. npm versions cannot carry `-SNAPSHOT`; the development version is `0.3.0-dev`. Peer dependencies: `react-native` 0.84 or later and `react` 19.2 or later (the floor below); `@expo/config-plugins` 56 or later (Expo SDK 56, the first on React Native 0.84 or later) is an optional peer for the plugin.
+- **npm.** `@p2-inc/keycloak-native-react-native` on the repository's version line, published from the release tag once the SDKs it pins are public. `package.json` names the SDK release it wraps (`keycloakNativeSdkVersion`), read by the podspec and the Gradle file, so one bump moves both platforms. npm versions cannot carry `-SNAPSHOT`; the development version is `0.3.0-dev`. Peer dependencies: `react-native` 0.84 or later and `react` 19.2 or later (the floor below); `@expo/config-plugins` 56 or later (Expo SDK 56, the first on React Native 0.84 or later) is an optional peer for the plugin.
 - **Floor: React Native 0.84.** Chosen as the oldest release the module is verified to compile and run on, with no unpatched advisories in the range.
   - *Evidence.* A fresh 0.84.1 app (template from `@react-native-community/cli` 20.1.3; React 19.2.3, AGP 8.12, compileSdk 36, Kotlin raised from 2.1.20 to 2.2.20, minSdk raised to 28, iOS 17) with the module installed from `npm pack` built for Android (`assembleDebug`) and iOS (`pod install`, `xcodebuild` for the simulator), and alice signed in with username, password and TOTP through the default screens on an Android 16 emulator and the iOS simulator against the compose stack, then built DPoP resource headers, refreshed and logged out. `scripts/floor-build.sh` reproduces the build (§9). It needs the SDK changes of the compatibility pull request: before them, the build fails on Kotlin metadata (2.4 against 2.1/2.2) and on the AAR's minimum compileSdk (37 against 36).
   - *Why not older.* 0.83 and earlier ship a `spm_dependency` that only takes remote package URLs, so the module cannot be built from a checkout or in CI before an SDK tag exists, and none was verified; Expo SDK 55 is on 0.83. Releases before 0.81 also default to compileSdk 35, below what the SDK's AndroidX dependencies need.
@@ -175,5 +175,5 @@ Decided while building (kept here for the record):
 - **Minimum React Native version.** Decided: 0.84 (§8 "Floor"), the oldest release the module is verified to build and run on; `peerDependencies` say `>=0.84.0`.
 - **Native events.** Decided: none (§3, push).
 
-- **Package name.** Decided by the product owner: `@phasetwo.io/keycloak-native-react-native`, under the `phasetwo.io` npm organization (the `phasetwo` name was not available), in `react-native/keycloak-native-react-native/`; the pod is `KeycloakNativeReactNative`.
+- **Package name.** Decided by the product owner: `@p2-inc/keycloak-native-react-native`, under the `p2-inc` npm organization with Phase Two's other npm package (`@p2-inc/js-sdk`). 0.3.0 was published as `@phasetwo.io/keycloak-native-react-native`, which is deprecated in favor of this name. The package lives in `react-native/keycloak-native-react-native/`; the pod is `KeycloakNativeReactNative`.
 - **Refresh token in JavaScript.** Decided by the product owner: it stays native-only, and there is no export API. JavaScript runs third-party npm code in one context, the usual persistence (AsyncStorage) is plain text, logging and developer tools capture what passes through JavaScript, over-the-air updates can replace the JavaScript after review, and a refresh token outlives every access token. Apps that must hand a session to a web view or a backend use their own token exchange on the server. docs/react-native-integration.md "Tokens and DPoP" explains this to integrators and recommends DPoP binding.

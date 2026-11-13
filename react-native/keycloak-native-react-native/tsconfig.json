@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "@phasetwo.io/keycloak-native-react-native": [
+      "@p2-inc/keycloak-native-react-native": [
         "./src/index"
       ]
     },
