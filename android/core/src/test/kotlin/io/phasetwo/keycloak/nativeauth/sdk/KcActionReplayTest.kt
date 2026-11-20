@@ -9,9 +9,12 @@ import io.phasetwo.keycloak.nativeauth.sdk.errors.NativeAuthError
 import io.phasetwo.keycloak.nativeauth.sdk.json.get
 import io.phasetwo.keycloak.nativeauth.sdk.json.stringValue
 import io.phasetwo.keycloak.nativeauth.sdk.support.Harness
+import io.phasetwo.keycloak.nativeauth.sdk.support.MockWebPresenter
+import io.phasetwo.keycloak.nativeauth.sdk.support.Transcript
 import io.phasetwo.keycloak.nativeauth.sdk.support.first
 import io.phasetwo.keycloak.nativeauth.sdk.support.req
 import io.phasetwo.keycloak.nativeauth.sdk.tokens.Credentials
+import java.net.URI
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -109,6 +112,32 @@ class KcActionReplayTest {
       h.sdk.credentialsManager().store(credentials)
       assertEquals(KcActionStatus.Error, flow.kcActionStatus, action)
     }
+    assertEquals(0, transport.remaining)
+  }
+
+  @Test
+  fun anActionWithoutANativeVariantContinuesInTheBrowserAndReportsItsStatus() = runTest {
+    val transcript = Transcript.load("KcActionIT.anActionWithoutANativeVariantRunsInTheBrowserAndReportsItsStatus")
+    val browserExchange = transcript.exchanges.last { it.request.path.endsWith("/token") }
+    val recordedCode = browserExchange.request.form?.get("code").req()
+    val presenter = MockWebPresenter { URI("demoapp://auth/callback") }
+    val (h, transport, _) = Harness.replay(listOf(transcript.test), CLIENT, webPresenter = presenter)
+
+    // frank: username → password, no TOTP.
+    val login = h.sdk.authentication().startLogin(IT_PARAMETERS)
+    var step = login.start()
+    step = login.respond(ChallengeAnswer.Username("frank"), step.require(ChallengeType.Username))
+    step = login.respond(ChallengeAnswer.Password("frank-password"), step.require(ChallengeType.Password))
+    h.sdk.credentialsManager().store(step.credentials.req())
+
+    // UPDATE_PROFILE has no native variant: the flow hands over to the browser with kc_action kept.
+    val flow = requiredAction(h, "UPDATE_PROFILE")
+    val request = (flow.start() as FlowStep.RedirectToWeb).request
+    assertEquals("required_action:UPDATE_PROFILE", request.reason)
+    presenter.callback = { URI("demoapp://auth/callback?state=${request.state}&code=$recordedCode&kc_action_status=success") }
+    val credentials = h.sdk.webFallback().complete(request, flow)
+    assertEquals("frank", credentials.accessTokenClaims["preferred_username"].stringValue)
+    assertEquals(KcActionStatus.Success, flow.kcActionStatus, "read from the browser callback")
     assertEquals(0, transport.remaining)
   }
 
