@@ -62,6 +62,7 @@ enum BridgeJSON {
       uiLocales: o["uiLocales"]?.stringValue,
       deviceName: o["deviceName"]?.stringValue,
       deviceId: o["deviceId"]?.stringValue,
+      kcAction: o["kcAction"]?.stringValue,
       additionalParameters: strings(o["additionalParameters"]),
       continuationParameters: strings(o["continuationParameters"]))
   }
@@ -90,7 +91,7 @@ enum BridgeJSON {
     case "otp": return .otp(try field("code"))
     case "otpResend": return .otpResend
     case "recoveryCode": return .recoveryCode(try field("code"))
-    case "updatePassword": return .updatePassword(try field("password"), confirm: try field("confirm"))
+    case "updatePassword": return .updatePassword(try field("password"), confirm: try field("confirm"), logoutOtherSessions: o["logoutOtherSessions"]?.boolValue)
     case "verifyEmail": return .verifyEmail(code: try field("code"))
     case "verifyEmailResend": return .verifyEmailResend
     case "terms":
@@ -114,7 +115,7 @@ enum BridgeJSON {
   }
 
   /// `NativeFlowStep`: the descriptors and context as the server sent them.
-  static func step(_ step: FlowStep, expiresIn: Int?) -> JSONValue {
+  static func step(_ step: FlowStep, expiresIn: Int?, kcActionStatus: KcActionStatus? = nil) -> JSONValue {
     switch step {
     case .challenges(let challenges, let context):
       var o: [String: JSONValue] = [
@@ -125,7 +126,9 @@ enum BridgeJSON {
       if let expiresIn { o["expiresIn"] = .number(Double(expiresIn)) }
       return .object(o)
     case .authorized(let credentials):
-      return .object(["kind": "authorized", "credentials": self.credentials(credentials)])
+      var o: [String: JSONValue] = ["kind": "authorized", "credentials": self.credentials(credentials)]
+      if let kcActionStatus { o["kcActionStatus"] = .string(kcActionStatus.wire) }
+      return .object(o)
     case .redirectToWeb(let request):
       return .object(["kind": "redirectToWeb", "request": request.raw])
     }
