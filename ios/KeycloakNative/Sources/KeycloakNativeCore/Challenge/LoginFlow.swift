@@ -129,6 +129,12 @@ public actor NativeLoginFlow: LoginFlow {
   /// that and when the request carried no `kc_action`.
   public var kcActionStatus: KcActionStatus? { actionStatus }
 
+  /// `WebFallback.complete(_:flow:)` finished the login in the browser.
+  func browserCompleted(kcActionStatus: String?) {
+    state = .finished
+    actionStatus = kcActionStatus.map(KcActionStatus.init(wire:))
+  }
+
   public func start() async throws -> FlowStep {
     guard state == .idle else {
       throw NativeAuthError(code: NativeAuthError.Code.flowState, description: "start() can only be called once per flow")
