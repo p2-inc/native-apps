@@ -76,6 +76,8 @@ Then run a demo app from the repository root and sign in as `alice` / `alice-pas
 | ⚛️ React Native | `cd react-native/keycloak-native-react-native && yarn && yarn example ios` (or `android`) |
 | 🐦 Flutter | `cd flutter/keycloak_native_flutter/example && flutter run` |
 
+Every demo app has a **Server** screen to point it at another Keycloak: the server URL, realm and client IDs, saved on the device, with "Reset to defaults". Anything other than a local development host must use `https`. See [Server settings](docs/sample-app.md#server-settings).
+
 Other demo users show other parts of the flow: `bob` gets an email code (read it in mailpit), `hank` has to accept terms, and `carol` has to update her password. [All of them](docs/flow-examples.md).
 
 ## 🛠️ Add it to your Keycloak
