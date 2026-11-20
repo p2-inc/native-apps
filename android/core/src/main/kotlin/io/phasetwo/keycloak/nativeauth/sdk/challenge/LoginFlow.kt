@@ -100,6 +100,14 @@ public class NativeLoginFlow internal constructor(
    */
   public val kcActionStatus: KcActionStatus? get() = synchronized(lock) { actionStatus }
 
+  /** `WebFallback.complete(request, flow)` finished the login in the browser. */
+  internal fun browserCompleted(kcActionStatus: String?) {
+    synchronized(lock) {
+      state = State.FINISHED
+      actionStatus = kcActionStatus?.let(KcActionStatus::fromWire)
+    }
+  }
+
   override suspend fun start(): FlowStep {
     synchronized(lock) {
       if (state != State.IDLE || client != null) {
