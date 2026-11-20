@@ -94,7 +94,7 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
   func start(flow: String) async throws -> FlowStepMessage {
     try await bridgedAsync {
       let record = try self.flow(flow)
-      return message(try await record.flow.start(), record)
+      return await message(try await record.flow.start(), record)
     }
   }
 
@@ -104,7 +104,7 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
       guard let challenge = await record.flow.pendingChallenges.first(where: { $0.id == challengeId && $0.type.wire == challengeType }) else {
         throw NativeAuthError(code: NativeAuthError.Code.flowState, description: "Challenge \(challengeType) (\(challengeId)) is not in the pending set")
       }
-      return message(try await record.flow.respond(try answer.sdk(), to: challenge, additionalFields: additionalFields), record)
+      return await message(try await record.flow.respond(try answer.sdk(), to: challenge, additionalFields: additionalFields), record)
     }
   }
 
@@ -198,7 +198,7 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
         throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "passkey challenge without usable params")
       }
       let assertion = try await record.instance.passkeys().assert(params, preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials)
-      return message(try await record.flow.respond(.passkey(assertion), to: challenge), record)
+      return await message(try await record.flow.respond(.passkey(assertion), to: challenge), record)
     }
   }
 
@@ -210,7 +210,7 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
         throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "passkey_registration challenge without usable params")
       }
       let attestation = try await record.instance.passkeys().register(params)
-      return message(try await record.flow.respond(.passkeyRegistration(attestation, label: label), to: challenge), record)
+      return await message(try await record.flow.respond(.passkeyRegistration(attestation, label: label), to: challenge), record)
     }
   }
 
@@ -226,7 +226,7 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
       let step = try await record.flow.respond(prepared.answer, to: challenge)
       // Kept only once the server moved on from the challenge (the iOS and Android UI models do the same).
       if !(step.challenges ?? []).contains(where: { $0.type == .pushEnrollment && $0.error != nil }) { try push.commit(prepared) }
-      return message(step, record)
+      return await message(step, record)
     }
   }
 
@@ -348,12 +348,12 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
     return handle
   }
 
-  private func message(_ step: FlowStep, _ record: FlowRecord) -> FlowStepMessage {
+  private func message(_ step: FlowStep, _ record: FlowRecord) async -> FlowStepMessage {
     switch step {
     case .challenges(let challenges, let context):
       return FlowStepMessage(kind: .challenges, challenges: challenges.map(Self.message), contextJson: Self.json(context.raw))
     case .authorized(let credentials):
-      return FlowStepMessage(kind: .authorized, challenges: [], credentials: hold(credentials, record))
+      return FlowStepMessage(kind: .authorized, challenges: [], credentials: hold(credentials, record), kcActionStatus: await record.flow.kcActionStatus?.wire)
     case .redirectToWeb(let request):
       lock.withLock { record.redirect = request }
       return FlowStepMessage(
@@ -434,7 +434,7 @@ extension LoginParametersMessage {
   var sdk: LoginParameters {
     LoginParameters(
       scope: scope, acrValues: acrValues, loginHint: loginHint, prompt: prompt, maxAge: maxAge.map(Int.init), nonce: nonce, uiLocales: uiLocales,
-      deviceName: deviceName, deviceId: deviceId, additionalParameters: additionalParameters, continuationParameters: continuationParameters)
+      deviceName: deviceName, deviceId: deviceId, kcAction: kcAction, additionalParameters: additionalParameters, continuationParameters: continuationParameters)
   }
 }
 
@@ -450,7 +450,7 @@ extension AnswerMessage {
     case .totp: return .totp(try required("value", value), credentialId: credentialId)
     case .otp: return .otp(try required("value", value))
     case .otpResend: return .otpResend
-    case .updatePassword: return .updatePassword(try required("value", value), confirm: try required("confirm", confirm))
+    case .updatePassword: return .updatePassword(try required("value", value), confirm: try required("confirm", confirm), logoutOtherSessions: logoutOtherSessions)
     case .verifyEmail: return .verifyEmail(code: try required("value", value))
     case .verifyEmailResend: return .verifyEmailResend
     case .terms: return .terms(accepted: accepted ?? false)

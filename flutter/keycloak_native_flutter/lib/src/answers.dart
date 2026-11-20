@@ -19,7 +19,8 @@ sealed class ChallengeAnswer {
   const factory ChallengeAnswer.otpResend() = OtpResendAnswer;
 
   /// The new password, sent as `password` + `password_confirm` (spec/03 §4.12).
-  const factory ChallengeAnswer.updatePassword(String password, {required String confirm}) = UpdatePasswordAnswer;
+  const factory ChallengeAnswer.updatePassword(String password, {required String confirm, bool? logoutOtherSessions}) =
+      UpdatePasswordAnswer;
   const factory ChallengeAnswer.verifyEmail(String code) = VerifyEmailAnswer;
   const factory ChallengeAnswer.verifyEmailResend() = VerifyEmailResendAnswer;
 
@@ -92,9 +93,12 @@ final class OtpResendAnswer extends ChallengeAnswer {
 }
 
 final class UpdatePasswordAnswer extends ChallengeAnswer {
-  const UpdatePasswordAnswer(this.password, {required this.confirm});
+  const UpdatePasswordAnswer(this.password, {required this.confirm, this.logoutOtherSessions});
   final String password;
   final String confirm;
+
+  /// "Sign out of other devices" (spec/21 D5); sent only when not `null`.
+  final bool? logoutOtherSessions;
   @override
   ChallengeType get challengeType => ChallengeType.updatePassword;
 

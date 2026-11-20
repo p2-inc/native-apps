@@ -34,7 +34,11 @@ List<(String, String)> nativeFormFields(AnswerMessage answer) => switch (answer.
   AnswerKind.totp => [('totp', answer.value!), if (answer.credentialId case final id? when id.isNotEmpty) ('credential_id', id)],
   AnswerKind.otp => [('otp', answer.value!)],
   AnswerKind.otpResend || AnswerKind.verifyEmailResend || AnswerKind.pushResend => [('action', 'resend')],
-  AnswerKind.updatePassword => [('password', answer.value!), ('password_confirm', answer.confirm!)],
+  AnswerKind.updatePassword => [
+    ('password', answer.value!),
+    ('password_confirm', answer.confirm!),
+    if (answer.logoutOtherSessions case final v?) ('logout_other_sessions', '$v'),
+  ],
   AnswerKind.verifyEmail => [('code', answer.value!)],
   AnswerKind.terms => [('accepted', '${answer.accepted ?? false}')],
   AnswerKind.recoveryCode => [('recovery_code', answer.value!)],
@@ -84,8 +88,13 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
   @override
   Future<String> startLogin(String instance, LoginParametersMessage parameters) async {
     _parameters = parameters;
+    _stepUp = false;
     return 'flow';
   }
+
+  /// A step-up sends the stored post-login `auth_session` (spec/03 §5): the one the last
+  /// authorization returned.
+  bool _stepUp = false;
 
   @override
   Future<FlowStepMessage> start(String flow) async {
@@ -104,6 +113,8 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
       if (p.uiLocales case final v?) ('ui_locales', v),
       if (p.deviceName case final v?) ('device_name', v),
       if (p.deviceId case final v?) ('device_id', v),
+      if (p.kcAction case final v?) ('kc_action', v),
+      if (_stepUp) ('auth_session', _authSession ?? '<none>'),
       ...(p.additionalParameters.entries.toList()..sort((a, b) => a.key.compareTo(b.key))).map((e) => (e.key, e.value)),
     ];
     return _challengeExchange(expected);
@@ -156,7 +167,12 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
     final body = ((response['json'] as Map?) ?? const {}).cast<String, Object?>();
     if (status == 200 && body['authorization_code'] != null) {
       _authSession = body['auth_session'] as String?;
-      return FlowStepMessage(kind: FlowStepKind.authorized, challenges: [], credentials: _tokenExchange(body['authorization_code'] as String));
+      return FlowStepMessage(
+        kind: FlowStepKind.authorized,
+        challenges: [],
+        credentials: _tokenExchange(body['authorization_code'] as String),
+        kcActionStatus: body['kc_action_status'] as String?,
+      );
     }
     final error = body['error'] as String?;
     if (status == 403 && error == 'insufficient_authorization' && body['challenges'] is List) {
@@ -250,6 +266,11 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
       (((exchange['request'] as Map)['form'] as Map?) ?? const {}).map((k, v) => MapEntry(k as String, v as String));
 
   void _compare(List<(String, String)> expected, Map<String, String> recorded) {
+    // The default update_password screen sends the user's "Sign out of other devices" choice (spec/21
+    // D5); transcripts recorded by a client that never sent it still replay.
+    if (!recorded.containsKey('logout_other_sessions')) {
+      expected = [for (final f in expected) if (f.$1 != 'logout_other_sessions') f];
+    }
     final names = [for (final (name, _) in expected) name];
     if (names.toSet().length != names.length) throw TranscriptMismatch('Duplicate field in $names');
     if (!_sameSet(names.toSet(), recorded.keys.toSet())) {
@@ -345,7 +366,11 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
   Future<void> pushLockout(String instance) async {}
 
   @override
-  Future<String> stepUp(String instance, LoginParametersMessage parameters) async => startLogin(instance, parameters);
+  Future<String> stepUp(String instance, LoginParametersMessage parameters) async {
+    _parameters = parameters;
+    _stepUp = true;
+    return 'flow';
+  }
 
   @override
   Future<void> cancel(String flow) async {}

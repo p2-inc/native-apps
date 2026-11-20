@@ -238,6 +238,7 @@ class LoginParametersMessage {
     this.uiLocales,
     this.deviceName,
     this.deviceId,
+    this.kcAction,
     required this.additionalParameters,
     required this.continuationParameters,
   });
@@ -260,6 +261,9 @@ class LoginParametersMessage {
 
   String? deviceId;
 
+  /// Application-initiated action (spec/21, `kc_action`).
+  String? kcAction;
+
   Map<String, String> additionalParameters;
 
   Map<String, String> continuationParameters;
@@ -275,6 +279,7 @@ class LoginParametersMessage {
       uiLocales,
       deviceName,
       deviceId,
+      kcAction,
       additionalParameters,
       continuationParameters,
     ];
@@ -295,8 +300,9 @@ class LoginParametersMessage {
       uiLocales: result[6] as String?,
       deviceName: result[7] as String?,
       deviceId: result[8] as String?,
-      additionalParameters: (result[9]! as Map<Object?, Object?>).cast<String, String>(),
-      continuationParameters: (result[10]! as Map<Object?, Object?>).cast<String, String>(),
+      kcAction: result[9] as String?,
+      additionalParameters: (result[10]! as Map<Object?, Object?>).cast<String, String>(),
+      continuationParameters: (result[11]! as Map<Object?, Object?>).cast<String, String>(),
     );
   }
 
@@ -309,7 +315,7 @@ class LoginParametersMessage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(scope, other.scope) && _deepEquals(acrValues, other.acrValues) && _deepEquals(loginHint, other.loginHint) && _deepEquals(prompt, other.prompt) && _deepEquals(maxAge, other.maxAge) && _deepEquals(nonce, other.nonce) && _deepEquals(uiLocales, other.uiLocales) && _deepEquals(deviceName, other.deviceName) && _deepEquals(deviceId, other.deviceId) && _deepEquals(additionalParameters, other.additionalParameters) && _deepEquals(continuationParameters, other.continuationParameters);
+    return _deepEquals(scope, other.scope) && _deepEquals(acrValues, other.acrValues) && _deepEquals(loginHint, other.loginHint) && _deepEquals(prompt, other.prompt) && _deepEquals(maxAge, other.maxAge) && _deepEquals(nonce, other.nonce) && _deepEquals(uiLocales, other.uiLocales) && _deepEquals(deviceName, other.deviceName) && _deepEquals(deviceId, other.deviceId) && _deepEquals(kcAction, other.kcAction) && _deepEquals(additionalParameters, other.additionalParameters) && _deepEquals(continuationParameters, other.continuationParameters);
   }
 
   @override
@@ -318,7 +324,7 @@ class LoginParametersMessage {
 
   @override
   String toString() {
-    return 'LoginParametersMessage(scope: $scope, acrValues: $acrValues, loginHint: $loginHint, prompt: $prompt, maxAge: $maxAge, nonce: $nonce, uiLocales: $uiLocales, deviceName: $deviceName, deviceId: $deviceId, additionalParameters: $additionalParameters, continuationParameters: $continuationParameters)';
+    return 'LoginParametersMessage(scope: $scope, acrValues: $acrValues, loginHint: $loginHint, prompt: $prompt, maxAge: $maxAge, nonce: $nonce, uiLocales: $uiLocales, deviceName: $deviceName, deviceId: $deviceId, kcAction: $kcAction, additionalParameters: $additionalParameters, continuationParameters: $continuationParameters)';
   }
 }
 
@@ -583,6 +589,7 @@ class FlowStepMessage {
     this.contextJson,
     this.credentials,
     this.redirectToWeb,
+    this.kcActionStatus,
   });
 
   FlowStepKind kind;
@@ -596,6 +603,9 @@ class FlowStepMessage {
 
   RedirectToWebMessage? redirectToWeb;
 
+  /// `authorized`: the outcome of `kc_action` (spec/21), absent without one.
+  String? kcActionStatus;
+
   List<Object?> _toList() {
     return <Object?>[
       kind,
@@ -603,6 +613,7 @@ class FlowStepMessage {
       contextJson,
       credentials,
       redirectToWeb,
+      kcActionStatus,
     ];
   }
 
@@ -617,6 +628,7 @@ class FlowStepMessage {
       contextJson: result[2] as String?,
       credentials: result[3] as CredentialsMessage?,
       redirectToWeb: result[4] as RedirectToWebMessage?,
+      kcActionStatus: result[5] as String?,
     );
   }
 
@@ -629,7 +641,7 @@ class FlowStepMessage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(kind, other.kind) && _deepEquals(challenges, other.challenges) && _deepEquals(contextJson, other.contextJson) && _deepEquals(credentials, other.credentials) && _deepEquals(redirectToWeb, other.redirectToWeb);
+    return _deepEquals(kind, other.kind) && _deepEquals(challenges, other.challenges) && _deepEquals(contextJson, other.contextJson) && _deepEquals(credentials, other.credentials) && _deepEquals(redirectToWeb, other.redirectToWeb) && _deepEquals(kcActionStatus, other.kcActionStatus);
   }
 
   @override
@@ -638,7 +650,7 @@ class FlowStepMessage {
 
   @override
   String toString() {
-    return 'FlowStepMessage(kind: $kind, challenges: $challenges, contextJson: $contextJson, credentials: $credentials, redirectToWeb: $redirectToWeb)';
+    return 'FlowStepMessage(kind: $kind, challenges: $challenges, contextJson: $contextJson, credentials: $credentials, redirectToWeb: $redirectToWeb, kcActionStatus: $kcActionStatus)';
   }
 }
 
@@ -699,6 +711,7 @@ class AnswerMessage {
     this.confirm,
     this.credentialId,
     this.accepted,
+    this.logoutOtherSessions,
     this.type,
     this.fields,
   });
@@ -718,6 +731,9 @@ class AnswerMessage {
   /// `terms`.
   bool? accepted;
 
+  /// `updatePassword`: "Sign out of other devices" (spec/21 D5); sent only when set.
+  bool? logoutOtherSessions;
+
   /// `skip` and `custom`: the challenge type on the wire.
   String? type;
 
@@ -731,6 +747,7 @@ class AnswerMessage {
       confirm,
       credentialId,
       accepted,
+      logoutOtherSessions,
       type,
       fields,
     ];
@@ -747,8 +764,9 @@ class AnswerMessage {
       confirm: result[2] as String?,
       credentialId: result[3] as String?,
       accepted: result[4] as bool?,
-      type: result[5] as String?,
-      fields: (result[6] as List<Object?>?)?.cast<FormFieldMessage>(),
+      logoutOtherSessions: result[5] as bool?,
+      type: result[6] as String?,
+      fields: (result[7] as List<Object?>?)?.cast<FormFieldMessage>(),
     );
   }
 
@@ -761,7 +779,7 @@ class AnswerMessage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(kind, other.kind) && _deepEquals(value, other.value) && _deepEquals(confirm, other.confirm) && _deepEquals(credentialId, other.credentialId) && _deepEquals(accepted, other.accepted) && _deepEquals(type, other.type) && _deepEquals(fields, other.fields);
+    return _deepEquals(kind, other.kind) && _deepEquals(value, other.value) && _deepEquals(confirm, other.confirm) && _deepEquals(credentialId, other.credentialId) && _deepEquals(accepted, other.accepted) && _deepEquals(logoutOtherSessions, other.logoutOtherSessions) && _deepEquals(type, other.type) && _deepEquals(fields, other.fields);
   }
 
   @override
@@ -770,7 +788,7 @@ class AnswerMessage {
 
   @override
   String toString() {
-    return 'AnswerMessage(kind: $kind, value: $value, confirm: $confirm, credentialId: $credentialId, accepted: $accepted, type: $type, fields: $fields)';
+    return 'AnswerMessage(kind: $kind, value: $value, confirm: $confirm, credentialId: $credentialId, accepted: $accepted, logoutOtherSessions: $logoutOtherSessions, type: $type, fields: $fields)';
   }
 }
 

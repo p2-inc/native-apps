@@ -15,8 +15,11 @@ sealed class NativeLoginResult {
 
 /// The flow ended with tokens; store them with `CredentialsManager.store`.
 final class NativeLoginAuthorized extends NativeLoginResult {
-  const NativeLoginAuthorized(this.credentials);
+  const NativeLoginAuthorized(this.credentials, {this.kcActionStatus});
   final Credentials credentials;
+
+  /// Outcome of an application-initiated action (spec/21); `null` without `kc_action`.
+  final KcActionStatus? kcActionStatus;
 }
 
 final class NativeLoginCancelled extends NativeLoginResult {
@@ -246,7 +249,7 @@ class NativeLoginController extends ChangeNotifier {
           _notify();
           usePasskey(selected);
         }
-      case AuthorizedStep(:final credentials):
+      case AuthorizedStep(:final credentials, :final kcActionStatus):
         _done = true;
         final typed = _typedPassword;
         _typedPassword = null;
@@ -258,7 +261,7 @@ class NativeLoginController extends ChangeNotifier {
           }
         }
         _phase = const NativeLoginFinished();
-        onResult(NativeLoginAuthorized(credentials));
+        onResult(NativeLoginAuthorized(credentials, kcActionStatus: kcActionStatus));
       case RedirectToWebStep(:final request):
         _phase = NativeLoginRedirectToWeb(request);
     }

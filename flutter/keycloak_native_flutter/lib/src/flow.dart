@@ -18,6 +18,7 @@ final class LoginParameters {
     this.uiLocales,
     this.deviceName,
     this.deviceId,
+    this.kcAction,
     this.additionalParameters = const {},
     this.continuationParameters = const {},
   });
@@ -35,6 +36,11 @@ final class LoginParameters {
 
   /// Stable app-generated UUID; the SDK does not generate one.
   final String? deviceId;
+
+  /// Application-initiated action (spec/21, `kc_action`): the alias of a required action to run once
+  /// the user is authenticated, e.g. `UPDATE_PASSWORD`. Usually set through
+  /// `Authentication.requiredAction`; the outcome is `AuthorizedStep.kcActionStatus`.
+  final String? kcAction;
 
   /// Extra fields of the initial request (spec/03 §2.3); use the reserved `x_` prefix.
   final Map<String, String> additionalParameters;
@@ -62,9 +68,45 @@ final class ChallengesStep extends FlowStep {
 
 /// The code was issued and exchanged. Store the credentials with `CredentialsManager.store`.
 final class AuthorizedStep extends FlowStep {
-  const AuthorizedStep(this.credentials);
+  const AuthorizedStep(this.credentials, {this.kcActionStatus});
 
   final Credentials credentials;
+
+  /// Outcome of `LoginParameters.kcAction` (spec/21); `null` without `kc_action`.
+  final KcActionStatus? kcActionStatus;
+}
+
+/// Outcome of an application-initiated action (spec/21, `kc_action_status`).
+final class KcActionStatus {
+  const KcActionStatus._(this.wire);
+
+  /// Parses the server's value; an unknown one is kept as is.
+  factory KcActionStatus.fromWire(String wire) => switch (wire) {
+    'success' => success,
+    'cancelled' => cancelled,
+    'error' => error,
+    _ => KcActionStatus._(wire),
+  };
+
+  /// The action completed.
+  static const success = KcActionStatus._('success');
+
+  /// The user declined it (`action=skip`).
+  static const cancelled = KcActionStatus._('cancelled');
+
+  /// The server could not run it: unknown alias, disabled, or not allowed to be started by the app.
+  static const error = KcActionStatus._('error');
+
+  final String wire;
+
+  @override
+  bool operator ==(Object other) => other is KcActionStatus && other.wire == wire;
+
+  @override
+  int get hashCode => wire.hashCode;
+
+  @override
+  String toString() => 'KcActionStatus($wire)';
 }
 
 /// The server cannot finish natively (spec/03 §3.4): complete it with `KeycloakNative.webFallback`.
