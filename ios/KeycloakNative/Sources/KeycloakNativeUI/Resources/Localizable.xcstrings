@@ -341,6 +341,16 @@
         }
       }
     },
+    "Enter a new password for your account.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geben Sie ein neues Passwort für Ihr Konto ein."
+          }
+        }
+      }
+    },
     "Enter one of your unused recovery codes (%lld left).": {
       "localizations": {
         "de": {
@@ -677,6 +687,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mit Passkey anmelden"
+          }
+        }
+      }
+    },
+    "Sign out of other devices": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von anderen Geräten abmelden"
           }
         }
       }
