@@ -491,6 +491,9 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
   final _password = TextEditingController();
   final _confirm = TextEditingController();
 
+  /// "Sign out of other devices" (spec/21 D5); `null` until the user changes the server's suggestion.
+  bool? _logoutOtherSessions;
+
   @override
   void dispose() {
     _password.dispose();
@@ -503,7 +506,14 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
   void _submit() {
     if (!_canSubmit) return;
     TextInput.finishAutofillContext();
-    widget.presentation.submit(ChallengeAnswer.updatePassword(_password.text, confirm: _confirm.text));
+    final suggested = (widget.presentation.challenge as UpdatePasswordChallenge).logoutOtherSessions;
+    widget.presentation.submit(
+      ChallengeAnswer.updatePassword(
+        _password.text,
+        confirm: _confirm.text,
+        logoutOtherSessions: suggested == null ? null : (_logoutOtherSessions ?? suggested),
+      ),
+    );
   }
 
   @override
@@ -514,11 +524,14 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
     final username = p.flowContext.username ?? c.username;
     final hints = s.passwordPolicyHints(c.policy);
     final theme = Theme.of(context);
+    final suggestedLogout = c.logoutOtherSessions;
+    // A skippable password change is one the app asked for (spec/21): the user chose it and may cancel.
+    final requested = c.isSkippable;
     return AutofillGroup(
       child: ChallengeFrame(
         presentation: p,
         title: s.chooseNewPassword,
-        subtitle: s.passwordMustUpdate,
+        subtitle: requested ? s.passwordEnterNew : s.passwordMustUpdate,
         children: [
           if (username != null)
             TextFormField(
@@ -553,7 +566,21 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
             ),
           if (_confirm.text.isNotEmpty && _confirm.text != _password.text)
             Text(s.passwordsDoNotMatch, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+          if (suggestedLogout != null)
+            SwitchListTile(
+              key: const ValueKey('logoutOtherSessions'),
+              contentPadding: EdgeInsets.zero,
+              title: Text(s.logoutOtherSessions),
+              value: _logoutOtherSessions ?? suggestedLogout,
+              onChanged: p.isSubmitting ? null : (v) => setState(() => _logoutOtherSessions = v),
+            ),
           FilledButton(key: const ValueKey('updatePassword'), onPressed: _canSubmit ? _submit : null, child: Text(s.updatePassword)),
+          if (requested)
+            TextButton(
+              key: const ValueKey('cancelUpdatePassword'),
+              onPressed: p.isSubmitting ? null : () => p.submit(ChallengeAnswer.skip(c.type)),
+              child: Text(s.cancel),
+            ),
         ],
       ),
     );

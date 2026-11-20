@@ -327,6 +327,10 @@ final class UpdatePasswordChallenge extends Challenge {
   Map<String, Object?> get policy => _map(params['policy']);
   int? get minimumLength => _int(policy['length']);
   int? get maximumLength => _int(policy['maxLength']);
+
+  /// The suggested default for "Sign out of other devices" when the server offers it (spec/21 D5);
+  /// `null` when it does not (older servers): then don't show the option or send the field.
+  bool? get logoutOtherSessions => _bool(params['logout_other_sessions']);
 }
 
 /// spec/03 §4.13.

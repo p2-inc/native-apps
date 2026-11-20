@@ -225,6 +225,15 @@ final class Authentication {
     return NativeLoginFlow.internal(_kc._api, handle, isStepUp: true);
   }
 
+  /// Application-initiated action (spec/21): runs the required action [alias] for the signed-in user,
+  /// e.g. `'UPDATE_PASSWORD'` for a "Change password" button. A step-up with `kc_action`: the server asks
+  /// for the factors again when the action's maximum authentication age (the realm's setting) has
+  /// passed, or always with `maxAge: 0`; then it shows the action's challenge, which the user may
+  /// cancel. `AuthorizedStep.kcActionStatus` (and `NativeLoginAuthorized.kcActionStatus`) says whether
+  /// it succeeded, was cancelled or could not run. Throws `credentials_not_found` when nobody is signed in.
+  Future<NativeLoginFlow> requiredAction(String alias, {int? maxAge, String? scope = 'openid', String? deviceName}) =>
+      stepUp(LoginParameters(scope: scope, maxAge: maxAge, deviceName: deviceName, kcAction: alias));
+
   /// Continues after a call failed with `reauthentication_required` or `insufficient_authorization`
   /// carrying a session (refresh, resource request headers, passkey registration): a step-up flow over
   /// that session, with the `max_age` the server named. The session value stays native.
