@@ -13,6 +13,10 @@ public struct LoginParameters: Sendable, Equatable {
   public var deviceName: String?
   /// Stable app-generated UUID.
   public var deviceId: String?
+  /// Application-initiated action (spec/21, `kc_action`): the alias of a required action to run once
+  /// the user is authenticated, e.g. `UPDATE_PASSWORD`. Usually set through
+  /// `Authentication.requiredAction(_:maxAge:)`; the outcome is `NativeLoginFlow.kcActionStatus`.
+  public var kcAction: String?
   /// Extra fields of the initial request (spec/03 §2.3), e.g. a device or risk signal from another
   /// on-device SDK. Use the reserved `x_` prefix so a future profile parameter cannot collide; the
   /// Keycloak implementation keeps them for the whole login (`NativeRequestContext.extensionParameter`).
@@ -32,6 +36,7 @@ public struct LoginParameters: Sendable, Equatable {
     uiLocales: String? = nil,
     deviceName: String? = nil,
     deviceId: String? = nil,
+    kcAction: String? = nil,
     additionalParameters: [String: String] = [:],
     continuationParameters: [String: String] = [:]
   ) {
@@ -44,6 +49,7 @@ public struct LoginParameters: Sendable, Equatable {
     self.uiLocales = uiLocales
     self.deviceName = deviceName
     self.deviceId = deviceId
+    self.kcAction = kcAction
     self.additionalParameters = additionalParameters
     self.continuationParameters = continuationParameters
   }
@@ -89,6 +95,7 @@ public actor NativeLoginFlow: LoginFlow {
   private var session: String?
   private var pending: [Challenge] = []
   private var lastExpiresIn: Int?
+  private var actionStatus: KcActionStatus?
 
   init(
     clientId: String,
@@ -118,6 +125,9 @@ public actor NativeLoginFlow: LoginFlow {
   public var pendingChallenges: [Challenge] { pending }
   /// Remaining lifetime of the authentication session as last reported.
   public var expiresIn: Int? { lastExpiresIn }
+  /// Outcome of `LoginParameters.kcAction` once the flow is `.authorized` (spec/21); `nil` before
+  /// that and when the request carried no `kc_action`.
+  public var kcActionStatus: KcActionStatus? { actionStatus }
 
   public func start() async throws -> FlowStep {
     guard state == .idle else {
@@ -145,6 +155,7 @@ public actor NativeLoginFlow: LoginFlow {
     if let v = parameters.uiLocales { fields.append(("ui_locales", v)) }
     if let v = parameters.deviceName { fields.append(("device_name", v)) }
     if let v = parameters.deviceId { fields.append(("device_id", v)) }
+    if let v = parameters.kcAction { fields.append(("kc_action", v)) }
     fields += try Self.extraFields(parameters.additionalParameters, after: fields)
     if let stepUpSession {
       // spec/03 §5: a §2.1 request plus the post-login auth_session = step-up / re-authentication.
@@ -214,7 +225,7 @@ public actor NativeLoginFlow: LoginFlow {
   /// Names the SDK itself sends on some request (spec/03 §2.1, §2.2); callers may not override them.
   static let reservedFieldNames: Set<String> = [
     "client_id", "response_type", "scope", "code_challenge", "code_challenge_method", "acr_values", "login_hint",
-    "prompt", "max_age", "nonce", "ui_locales", "device_name", "device_id", "auth_session", "challenge_type",
+    "prompt", "max_age", "nonce", "ui_locales", "device_name", "device_id", "kc_action", "auth_session", "challenge_type",
     "challenge_id", "action",
   ]
 
@@ -242,10 +253,11 @@ public actor NativeLoginFlow: LoginFlow {
         logger.log(.info, "Challenge set contains unsupported types: \(unsupported.map(\.type.wire))")
       }
       return .challenges(set.challenges, set.context)
-    case .authorizationCode(let code, let postLoginSession):
+    case .authorizationCode(let code, let postLoginSession, let kcActionStatus):
       state = .finished
       pending = []
       session = postLoginSession
+      actionStatus = kcActionStatus.map(KcActionStatus.init(wire:))
       let credentials = try await tokens.exchange(code: code, codeVerifier: pkce.verifier, authSession: postLoginSession)
       return .authorized(credentials)
     case .redirectToWeb(let request):

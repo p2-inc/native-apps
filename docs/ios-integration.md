@@ -182,6 +182,28 @@ let registered = try await kc.passkeys().registerNewPasskey(
 
 Stale authentication needs step-up and a fresh registration attempt; the SDK does not automatically replay registration after the new login. [Passkey setup](sample-app.md#real-passkeys) is required even though the package compiles on a Mac/simulator.
 
+### Change password and other application-initiated actions
+
+A "Change password" button in your settings starts Keycloak's `UPDATE_PASSWORD` required action for the signed-in user ([spec/21](../spec/21-application-initiated-actions.md)):
+
+```swift
+let flow = try await kc.authentication().requiredAction("UPDATE_PASSWORD")
+NativeLoginView(kc: kc, flow: flow) { result in
+  if case .authorized(let credentials) = result {
+    try? kc.credentialsManager().store(credentials)
+    Task {
+      switch await flow.kcActionStatus {
+      case .success: break // password changed
+      case .cancelled: break // the user tapped Cancel
+      default: break // the server could not run the action
+      }
+    }
+  }
+}
+```
+
+It is a step-up with `kc_action`, so it needs stored credentials (`credentials_not_found` otherwise). The user proves who they are first when the authentication is older than the action's *Maximum Age of Authentication* in the realm (Authentication → Required actions → Update Password; also the password policy's `maxAuthAge`; default 5 minutes). Pass `maxAge: 0` to always ask for the factors again regardless of the realm setting. The default screen then shows the new-password fields, "Sign out of other devices" (on by default; it ends every other session of the user and keeps this one) and Cancel. With custom screens, answer `.updatePassword(new, confirm: new, logoutOtherSessions: true)` or `.skip(.updatePassword)`; `challenge.updatePasswordParams?.logoutOtherSessions` is `nil` when the server does not offer the option. `flow.kcActionStatus` is `.success`, `.cancelled`, `.error` (unknown, disabled, or not allowed to be started by the app) or `nil` without `kc_action`; in every case the flow ends `.authorized` with fresh tokens for the same session. The same call runs other actions the server allows to be app-initiated.
+
 ### Biometry-protected credentials
 
 To keep tokens device-only and readable only after Face ID / Touch ID, give the credentials their own store; the DPoP key reference and push enrolment stay in the default store, which the SDK reads on every signed request without user interaction:

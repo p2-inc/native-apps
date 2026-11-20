@@ -36,7 +36,7 @@ import Testing
 
   @Test func successBodyYieldsCodeAndPostLoginSession() throws {
     let outcome = try ChallengeEndpointClient.parse(response(200, ["authorization_code": "c", "auth_session": "post"]))
-    guard case .authorizationCode(let code, let session) = outcome else { Issue.record("expected code"); return }
+    guard case .authorizationCode(let code, let session, _) = outcome else { Issue.record("expected code"); return }
     #expect(code == "c" && session == "post")
   }
 

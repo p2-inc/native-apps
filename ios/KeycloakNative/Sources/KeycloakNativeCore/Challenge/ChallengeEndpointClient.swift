@@ -11,7 +11,7 @@ struct ChallengeSet: Sendable {
 }
 
 enum ChallengeOutcome: Sendable {
-  case authorizationCode(String, authSession: String?)
+  case authorizationCode(String, authSession: String?, kcActionStatus: String? = nil)
   case challenges(ChallengeSet)
   case redirectToWeb(RedirectToWebRequest)
 }
@@ -59,7 +59,7 @@ struct ChallengeEndpointClient: Sendable {
       guard let code = json["authorization_code"]?.stringValue else {
         throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, statusCode: 200, description: "200 without authorization_code", details: json)
       }
-      return .authorizationCode(code, authSession: json["auth_session"]?.stringValue)
+      return .authorizationCode(code, authSession: json["auth_session"]?.stringValue, kcActionStatus: json["kc_action_status"]?.stringValue)
     }
     let error = json["error"]?.stringValue
     // 403 per draft-04; 400 tolerated for older servers (spec/03 §3.2).
