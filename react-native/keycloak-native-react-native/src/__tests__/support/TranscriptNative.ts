@@ -214,8 +214,16 @@ export class TranscriptNative implements Spec {
     }
     const credentials = this.credentialsFrom(exchange);
     this.lastCredentials.set(flowId, credentials);
-    return JSON.stringify(credentials);
+    // What the browser callback carried (spec/21); the browser itself is not recorded.
+    return JSON.stringify(
+      this.webFallbackKcActionStatus === undefined
+        ? credentials
+        : { ...credentials, kcActionStatus: this.webFallbackKcActionStatus }
+    );
   }
+
+  /** `kc_action_status` the scripted browser callback returns. */
+  webFallbackKcActionStatus: string | undefined;
 
   async storeCredentials(flowId: string): Promise<void> {
     const credentials = this.lastCredentials.get(flowId);

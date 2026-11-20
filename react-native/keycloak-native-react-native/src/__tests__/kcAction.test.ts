@@ -138,3 +138,42 @@ describe('requiredAction', () => {
     expect(step.kcActionStatus).toBe('later');
   });
 });
+
+describe('requiredAction through the browser', () => {
+  it('an action without a native variant reports the status from the browser callback', async () => {
+    const { native, kc } = setup(
+      'KcActionIT.anActionWithoutANativeVariantRunsInTheBrowserAndReportsItsStatus'
+    );
+    // frank: username → password, no TOTP.
+    const login = await kc.authentication.startLogin(PARAMS);
+    let step = await login.start();
+    step = await login.respond(
+      { kind: 'username', username: 'frank' },
+      find(step, 'username')
+    );
+    step = await login.respond(
+      { kind: 'password', password: 'frank-password' },
+      find(step, 'password')
+    );
+    if (step.kind !== 'authorized') throw new Error(step.kind);
+    await kc.credentialsManager.store(step.credentials);
+
+    const flow = await kc.authentication.requiredAction(
+      'UPDATE_PROFILE',
+      PARAMS
+    );
+    const results: NativeLoginResult[] = [];
+    const c = new LoginController(kc, flow, (r) => results.push(r));
+    await c.startIfNeeded();
+    expect(c.state.phase.kind).toBe('redirectToWeb');
+    native.webFallbackKcActionStatus = 'success';
+    await c.openBrowser();
+    expect(flow.kcActionStatus).toBe('success');
+    expect(results).toEqual([
+      expect.objectContaining({
+        kind: 'authorized',
+        kcActionStatus: 'success',
+      }),
+    ]);
+  });
+});
