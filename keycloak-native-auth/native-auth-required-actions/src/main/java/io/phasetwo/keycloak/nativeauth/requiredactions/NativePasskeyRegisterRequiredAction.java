@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.jboss.logging.Logger;
 import org.keycloak.WebAuthnConstants;
+import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.common.util.Base64Url;
 import org.keycloak.events.Details;
@@ -55,6 +56,12 @@ public class NativePasskeyRegisterRequiredAction implements NativeRequiredAction
   @Override
   public ChallengeType challengeType() {
     return ChallengeType.PASSKEY_REGISTRATION;
+  }
+
+  /** The application may start a passkey registration with {@code kc_action=native-passkey-register} (spec/21). */
+  @Override
+  public InitiatedActionSupport initiatedActionSupport() {
+    return InitiatedActionSupport.SUPPORTED;
   }
 
   @Override

@@ -7,6 +7,7 @@ import io.phasetwo.keycloak.nativeauth.requiredactions.NativeRequiredActionBase;
 import io.phasetwo.keycloak.pin.PinConstants;
 import io.phasetwo.keycloak.pin.PinSetResult;
 import io.phasetwo.keycloak.pin.credential.PinCredentialProvider;
+import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
@@ -33,6 +34,12 @@ public class NativeConfigurePinRequiredAction extends NativeRequiredActionBase {
   @Override
   public ChallengeType challengeType() {
     return ChallengeType.PIN_SETUP;
+  }
+
+  /** The application may start a PIN change with {@code kc_action=phasetwo-configure-pin} (spec/21). */
+  @Override
+  public InitiatedActionSupport initiatedActionSupport() {
+    return InitiatedActionSupport.SUPPORTED;
   }
 
   @Override

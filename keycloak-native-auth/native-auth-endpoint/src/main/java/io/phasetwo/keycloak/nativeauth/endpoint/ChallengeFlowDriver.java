@@ -154,8 +154,16 @@ final class ChallengeFlowDriver {
     copyNote(form, Protocol.UI_LOCALES, authSession, LocaleSelectorProvider.CLIENT_REQUEST_LOCALE);
     copyNote(form, Protocol.ACR_VALUES, authSession, OIDCLoginProtocol.ACR_PARAM);
     // spec/21: Keycloak's own kc_action handling (nextRequiredAction, requireReauthentication, AcrStore)
-    // reads this client note, exactly as for the authorization endpoint's kc_action parameter.
-    copyNote(form, Protocol.KC_ACTION, authSession, Constants.KC_ACTION);
+    // reads these client notes. Split like AuthorizationEndpoint.performActionOnParameters:
+    // `alias:parameter` (e.g. delete_credential:<id>, idp_link:<alias>, webauthn-register:skip_if_exists).
+    String kcAction = form.getFirst(Protocol.KC_ACTION);
+    if (kcAction != null && !kcAction.isBlank()) {
+      int colon = kcAction.indexOf(':');
+      authSession.setClientNote(Constants.KC_ACTION, colon < 0 ? kcAction : kcAction.substring(0, colon));
+      if (colon >= 0) {
+        authSession.setClientNote(Constants.KC_ACTION_PARAMETER, kcAction.substring(colon + 1));
+      }
+    }
     requestedLevelOfAuthentication(authSession, client, form.getFirst(Protocol.ACR_VALUES));
     if (codeChallenge != null) {
       authSession.setClientNote(OIDCLoginProtocol.CODE_CHALLENGE_PARAM, codeChallenge);

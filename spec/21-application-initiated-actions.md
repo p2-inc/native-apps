@@ -7,7 +7,7 @@ A signed-in app needs to start a required action on request: "Change password" i
 
 ## D1 — Reuse Keycloak's `kc_action` machinery
 
-The request parameter `kc_action` (03 §2.1) is copied to the authentication session's `kc_action` client note, the note the authorization endpoint sets. Everything else is Keycloak's own code, which the native endpoint already calls (13 D1):
+The request parameter `kc_action` (03 §2.1) is copied to the authentication session's `kc_action` client note, the note the authorization endpoint sets; like `AuthorizationEndpoint.performActionOnParameters`, an `alias:parameter` value is split into `kc_action` and `kc_action_parameter` (`delete_credential:<credential id>`, `idp_link:<identity provider alias>`, `webauthn-register:skip_if_exists`). Everything else is Keycloak's own code, which the native endpoint already calls (13 D1):
 
 - `OIDCLoginProtocol.requireReauthentication` (called by the step-up) includes `isReAuthRequiredForKcAction`: a full re-authentication when the user session's `AUTH_TIME` is older than the action's maximum authentication age. For `UPDATE_PASSWORD` that is the Update Password required action's *Maximum Age of Authentication* or the password policy's `maxAuthAge` (default 300 s).
 - `AuthenticationManager.nextRequiredAction` puts the requested action first even when it is not pending on the user, marks it enforced when it is, and reports `error` for an alias that is not configured.
@@ -27,7 +27,9 @@ The parameter is honored on a fresh login and on a step-up. The useful case is t
 
 `RequiredActionDriver` applies `AuthenticationManager.executeAction`'s checks to the requested action: the native provider must return `InitiatedActionSupport.SUPPORTED` and be enabled in the realm, else the status is `error` and the login continues without it (the code is still issued). The served action may be the native one named directly or the native variant substituted for the requested Keycloak alias (03 §4.11); the status is recorded under the name the app sent, because Keycloak only records it when the provider id equals the `kc_action` note. (Before this change, success and skip statuses were recorded under the native id, so a substituted action never reported one.)
 
-Supported today: `native-update-password` (for `UPDATE_PASSWORD`). Others opt in by overriding `initiatedActionSupport()`; candidates are `native-configure-pin` (change PIN) and `native-passkey-register`. `native-verify-email`, `native-terms` and `native-push-enroll` stay unsupported.
+Native actions that allow it: `native-update-password` (for `UPDATE_PASSWORD`), `native-verify-email` (for `VERIFY_EMAIL`), `native-configure-pin` (for `phasetwo-configure-pin`, "change PIN") and `native-passkey-register` (requested under its own id; Keycloak's `webauthn-register*` aliases are not substituted, 03 §4.11). `native-terms` and `native-push-enroll` stay unsupported (`error`).
+
+**Actions without a native variant** (`UPDATE_PROFILE`, `UPDATE_EMAIL`, `CONFIGURE_TOTP`, `CONFIGURE_RECOVERY_AUTHN_CODES`, `webauthn-register*`, `delete_credential`, `delete_account`, `idp_link`, …) end in `redirect_to_web` (03 §3.4) like a pending non-native action, and the stored PAR request carries `kc_action` (with its parameter). The browser signs the user in, Keycloak's own page runs the action, and the redirect to the app carries `kc_action_status` next to `code` and `state`. So every action Keycloak allows the application to start works: natively where a native variant exists, in the system browser otherwise.
 
 ## D4 — Cancel and status
 

@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.nativeauth.demo;
 
 import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.baseUrl;
+import static io.phasetwo.keycloak.nativeauth.demo.KeycloakContainerSupport.realmUrl;
 import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.ALICE_TOTP_SECRET;
 import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.CLIENT;
 import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.answer;
@@ -15,10 +16,16 @@ import static io.phasetwo.keycloak.nativeauth.demo.NativeAuthIT.totp;
 import static io.phasetwo.keycloak.nativeauth.demo.StepUpIT.stepUp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.restassured.response.Response;
+import java.net.URLEncoder;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -158,4 +165,80 @@ class KcActionIT {
     }
   }
 
+  @Test
+  void anActionParameterIsSplitOffTheAlias() {
+    // Keycloak's `alias:parameter` form (delete_credential:<id>, idp_link:<alias>, …): the alias is
+    // what runs; UPDATE_PASSWORD ignores the parameter.
+    String postLogin = signIn().postLogin();
+    Pkce pkce = Pkce.s256();
+    Response r = stepUp(CLIENT, pkce, postLogin, "kc_action", "UPDATE_PASSWORD:unused");
+    assertChallenge(r, "update_password");
+    r = answer(r, "update_password", "action", "skip");
+    assertEquals(200, r.statusCode(), r.asString());
+    assertEquals("cancelled", r.jsonPath().getString("kc_action_status"));
+    assertEquals(200, exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null).statusCode());
+  }
+
+  @Test
+  void verifyEmailCanBeStartedByTheApp() {
+    String postLogin = signIn().postLogin();
+    Pkce pkce = Pkce.s256();
+    Response r = stepUp(CLIENT, pkce, postLogin, "kc_action", "VERIFY_EMAIL");
+    assertChallenge(r, "verify_email");
+    assertEquals(true, descriptor(r, "verify_email").get("skippable"));
+    r = answer(r, "verify_email", "action", "skip");
+    assertEquals(200, r.statusCode(), r.asString());
+    assertEquals("cancelled", r.jsonPath().getString("kc_action_status"));
+    assertEquals(200, exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null).statusCode());
+  }
+
+  @Test
+  void anActionWithoutANativeVariantRunsInTheBrowserAndReportsItsStatus() throws Exception {
+    // frank has nothing pending; the app asks for UPDATE_PROFILE, which has no native variant.
+    Admin.updateUser("frank", "{\"requiredActions\":[]}");
+    try {
+      Pkce pkce = Pkce.s256();
+      Response r = login(CLIENT, pkce, "frank", "frank-password", null);
+      assertEquals(200, r.statusCode(), r.asString());
+      assertEquals(200, exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null).statusCode());
+
+      Pkce pkce2 = Pkce.s256();
+      r = stepUp(CLIENT, pkce2, r.jsonPath().getString("auth_session"), "kc_action", "UPDATE_PROFILE");
+      assertEquals(403, r.statusCode(), r.asString());
+      assertEquals("redirect_to_web", r.jsonPath().getString("error"));
+      assertEquals("required_action:UPDATE_PROFILE", r.jsonPath().getString("reason"));
+      String requestUri = r.jsonPath().getString("request_uri");
+      String state = r.jsonPath().getString("state");
+
+      // The browser signs frank in and, because the stored request carries kc_action, shows the profile page.
+      RedirectToWebIT.Browser browser = new RedirectToWebIT.Browser();
+      HttpResponse<String> page =
+          browser.get(realmUrl() + "/protocol/openid-connect/auth?client_id=" + CLIENT + "&request_uri=" + URLEncoder.encode(requestUri, StandardCharsets.UTF_8));
+      for (int hops = 0; page.statusCode() == 302 && hops < 3; hops++) {
+        page = browser.get(page.headers().firstValue("Location").orElseThrow());
+      }
+      assertEquals(200, page.statusCode(), page.body());
+      HttpResponse<String> afterLogin = browser.post(formAction(page.body()), "username=frank&password=frank-password");
+      assertEquals(302, afterLogin.statusCode(), afterLogin.body());
+      String actionUrl = afterLogin.headers().firstValue("Location").orElseThrow();
+      assertTrue(actionUrl.contains("required-action"), actionUrl);
+      HttpResponse<String> actionPage = browser.get(actionUrl);
+      assertTrue(actionPage.body().contains("firstName"), actionPage.body());
+      HttpResponse<String> done =
+          browser.post(formAction(actionPage.body()), "username=frank&email=frank%40example.com&firstName=Frank&lastName=Example");
+      assertEquals(302, done.statusCode(), done.body());
+      String location = done.headers().firstValue("Location").orElseThrow();
+      assertTrue(location.startsWith("demoapp://auth/callback?"), location);
+      assertTrue(location.contains("state=" + URLEncoder.encode(state, StandardCharsets.UTF_8)), location);
+      assertTrue(location.contains("kc_action_status=success"), "the callback reports the action: " + location);
+    } finally {
+      Admin.updateUser("frank", "{\"requiredActions\":[\"UPDATE_PROFILE\"]}");
+    }
+  }
+
+  private static String formAction(String html) {
+    Matcher m = Pattern.compile("action=\"([^\"]+)\"").matcher(html);
+    assertTrue(m.find(), "no form in page:\n" + html);
+    return m.group(1).replace("&amp;", "&");
+  }
 }
