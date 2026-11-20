@@ -267,8 +267,13 @@ final class WebFallback {
   /// Opens the browser for the flow's last `RedirectToWebStep` and exchanges the code with the
   /// flow's PKCE verifier. Errors: `web_fallback_cancelled` (the user closed the browser; the app may
   /// retry), `web_fallback_failed`, `invalid_response`, and token endpoint errors.
-  Future<Credentials> complete(NativeLoginFlow flow) async =>
-      credentialsFromMessage(await bridged(() => _kc._api.completeWebFallback(flow.handle)));
+  /// An application-initiated action that continued in the browser (spec/21) reports its outcome on
+  /// the callback; it is then `flow.kcActionStatus`.
+  Future<Credentials> complete(NativeLoginFlow flow) async {
+    final message = await bridged(() => _kc._api.completeWebFallback(flow.handle));
+    flow.browserCompleted(message.kcActionStatus);
+    return credentialsFromMessage(message);
+  }
 }
 
 /// Credentials in the native secure store (Keychain, Android Keystore) with serialized refresh.

@@ -171,7 +171,10 @@ class NativeLoginController extends ChangeNotifier {
 
   void openBrowser() {
     if (_phase is! NativeLoginRedirectToWeb) return;
-    _perform(() async => AuthorizedStep(await kc.webFallback.complete(flow)));
+    _perform(() async {
+      final credentials = await kc.webFallback.complete(flow);
+      return AuthorizedStep(credentials, kcActionStatus: flow.kcActionStatus);
+    });
   }
 
   Future<void> cancel() async {

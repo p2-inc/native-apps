@@ -219,7 +219,7 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
     val request = record.redirect ?: throw NativeAuthError(NativeAuthError.Code.FLOW_STATE, errorDescription = "The flow has no redirect_to_web step")
     val credentials = record.instance.webFallback().complete(request, record.flow)
     record.redirect = null
-    record.hold(credentials)
+    record.hold(credentials).copy(kcActionStatus = record.flow.kcActionStatus?.wire)
   }
 
   override suspend fun storeCredentials(instance: String, handle: String) = bridgedSuspend {

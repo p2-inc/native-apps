@@ -131,6 +131,15 @@ final class NativeLoginFlow {
 
   List<Challenge> _pending = const [];
   bool _disposed = false;
+  KcActionStatus? _kcActionStatus;
+
+  /// Outcome of `LoginParameters.kcAction` once the flow is authorized (spec/21), also after the
+  /// browser fallback; `null` without `kc_action`.
+  KcActionStatus? get kcActionStatus => _kcActionStatus;
+
+  /// `WebFallback.complete` finished the login in the browser.
+  void browserCompleted(String? kcActionStatus) =>
+      _kcActionStatus = kcActionStatus == null ? null : KcActionStatus.fromWire(kcActionStatus);
 
   /// The challenges of the last `ChallengesStep`.
   List<Challenge> get pendingChallenges => _pending;
@@ -185,6 +194,7 @@ final class NativeLoginFlow {
     if (_disposed) throw const NativeAuthException(NativeAuthErrorCode.flowState, description: 'The flow is disposed');
     final step = flowStepFromMessage(await bridged(call));
     _pending = step is ChallengesStep ? step.challenges : const [];
+    if (step is AuthorizedStep) _kcActionStatus = step.kcActionStatus;
     return step;
   }
 }

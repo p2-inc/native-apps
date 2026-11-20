@@ -61,6 +61,23 @@ void main() {
       }
     });
 
+    test('an action without a native variant reports the status from the browser callback', () async {
+      final host = TranscriptHostApi(loadTranscript('KcActionIT.anActionWithoutANativeVariantRunsInTheBrowserAndReportsItsStatus'));
+      final kc = await KeycloakNative.configure(issuer: Uri.parse('http://localhost/realms/demo'), clientId: 'demo-native', hostApi: host);
+      final login = await kc.authentication.startLogin(const LoginParameters(scope: 'openid profile', deviceName: 'NativeAuthIT'));
+      var step = await login.start() as ChallengesStep;
+      step = await login.respond(const ChallengeAnswer.username('frank'), step.challenges.single) as ChallengesStep;
+      final signedIn = await login.respond(const ChallengeAnswer.password('frank-password'), step.challenges.whereType<PasswordChallenge>().single) as AuthorizedStep;
+      await kc.credentialsManager.store(signedIn.credentials);
+
+      final flow = await kc.authentication.requiredAction('UPDATE_PROFILE', scope: 'openid profile', deviceName: 'NativeAuthIT');
+      final redirect = await flow.start() as RedirectToWebStep;
+      expect(redirect.request.reason, 'required_action:UPDATE_PROFILE');
+      host.webFallbackKcActionStatus = 'success';
+      await kc.webFallback.complete(flow);
+      expect(flow.kcActionStatus, KcActionStatus.success);
+    });
+
     test('KcActionStatus keeps unknown values', () {
       expect(KcActionStatus.fromWire('later').wire, 'later');
       expect(KcActionStatus.fromWire('success'), same(KcActionStatus.success));

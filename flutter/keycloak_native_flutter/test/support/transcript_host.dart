@@ -379,7 +379,26 @@ class TranscriptHostApi implements KeycloakNativeHostApi {
   Future<void> disposeFlow(String flow) async => flowsDisposed++;
 
   @override
-  Future<CredentialsMessage> completeWebFallback(String flow) async => throw PlatformException(code: 'web_fallback_cancelled', message: 'The user closed the browser');
+  Future<CredentialsMessage> completeWebFallback(String flow) async {
+    final status = webFallbackKcActionStatus;
+    if (status == null) throw PlatformException(code: 'web_fallback_cancelled', message: 'The user closed the browser');
+    // The browser is not recorded; the native side exchanges the callback's code (covered by the
+    // native replay suites) and reports the callback's kc_action_status (spec/21).
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return CredentialsMessage(
+      handle: 'credentials-browser',
+      accessToken: 'browser',
+      tokenType: 'Bearer',
+      expiresAtMillis: now + 300000,
+      issuedAtMillis: now,
+      hasRefreshToken: true,
+      kcActionStatus: status,
+    );
+  }
+
+  /// Scripts a completed browser fallback whose callback carried this `kc_action_status`; `null`
+  /// keeps the default (the user closed the browser).
+  String? webFallbackKcActionStatus;
 
   @override
   Future<void> storeCredentials(String instance, String handle) async => stored.add(handle);

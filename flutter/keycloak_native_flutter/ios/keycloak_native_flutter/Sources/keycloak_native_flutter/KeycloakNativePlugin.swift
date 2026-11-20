@@ -129,7 +129,9 @@ public final class KeycloakNativePlugin: NSObject, FlutterPlugin, KeycloakNative
       }
       let credentials = try await record.instance.webFallback().complete(request, flow: record.flow)
       lock.withLock { record.redirect = nil }
-      return hold(credentials, record)
+      var message = hold(credentials, record)
+      message.kcActionStatus = await record.flow.kcActionStatus?.wire
+      return message
     }
   }
 

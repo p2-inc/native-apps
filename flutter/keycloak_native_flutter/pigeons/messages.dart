@@ -117,6 +117,9 @@ class CredentialsMessage {
   int? refreshExpiresAtMillis;
   int issuedAtMillis;
   bool hasRefreshToken;
+
+  /// `completeWebFallback` only: the browser callback's `kc_action_status` (spec/21).
+  String? kcActionStatus;
 }
 
 class RedirectToWebMessage {
