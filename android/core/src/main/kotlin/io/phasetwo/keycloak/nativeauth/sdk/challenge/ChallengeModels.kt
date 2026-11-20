@@ -281,6 +281,12 @@ public class UpdatePasswordParams(json: JsonElement) {
   /** Keycloak policy id → configured value (`length: 8`, `digits: 1`, `notUsername: true`, …). */
   public val policy: Map<String, JsonElement> = json["policy"].objectValue.orEmpty()
 
+  /**
+   * The suggested default for "Sign out of other devices" when the server offers it (spec/21 D5);
+   * `null` when it does not (older servers): then don't show the option and don't send the field.
+   */
+  public val logoutOtherSessions: Boolean? = json["logout_other_sessions"].boolValue
+
   public val minimumLength: Int? get() = policy["length"].intValue
   public val maximumLength: Int? get() = policy["maxLength"].intValue
 
@@ -552,8 +558,15 @@ public sealed class ChallengeAnswer {
   /** `action=resend`: (re)send a code; also the first send when [OtpParams.sent] is `false`. */
   public object OtpResend : ChallengeAnswer()
 
-  /** `update_password` (spec/03 §4.12): the new password, sent as `password` + `password_confirm`. */
-  public data class UpdatePassword(public val password: String, public val confirm: String) : ChallengeAnswer()
+  /**
+   * `update_password` (spec/03 §4.12): the new password, sent as `password` + `password_confirm`;
+   * [logoutOtherSessions] (spec/21 D5) is sent only when not `null`.
+   */
+  public data class UpdatePassword(
+    public val password: String,
+    public val confirm: String,
+    public val logoutOtherSessions: Boolean? = null,
+  ) : ChallengeAnswer()
 
   /** `verify_email` (spec/03 §4.13): the code received by email. */
   public data class VerifyEmail(public val code: String) : ChallengeAnswer()
@@ -638,7 +651,9 @@ public sealed class ChallengeAnswer {
       is PasskeyRegistration -> attestation.formFields + if (label.isNullOrEmpty()) emptyList() else listOf("label" to label)
       is Otp -> listOf("otp" to code)
       OtpResend -> listOf("action" to "resend")
-      is UpdatePassword -> listOf("password" to password, "password_confirm" to confirm)
+      is UpdatePassword ->
+        listOf("password" to password, "password_confirm" to confirm) +
+          listOfNotNull(logoutOtherSessions?.let { "logout_other_sessions" to it.toString() })
       is VerifyEmail -> listOf("code" to code)
       VerifyEmailResend -> listOf("action" to "resend")
       is Terms -> listOf("accepted" to accepted.toString())
