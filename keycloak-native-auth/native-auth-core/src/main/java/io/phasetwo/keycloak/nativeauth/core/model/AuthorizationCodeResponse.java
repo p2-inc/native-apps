@@ -7,12 +7,23 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 public class AuthorizationCodeResponse {
   private String authorizationCode;
   private String authSession;
+  /** Outcome of a requested {@code kc_action} (spec/21); absent when the request carried none. */
+  private String kcActionStatus;
 
   public AuthorizationCodeResponse() {}
 
   public AuthorizationCodeResponse(String authorizationCode, String authSession) {
     this.authorizationCode = authorizationCode;
     this.authSession = authSession;
+  }
+
+  public String getKcActionStatus() {
+    return kcActionStatus;
+  }
+
+  public AuthorizationCodeResponse setKcActionStatus(String kcActionStatus) {
+    this.kcActionStatus = kcActionStatus;
+    return this;
   }
 
   public String getAuthorizationCode() {

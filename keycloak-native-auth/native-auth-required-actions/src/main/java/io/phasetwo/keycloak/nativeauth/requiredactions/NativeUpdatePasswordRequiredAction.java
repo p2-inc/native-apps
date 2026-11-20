@@ -3,14 +3,19 @@ package io.phasetwo.keycloak.nativeauth.requiredactions;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeDescriptor;
 import io.phasetwo.keycloak.nativeauth.core.model.ChallengeType;
 import io.phasetwo.keycloak.nativeauth.core.model.Protocol;
+import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequestContext;
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Consumer;
+import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
+import org.keycloak.common.Profile;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
@@ -21,7 +26,10 @@ import org.keycloak.models.PasswordPolicy;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
+import org.keycloak.services.managers.AuthenticationManager;
+import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 
 /**
@@ -58,6 +66,12 @@ public class NativeUpdatePasswordRequiredAction extends NativeRequiredActionBase
     return ChallengeType.UPDATE_PASSWORD;
   }
 
+  /** The application may start a password change with {@code kc_action=UPDATE_PASSWORD} (spec/21). */
+  @Override
+  public InitiatedActionSupport initiatedActionSupport() {
+    return InitiatedActionSupport.SUPPORTED;
+  }
+
   @Override
   protected void challenge(RequiredActionContext context, ChallengeDescriptor.ChallengeError error) {
     ChallengeDescriptor d =
@@ -65,7 +79,9 @@ public class NativeUpdatePasswordRequiredAction extends NativeRequiredActionBase
             .setLabel("Choose a new password")
             .setError(error)
             .param("username", context.getUser().getUsername())
-            .param("policy", policyHints(context.getRealm()));
+            .param("policy", policyHints(context.getRealm()))
+            // Offered like the browser page's "Sign out from other devices" checkbox, checked by default (spec/21).
+            .param(Protocol.LOGOUT_OTHER_SESSIONS, Boolean.TRUE);
     emit(context, d);
   }
 
@@ -103,12 +119,48 @@ public class NativeUpdatePasswordRequiredAction extends NativeRequiredActionBase
       // 26.8.1 has no updateCredentialAndGet (that is nightly); the boolean variant suffices.
       user.credentialManager().updateCredential(UserCredentialModel.password(password, false));
       event.success();
+      if (Boolean.parseBoolean(form(context).getFirst(Protocol.LOGOUT_OTHER_SESSIONS))) {
+        logoutOtherSessions(context);
+      }
       context.success();
     } catch (ModelException e) {
       // The realm's password policy rejected the value: message key + parameters (PasswordPolicyManagerProvider).
       String message = localise(context, e.getMessage(), e.getParameters());
       event.detail(Details.REASON, e.getMessage()).error(Errors.PASSWORD_REJECTED);
       challenge(context, new ChallengeDescriptor.ChallengeError(Protocol.DESC_ERR_INVALID_PASSWORD, message));
+    }
+  }
+
+  /**
+   * {@code AuthenticatorUtil.logoutOtherSessions} for a native login (spec/21). Keycloak's helper keeps
+   * only the user session whose id equals the root authentication session's, which holds for a fresh
+   * login but not for a step-up: that continues an existing user session from a new root
+   * authentication session, so the helper would also end the session the app is signed in with.
+   */
+  private void logoutOtherSessions(RequiredActionContext context) {
+    RealmModel realm = context.getRealm();
+    UserModel user = context.getUser();
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    Set<String> keep = new HashSet<>();
+    keep.add(authSession.getParentSession().getId());
+    String stepUpSession = authSession.getClientNote(NativeRequestContext.CLIENT_NOTE_STEP_UP_USER_SESSION);
+    if (stepUpSession != null) keep.add(stepUpSession);
+    EventBuilder event = context.getEvent().clone().detail(Details.LOGOUT_TRIGGERED_BY_REQUIRED_ACTION, context.getAction());
+    Consumer<UserSessionModel> logout =
+        s -> {
+          AuthenticationManager.backchannelLogout(
+              session, realm, s, session.getContext().getUri(), context.getConnection(), context.getHttpRequest().getHttpHeaders(), true);
+          event.clone().event(EventType.LOGOUT).session(s).user(user).success();
+        };
+    session.sessions().getUserSessionsStream(realm, user)
+        .filter(s -> !keep.contains(s.getId()))
+        .toList() // backchannelLogout removes sessions; avoid modifying the stream's source
+        .forEach(logout);
+    if (!Profile.isFeatureEnabled(Profile.Feature.LOGOUT_ALL_SESSIONS_V1)) {
+      session.sessions().getOfflineUserSessionsStream(realm, user)
+          .filter(s -> !keep.contains(s.getId()))
+          .toList()
+          .forEach(logout);
     }
   }
 

@@ -12,6 +12,7 @@ import org.keycloak.common.util.Time;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.http.HttpRequest;
+import org.keycloak.models.Constants;
 import org.keycloak.models.AuthenticatedClientSessionModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.ClientSessionContext;
@@ -39,7 +40,7 @@ final class CodeIssuer {
    * Outcome of {@link #complete}: either a code (plus the id of the user session it belongs to, for
    * the post-login {@code auth_session}) or the alias of the next pending required action.
    */
-  record Outcome(String code, String userSessionId, String pendingRequiredAction) {}
+  record Outcome(String code, String userSessionId, String pendingRequiredAction, String kcActionStatus) {}
 
   private final KeycloakSession session;
   private final RealmModel realm;
@@ -79,7 +80,7 @@ final class CodeIssuer {
       // Native required actions are run by the caller (RequiredActionDriver, spec/11 D1).
       // EXTENSION POINT (spec/03 §3.4): anything else becomes `redirect_to_web` via
       // RedirectToWebBuilder (PAR request_uri) in Phase 2; until then the caller reports access_denied.
-      return new Outcome(null, null, nextRequiredAction);
+      return new Outcome(null, null, nextRequiredAction, null);
     }
 
     // Note: newer Keycloak versions add LoginProtocol.authenticationComplete(authSession) here to
@@ -95,6 +96,8 @@ final class CodeIssuer {
     String codeChallengeMethod = authSession.getClientNote(OIDCLoginProtocol.CODE_CHALLENGE_METHOD_PARAM);
     String dpopJkt = authSession.getClientNote(OIDCLoginProtocol.DPOP_JKT); // set when the login carried DPoP proofs (13 D3)
     String rootSessionId = authSession.getParentSession().getId();
+    // Outcome of an application-initiated action (spec/21), set by AuthenticationManager.setKcActionStatus.
+    String kcActionStatus = authSession.getClientNote(Constants.KC_ACTION_STATUS);
     boolean ssoAuthentication = AuthenticatorUtil.isSSOAuthentication(authSession);
     int authTime =
         Optional.ofNullable(authSession.getClientNote(AuthenticationManager.AUTH_TIME_BROKER))
@@ -141,6 +144,6 @@ final class CodeIssuer {
     log.debugf(
         "Issued native authorization code for user session %s (client %s, redirect_uri mode %s)",
         userSession.getId(), client.getClientId(), NativeAuthConfig.codeRedirectUriMode(realm));
-    return new Outcome(code, userSession.getId(), null);
+    return new Outcome(code, userSession.getId(), null, kcActionStatus);
   }
 }

@@ -7,6 +7,7 @@ import io.phasetwo.keycloak.nativeauth.otp.EmailOtpSenderFactory;
 import io.phasetwo.keycloak.nativeauth.otp.NativeOtpException;
 import io.phasetwo.keycloak.nativeauth.otp.NativeOtpSender;
 import io.phasetwo.keycloak.nativeauth.otp.OtpCodes;
+import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.common.util.Time;
 import org.keycloak.events.Details;
@@ -40,6 +41,12 @@ public class NativeVerifyEmailRequiredAction extends NativeRequiredActionBase {
   @Override
   public ChallengeType challengeType() {
     return ChallengeType.VERIFY_EMAIL;
+  }
+
+  /** The application may start an e-mail verification with {@code kc_action=VERIFY_EMAIL} (spec/21). */
+  @Override
+  public InitiatedActionSupport initiatedActionSupport() {
+    return InitiatedActionSupport.SUPPORTED;
   }
 
   private NativeOtpSender sender() {

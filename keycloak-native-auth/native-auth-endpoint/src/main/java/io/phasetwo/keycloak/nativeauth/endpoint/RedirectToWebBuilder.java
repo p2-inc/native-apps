@@ -12,6 +12,7 @@ import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.common.util.Time;
 import org.keycloak.locale.LocaleSelectorProvider;
 import org.keycloak.models.ClientModel;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -66,6 +67,13 @@ final class RedirectToWebBuilder {
     copy(authSession, OAuth2Constants.SCOPE, params, OAuth2Constants.SCOPE);
     copy(authSession, OIDCLoginProtocol.NONCE_PARAM, params, OIDCLoginProtocol.NONCE_PARAM);
     copy(authSession, OIDCLoginProtocol.ACR_PARAM, params, OIDCLoginProtocol.ACR_PARAM);
+    // spec/21: an application-initiated action without a native variant runs on Keycloak's own page in
+    // the browser; the browser redirect then carries kc_action_status.
+    String kcAction = authSession.getClientNote(Constants.KC_ACTION);
+    if (kcAction != null) {
+      String parameter = authSession.getClientNote(Constants.KC_ACTION_PARAMETER);
+      params.put(Constants.KC_ACTION, parameter == null ? kcAction : kcAction + ":" + parameter);
+    }
     copy(authSession, LocaleSelectorProvider.CLIENT_REQUEST_LOCALE, params, OIDCLoginProtocol.UI_LOCALES_PARAM);
     UserModel user = authSession.getAuthenticatedUser();
     if (user != null) {
