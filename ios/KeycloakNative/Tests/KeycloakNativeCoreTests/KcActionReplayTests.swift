@@ -84,6 +84,32 @@ import Testing
     #expect(transport.remaining == 0)
   }
 
+  @Test func anActionWithoutANativeVariantContinuesInTheBrowserAndReportsItsStatus() async throws {
+    let transcript = try Transcript.load("KcActionIT.anActionWithoutANativeVariantRunsInTheBrowserAndReportsItsStatus")
+    let browserExchange = try #require(transcript.exchanges.last { $0.request.path.hasSuffix("/token") })
+    let recordedCode = try #require(browserExchange.request.form?["code"])
+    let presenter = MockWebPresenter { _ in URL(string: "demoapp://auth/callback")! }
+    let (h, transport, _) = try Harness.replay([transcript.test], clientId: Self.client, webPresenter: presenter)
+
+    // frank: username → password, no TOTP.
+    let login = h.sdk.authentication().startLogin(Self.itParameters)
+    var step = try await login.start()
+    step = try await login.respond(.username("frank"), to: try #require(step.challenges?.first(.username)))
+    step = try await login.respond(.password("frank-password"), to: try #require(step.challenges?.first(.password)))
+    try await h.sdk.credentialsManager().store(try #require(step.credentials))
+
+    // UPDATE_PROFILE has no native variant: the flow hands over to the browser with kc_action kept.
+    let flow = try await h.sdk.authentication().requiredAction("UPDATE_PROFILE", scope: "openid profile", deviceName: "NativeAuthIT")
+    step = try await flow.start()
+    guard case .redirectToWeb(let request) = step else { Issue.record("expected redirect_to_web, got \(step)"); return }
+    #expect(request.reason == "required_action:UPDATE_PROFILE")
+    presenter.callback = { _ in URL(string: "demoapp://auth/callback?state=\(request.state!)&code=\(recordedCode)&kc_action_status=success")! }
+    let credentials = try await h.sdk.webFallback().complete(request, flow: flow)
+    #expect(credentials.accessTokenClaims?["preferred_username"]?.stringValue == "frank")
+    #expect(await flow.kcActionStatus == .success, "read from the browser callback")
+    #expect(transport.remaining == 0)
+  }
+
   @Test func kcActionIsReservedAndStatusParsing() throws {
     #expect(throws: NativeAuthError.self) { try NativeLoginFlow.extraFields(["kc_action": "UPDATE_PASSWORD"], after: []) }
     #expect(KcActionStatus(wire: "success") == .success && KcActionStatus(wire: "later") == .other("later"))
