@@ -45,22 +45,30 @@ jobs:
           cp push-mfa-extension-java21/LICENSE ../dist/providers/LICENSE-keycloak-push-mfa-extension
           cp push-mfa-extension-java21/NOTICE ../dist/providers/NOTICE-keycloak-push-mfa-extension
           (cd ../dist/providers && zip -q -r "../keycloak-native-auth-providers-$TAG.zip" .)
-      # The org's Maven Central signing key, stored base64-encoded for the Maven extension releases;
-      # Gradle's in-memory signing wants it ASCII-armored.
-      - name: Signing key
-        env:
-          GPG_KEY: ${{ secrets.GPG_KEY }}
-        run: |
-          echo "$GPG_KEY" | base64 -d | gpg --batch --import
-          {
-            echo "SIGNING_KEY<<EOF"
-            gpg --batch --armor --export-secret-keys
-            echo "EOF"
-          } >> "$GITHUB_ENV"
       # The runner image has the Android SDK with its licenses accepted.
+      #
+      # Signing: the org's Maven Central key is stored base64-encoded (for the Maven extension releases) and
+      # Gradle's in-memory signing wants it ASCII-armored, so it is converted here. The armored key is a derived
+      # value GitHub does not know to mask, so it must stay inside this step: never write it to $GITHUB_ENV or
+      # $GITHUB_OUTPUT (later steps print their environment in the log). Each of its lines is registered as a
+      # mask as a backstop. GPG_PASSPHRASE is optional; with it, the exported key stays passphrase-protected and
+      # Gradle unlocks it with SIGNING_PASSWORD.
       - name: Android SDK Maven repository
         working-directory: android
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.GPG_PASSPHRASE }}
         run: |
+          GNUPGHOME="$(mktemp -d)"
+          export GNUPGHOME
+          trap 'rm -rf "$GNUPGHOME"' EXIT
+          echo "$GPG_KEY" | base64 -d | gpg --batch --quiet --import
+          SIGNING_KEY="$(gpg --batch --pinentry-mode loopback --passphrase "$SIGNING_PASSWORD" --armor --export-secret-keys)"
+          if [ -z "$SIGNING_KEY" ]; then echo "::error::No signing key could be exported from GPG_KEY"; exit 1; fi
+          while IFS= read -r line; do
+            if [ "${#line}" -ge 8 ]; then echo "::add-mask::$line"; fi
+          done <<< "$SIGNING_KEY"
+          export SIGNING_KEY
           ./gradlew --no-daemon --console=plain -PreleaseVersion="$TAG" :core:test publishAllPublicationsToReleaseRepository
           (cd build/maven-repo && zip -q -r "../../../dist/keycloak-native-android-$TAG-maven-repo.zip" .)
       - name: Upload to the release
