@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.restassured.response.Response;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -231,6 +232,12 @@ class KcActionIT {
       assertTrue(location.startsWith("demoapp://auth/callback?"), location);
       assertTrue(location.contains("state=" + URLEncoder.encode(state, StandardCharsets.UTF_8)), location);
       assertTrue(location.contains("kc_action_status=success"), "the callback reports the action: " + location);
+
+      // The app exchanges the browser's code with the native flow's verifier, as after any redirect_to_web.
+      Matcher code = Pattern.compile("[?&]code=([^&]+)").matcher(location);
+      assertTrue(code.find(), location);
+      Response tokens = exchange(CLIENT, URLDecoder.decode(code.group(1), StandardCharsets.UTF_8), pkce2, "demoapp://auth/callback");
+      assertEquals(200, tokens.statusCode(), tokens.asString());
     } finally {
       Admin.updateUser("frank", "{\"requiredActions\":[\"UPDATE_PROFILE\"]}");
     }
