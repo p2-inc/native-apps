@@ -226,10 +226,15 @@ export class LoginController {
   openBrowser(): Promise<void> {
     const phase = this.stateValue.phase;
     if (phase.kind !== 'redirectToWeb') return Promise.resolve();
-    return this.perform(async () => ({
-      kind: 'authorized',
-      credentials: await this.flow.completeWebFallback(phase.request),
-    }));
+    return this.perform(async () => {
+      const credentials = await this.flow.completeWebFallback(phase.request);
+      const kcActionStatus = this.flow.kcActionStatus;
+      return {
+        kind: 'authorized',
+        credentials,
+        ...(kcActionStatus !== undefined && { kcActionStatus }),
+      };
+    });
   }
 
   async cancel(): Promise<void> {

@@ -8,6 +8,7 @@ import {
   type Challenge,
   type ChallengeAnswer,
   type Credentials,
+  type KcActionStatus,
   type FlowStep,
   type JsonObject,
   type JsonValue,
@@ -471,6 +472,15 @@ export class NativeLoginFlow {
   private stateValue: FlowState = 'idle';
   private pending: Challenge[] = [];
   private lastRedirect: RedirectToWebRequest | undefined;
+  private actionStatus: KcActionStatus | undefined;
+
+  /**
+   * Outcome of `LoginParameters.kcAction` once the flow is authorized (spec/21), also after the
+   * browser fallback; `undefined` without `kc_action`.
+   */
+  get kcActionStatus(): KcActionStatus | undefined {
+    return this.actionStatus;
+  }
   private inFlight = false;
 
   /** @internal Created by `KeycloakNative.authentication`. */
@@ -632,7 +642,11 @@ export class NativeLoginFlow {
       );
     }
     const json = await call(() => nativeModule().completeWebFallback(this.id));
-    const credentials = parseCredentials(JSON.parse(json));
+    const parsed = JSON.parse(json) as JsonValue;
+    const credentials = parseCredentials(parsed);
+    const status = (parsed as { kcActionStatus?: unknown } | null)
+      ?.kcActionStatus;
+    if (typeof status === 'string') this.actionStatus = status;
     credentialsSource.set(credentials, this.id);
     return credentials;
   }
@@ -685,6 +699,7 @@ export class NativeLoginFlow {
         case 'authorized':
           this.stateValue = 'finished';
           this.pending = [];
+          this.actionStatus = step.kcActionStatus;
           credentialsSource.set(step.credentials, this.id);
           break;
         case 'redirectToWeb':
