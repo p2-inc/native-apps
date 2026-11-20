@@ -51,9 +51,17 @@ public class WebFallback internal constructor(
    * `invalid_response` (state mismatch / no code), the server's `error` from the callback, and token
    * endpoint errors.
    */
-  public suspend fun complete(request: RedirectToWebRequest, flow: NativeLoginFlow): Credentials = complete(request, flow.pkce.verifier)
+  public suspend fun complete(request: RedirectToWebRequest, flow: NativeLoginFlow): Credentials {
+    // An application-initiated action that continued in the browser (spec/21) reports its outcome on
+    // the callback; it is then `flow.kcActionStatus`.
+    val (credentials, status) = run(request, flow.pkce.verifier)
+    flow.browserCompleted(status)
+    return credentials
+  }
 
-  public suspend fun complete(request: RedirectToWebRequest, codeVerifier: String): Credentials {
+  public suspend fun complete(request: RedirectToWebRequest, codeVerifier: String): Credentials = run(request, codeVerifier).first
+
+  private suspend fun run(request: RedirectToWebRequest, codeVerifier: String): Pair<Credentials, String?> {
     val redirectUri = request.callbackScheme?.let { URI(request.redirectUri) }
       ?: throw NativeAuthError(NativeAuthError.Code.INVALID_RESPONSE, errorDescription = "redirect_uri '${request.redirectUri}' has no scheme", details = request.raw)
     val presenter = presenter
@@ -62,10 +70,14 @@ public class WebFallback internal constructor(
     logger.log(LogLevel.INFO) { "Opening the browser for ${request.reason ?: "redirect_to_web"}" }
     val callback = presenter.authenticate(url, redirectUri)
     val code = code(callback, request.state)
-    return tokens.exchange(code, codeVerifier, redirectUri = request.redirectUri)
+    return tokens.exchange(code, codeVerifier, redirectUri = request.redirectUri) to kcActionStatus(callback)
   }
 
   internal companion object {
+    /** `kc_action_status` on the browser callback (spec/21), if any. */
+    fun kcActionStatus(callback: URI): String? =
+      callback.rawQuery?.let { FormEncoding.decode(it.toByteArray(Charsets.UTF_8)) }.orEmpty().firstOrNull { it.first == "kc_action_status" }?.second
+
     /** Extracts `code` from the callback, enforcing `state` and surfacing an OAuth `error`. */
     fun code(callback: URI, expectedState: String?): String {
       val items = callback.rawQuery?.let { FormEncoding.decode(it.toByteArray(Charsets.UTF_8)) }.orEmpty()

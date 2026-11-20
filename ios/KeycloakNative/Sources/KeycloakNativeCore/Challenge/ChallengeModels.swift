@@ -308,9 +308,14 @@ public struct UpdatePasswordParams: Sendable, Equatable {
   /// Keycloak policy id → configured value (`length: 8`, `digits: 1`, `notUsername: true`, …).
   public let policy: [String: JSONValue]
 
+  /// The suggested default for "Sign out of other devices" when the server offers it (spec/21 D5);
+  /// `nil` when it does not (older servers): then don't show the option and don't send the field.
+  public let logoutOtherSessions: Bool?
+
   public init(json: JSONValue) {
     username = json["username"]?.stringValue
     policy = json["policy"]?.objectValue ?? [:]
+    logoutOtherSessions = json["logout_other_sessions"]?.boolValue
   }
 
   public var minimumLength: Int? { policy["length"]?.intValue }
@@ -644,8 +649,9 @@ public enum ChallengeAnswer: Sendable, Equatable {
   case otp(String)
   /// `action=resend`: (re)send a code; also the first send when `OTPParams.sent` is `false`.
   case otpResend
-  /// `update_password` (spec/03 §4.12): the new password, sent as `password` + `password_confirm`.
-  case updatePassword(String, confirm: String)
+  /// `update_password` (spec/03 §4.12): the new password, sent as `password` + `password_confirm`;
+  /// `logoutOtherSessions` (spec/21 D5) is sent only when not `nil`.
+  case updatePassword(String, confirm: String, logoutOtherSessions: Bool? = nil)
   /// `verify_email` (spec/03 §4.13): the code received by e-mail.
   case verifyEmail(code: String)
   /// `verify_email`: `action=resend`.
@@ -721,8 +727,10 @@ public enum ChallengeAnswer: Sendable, Equatable {
       return [("otp", code)]
     case .otpResend:
       return [("action", "resend")]
-    case .updatePassword(let password, let confirm):
-      return [("password", password), ("password_confirm", confirm)]
+    case .updatePassword(let password, let confirm, let logoutOtherSessions):
+      var fields: [(name: String, value: String)] = [("password", password), ("password_confirm", confirm)]
+      if let logoutOtherSessions { fields.append(("logout_other_sessions", logoutOtherSessions ? "true" : "false")) }
+      return fields
     case .verifyEmail(let code):
       return [("code", code)]
     case .verifyEmailResend:

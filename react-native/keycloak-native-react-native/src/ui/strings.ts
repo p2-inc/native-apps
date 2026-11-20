@@ -54,6 +54,10 @@ export interface NativeLoginStrings {
   recoveryCodeLow: string;
   chooseNewPassword: string;
   passwordMustUpdate: string;
+  /** Subtitle when the app asked for the change (spec/21). */
+  passwordEnterNew: string;
+  /** "Sign out of other devices" switch (spec/21 D5). */
+  logoutOtherSessions: string;
   newPassword: string;
   confirmNewPassword: string;
   passwordsDoNotMatch: string;
@@ -176,6 +180,8 @@ export const englishStrings: NativeLoginStrings = {
     'You are running low on recovery codes; generate new ones after signing in.',
   chooseNewPassword: 'Choose a new password',
   passwordMustUpdate: 'Your password must be updated before you can continue.',
+  passwordEnterNew: 'Enter a new password for your account.',
+  logoutOtherSessions: 'Sign out of other devices',
   newPassword: 'New password',
   confirmNewPassword: 'Confirm new password',
   passwordsDoNotMatch: 'Passwords do not match',
@@ -307,6 +313,8 @@ export const germanStrings: NativeLoginStrings = {
   chooseNewPassword: 'Neues Passwort wählen',
   passwordMustUpdate:
     'Ihr Passwort muss aktualisiert werden, bevor Sie fortfahren können.',
+  passwordEnterNew: 'Geben Sie ein neues Passwort für Ihr Konto ein.',
+  logoutOtherSessions: 'Von anderen Geräten abmelden',
   newPassword: 'Neues Passwort',
   confirmNewPassword: 'Neues Passwort bestätigen',
   passwordsDoNotMatch: 'Die Passwörter stimmen nicht überein',

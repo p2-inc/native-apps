@@ -114,11 +114,19 @@ public struct WebFallback: Sendable {
   /// verifier signs the exchange). Errors: `web_fallback_cancelled`, `web_fallback_failed`,
   /// `invalid_response` (state mismatch / no code), the server's `error` from the callback, and
   /// token endpoint errors.
+  /// An application-initiated action that continued in the browser (spec/21) reports its outcome on
+  /// the callback; it is then `flow.kcActionStatus`.
   public func complete(_ request: RedirectToWebRequest, flow: NativeLoginFlow) async throws -> Credentials {
-    try await complete(request, codeVerifier: flow.pkce.verifier)
+    let (credentials, status) = try await run(request, codeVerifier: flow.pkce.verifier)
+    await flow.browserCompleted(kcActionStatus: status)
+    return credentials
   }
 
   public func complete(_ request: RedirectToWebRequest, codeVerifier: String) async throws -> Credentials {
+    try await run(request, codeVerifier: codeVerifier).credentials
+  }
+
+  private func run(_ request: RedirectToWebRequest, codeVerifier: String) async throws -> (credentials: Credentials, kcActionStatus: String?) {
     guard let scheme = request.callbackScheme else {
       throw NativeAuthError(code: NativeAuthError.Code.invalidResponse, description: "redirect_uri '\(request.redirectUri)' has no scheme", details: request.raw)
     }
@@ -126,7 +134,13 @@ public struct WebFallback: Sendable {
     logger.log(.info, "Opening the browser for \(request.reason ?? "redirect_to_web")")
     let callback = try await presenter.authenticate(url: url, callbackScheme: scheme)
     let code = try WebFallback.code(from: callback, expectedState: request.state)
-    return try await tokens.exchange(code: code, codeVerifier: codeVerifier, redirectUri: request.redirectUri)
+    let credentials = try await tokens.exchange(code: code, codeVerifier: codeVerifier, redirectUri: request.redirectUri)
+    return (credentials, WebFallback.kcActionStatus(from: callback))
+  }
+
+  /// `kc_action_status` on the browser callback (spec/21), if any.
+  static func kcActionStatus(from callback: URL) -> String? {
+    URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "kc_action_status" }?.value
   }
 
   /// Extracts `code` from the callback, enforcing `state` and surfacing an OAuth `error`.

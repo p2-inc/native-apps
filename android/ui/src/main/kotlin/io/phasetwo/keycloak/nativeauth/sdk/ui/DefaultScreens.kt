@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -372,15 +373,21 @@ internal fun UpdatePasswordScreen(presentation: ChallengePresentationContext) {
   val params = presentation.challenge.updatePasswordParams
   var password by rememberSaveable { mutableStateOf("") }
   var confirm by rememberSaveable { mutableStateOf("") }
+  // "Sign out of other devices" (spec/21 D5): shown only when offered, seeded with the server's default.
+  val suggestedLogout = params?.logoutOtherSessions
+  var logoutOtherSessions by rememberSaveable { mutableStateOf(suggestedLogout ?: false) }
+  // A skippable password change is one the app asked for (spec/21): the user chose it and may cancel.
+  val requested = presentation.challenge.isSkippable
   val canSubmit = password.isNotEmpty() && confirm == password && !presentation.isSubmitting
   val autofill = LocalAutofillManager.current
   val submit = {
     if (canSubmit) {
       autofill?.commit()
-      presentation.submit(ChallengeAnswer.UpdatePassword(password, confirm))
+      presentation.submit(ChallengeAnswer.UpdatePassword(password, confirm, logoutOtherSessions.takeIf { suggestedLogout != null }))
     }
   }
-  ChallengeFrame(presentation, stringResource(R.string.nl_choose_new_password), stringResource(R.string.nl_password_must_update)) {
+  val subtitle = stringResource(if (requested) R.string.nl_password_enter_new else R.string.nl_password_must_update)
+  ChallengeFrame(presentation, stringResource(R.string.nl_choose_new_password), subtitle) {
     AutofillUsernameField(presentation.flowContext.username ?: params?.username)
     AutofillField(value = password, onValueChange = { password = it }, label = stringResource(R.string.nl_new_password), contentType = ContentType.NewPassword, tag = "newPassword", secret = true)
     AutofillField(value = confirm, onValueChange = { confirm = it }, label = stringResource(R.string.nl_confirm_new_password), contentType = ContentType.NewPassword, tag = "newPasswordConfirm", secret = true, onDone = submit)
@@ -390,7 +397,18 @@ internal fun UpdatePasswordScreen(presentation: ChallengePresentationContext) {
     if (confirm.isNotEmpty() && confirm != password) {
       Text(stringResource(R.string.nl_passwords_do_not_match), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
     }
+    if (suggestedLogout != null) {
+      Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.nl_logout_other_sessions), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(checked = logoutOtherSessions, onCheckedChange = { logoutOtherSessions = it }, modifier = Modifier.testTag("logoutOtherSessions"))
+      }
+    }
     Button(onClick = submit, enabled = canSubmit, modifier = Modifier.fillMaxWidth().testTag("updatePassword")) { Text(stringResource(R.string.nl_update_password)) }
+    if (requested) {
+      TextButton(onClick = { presentation.submit(ChallengeAnswer.Skip(presentation.challenge.type)) }, enabled = !presentation.isSubmitting, modifier = Modifier.testTag("cancelUpdatePassword")) {
+        Text(stringResource(R.string.nl_cancel))
+      }
+    }
   }
 }
 

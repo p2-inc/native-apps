@@ -309,6 +309,8 @@ struct LoginParametersMessage: Hashable, CustomStringConvertible {
   var uiLocales: String? = nil
   var deviceName: String? = nil
   var deviceId: String? = nil
+  /// Application-initiated action (spec/21, `kc_action`).
+  var kcAction: String? = nil
   var additionalParameters: [String: String]
   var continuationParameters: [String: String]
 
@@ -324,8 +326,9 @@ struct LoginParametersMessage: Hashable, CustomStringConvertible {
     let uiLocales: String? = nilOrValue(pigeonVar_list[6])
     let deviceName: String? = nilOrValue(pigeonVar_list[7])
     let deviceId: String? = nilOrValue(pigeonVar_list[8])
-    let additionalParameters = pigeonVar_list[9] as! [String: String]
-    let continuationParameters = pigeonVar_list[10] as! [String: String]
+    let kcAction: String? = nilOrValue(pigeonVar_list[9])
+    let additionalParameters = pigeonVar_list[10] as! [String: String]
+    let continuationParameters = pigeonVar_list[11] as! [String: String]
 
     return LoginParametersMessage(
       scope: scope,
@@ -337,6 +340,7 @@ struct LoginParametersMessage: Hashable, CustomStringConvertible {
       uiLocales: uiLocales,
       deviceName: deviceName,
       deviceId: deviceId,
+      kcAction: kcAction,
       additionalParameters: additionalParameters,
       continuationParameters: continuationParameters
     )
@@ -352,6 +356,7 @@ struct LoginParametersMessage: Hashable, CustomStringConvertible {
       uiLocales,
       deviceName,
       deviceId,
+      kcAction,
       additionalParameters,
       continuationParameters,
     ]
@@ -360,7 +365,7 @@ struct LoginParametersMessage: Hashable, CustomStringConvertible {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.scope, rhs.scope) && MessagesPigeonInternal.deepEquals(lhs.acrValues, rhs.acrValues) && MessagesPigeonInternal.deepEquals(lhs.loginHint, rhs.loginHint) && MessagesPigeonInternal.deepEquals(lhs.prompt, rhs.prompt) && MessagesPigeonInternal.deepEquals(lhs.maxAge, rhs.maxAge) && MessagesPigeonInternal.deepEquals(lhs.nonce, rhs.nonce) && MessagesPigeonInternal.deepEquals(lhs.uiLocales, rhs.uiLocales) && MessagesPigeonInternal.deepEquals(lhs.deviceName, rhs.deviceName) && MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.additionalParameters, rhs.additionalParameters) && MessagesPigeonInternal.deepEquals(lhs.continuationParameters, rhs.continuationParameters)
+    return MessagesPigeonInternal.deepEquals(lhs.scope, rhs.scope) && MessagesPigeonInternal.deepEquals(lhs.acrValues, rhs.acrValues) && MessagesPigeonInternal.deepEquals(lhs.loginHint, rhs.loginHint) && MessagesPigeonInternal.deepEquals(lhs.prompt, rhs.prompt) && MessagesPigeonInternal.deepEquals(lhs.maxAge, rhs.maxAge) && MessagesPigeonInternal.deepEquals(lhs.nonce, rhs.nonce) && MessagesPigeonInternal.deepEquals(lhs.uiLocales, rhs.uiLocales) && MessagesPigeonInternal.deepEquals(lhs.deviceName, rhs.deviceName) && MessagesPigeonInternal.deepEquals(lhs.deviceId, rhs.deviceId) && MessagesPigeonInternal.deepEquals(lhs.kcAction, rhs.kcAction) && MessagesPigeonInternal.deepEquals(lhs.additionalParameters, rhs.additionalParameters) && MessagesPigeonInternal.deepEquals(lhs.continuationParameters, rhs.continuationParameters)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -374,12 +379,13 @@ struct LoginParametersMessage: Hashable, CustomStringConvertible {
     MessagesPigeonInternal.deepHash(value: uiLocales, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: deviceName, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: deviceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: kcAction, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: additionalParameters, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: continuationParameters, hasher: &hasher)
   }
 
   public var description: String {
-    return "LoginParametersMessage(scope: \(String(describing: scope)), acrValues: \(String(describing: acrValues)), loginHint: \(String(describing: loginHint)), prompt: \(String(describing: prompt)), maxAge: \(String(describing: maxAge)), nonce: \(String(describing: nonce)), uiLocales: \(String(describing: uiLocales)), deviceName: \(String(describing: deviceName)), deviceId: \(String(describing: deviceId)), additionalParameters: \(String(describing: additionalParameters)), continuationParameters: \(String(describing: continuationParameters)))"
+    return "LoginParametersMessage(scope: \(String(describing: scope)), acrValues: \(String(describing: acrValues)), loginHint: \(String(describing: loginHint)), prompt: \(String(describing: prompt)), maxAge: \(String(describing: maxAge)), nonce: \(String(describing: nonce)), uiLocales: \(String(describing: uiLocales)), deviceName: \(String(describing: deviceName)), deviceId: \(String(describing: deviceId)), kcAction: \(String(describing: kcAction)), additionalParameters: \(String(describing: additionalParameters)), continuationParameters: \(String(describing: continuationParameters)))"
   }
 }
 
@@ -482,6 +488,8 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
   var refreshExpiresAtMillis: Int64? = nil
   var issuedAtMillis: Int64
   var hasRefreshToken: Bool
+  /// `completeWebFallback` only: the browser callback's `kc_action_status` (spec/21).
+  var kcActionStatus: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -495,6 +503,7 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
     let refreshExpiresAtMillis: Int64? = nilOrValue(pigeonVar_list[6])
     let issuedAtMillis = pigeonVar_list[7] as! Int64
     let hasRefreshToken = pigeonVar_list[8] as! Bool
+    let kcActionStatus: String? = nilOrValue(pigeonVar_list[9])
 
     return CredentialsMessage(
       handle: handle,
@@ -505,7 +514,8 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
       expiresAtMillis: expiresAtMillis,
       refreshExpiresAtMillis: refreshExpiresAtMillis,
       issuedAtMillis: issuedAtMillis,
-      hasRefreshToken: hasRefreshToken
+      hasRefreshToken: hasRefreshToken,
+      kcActionStatus: kcActionStatus
     )
   }
   func toList() -> [Any?] {
@@ -519,13 +529,14 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
       refreshExpiresAtMillis,
       issuedAtMillis,
       hasRefreshToken,
+      kcActionStatus,
     ]
   }
   static func == (lhs: CredentialsMessage, rhs: CredentialsMessage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.handle, rhs.handle) && MessagesPigeonInternal.deepEquals(lhs.accessToken, rhs.accessToken) && MessagesPigeonInternal.deepEquals(lhs.tokenType, rhs.tokenType) && MessagesPigeonInternal.deepEquals(lhs.idToken, rhs.idToken) && MessagesPigeonInternal.deepEquals(lhs.scope, rhs.scope) && MessagesPigeonInternal.deepEquals(lhs.expiresAtMillis, rhs.expiresAtMillis) && MessagesPigeonInternal.deepEquals(lhs.refreshExpiresAtMillis, rhs.refreshExpiresAtMillis) && MessagesPigeonInternal.deepEquals(lhs.issuedAtMillis, rhs.issuedAtMillis) && MessagesPigeonInternal.deepEquals(lhs.hasRefreshToken, rhs.hasRefreshToken)
+    return MessagesPigeonInternal.deepEquals(lhs.handle, rhs.handle) && MessagesPigeonInternal.deepEquals(lhs.accessToken, rhs.accessToken) && MessagesPigeonInternal.deepEquals(lhs.tokenType, rhs.tokenType) && MessagesPigeonInternal.deepEquals(lhs.idToken, rhs.idToken) && MessagesPigeonInternal.deepEquals(lhs.scope, rhs.scope) && MessagesPigeonInternal.deepEquals(lhs.expiresAtMillis, rhs.expiresAtMillis) && MessagesPigeonInternal.deepEquals(lhs.refreshExpiresAtMillis, rhs.refreshExpiresAtMillis) && MessagesPigeonInternal.deepEquals(lhs.issuedAtMillis, rhs.issuedAtMillis) && MessagesPigeonInternal.deepEquals(lhs.hasRefreshToken, rhs.hasRefreshToken) && MessagesPigeonInternal.deepEquals(lhs.kcActionStatus, rhs.kcActionStatus)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -539,10 +550,11 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
     MessagesPigeonInternal.deepHash(value: refreshExpiresAtMillis, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: issuedAtMillis, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: hasRefreshToken, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: kcActionStatus, hasher: &hasher)
   }
 
   public var description: String {
-    return "CredentialsMessage(handle: \(String(describing: handle)), accessToken: \(String(describing: accessToken)), tokenType: \(String(describing: tokenType)), idToken: \(String(describing: idToken)), scope: \(String(describing: scope)), expiresAtMillis: \(String(describing: expiresAtMillis)), refreshExpiresAtMillis: \(String(describing: refreshExpiresAtMillis)), issuedAtMillis: \(String(describing: issuedAtMillis)), hasRefreshToken: \(String(describing: hasRefreshToken)))"
+    return "CredentialsMessage(handle: \(String(describing: handle)), accessToken: \(String(describing: accessToken)), tokenType: \(String(describing: tokenType)), idToken: \(String(describing: idToken)), scope: \(String(describing: scope)), expiresAtMillis: \(String(describing: expiresAtMillis)), refreshExpiresAtMillis: \(String(describing: refreshExpiresAtMillis)), issuedAtMillis: \(String(describing: issuedAtMillis)), hasRefreshToken: \(String(describing: hasRefreshToken)), kcActionStatus: \(String(describing: kcActionStatus)))"
   }
 }
 
@@ -616,6 +628,8 @@ struct FlowStepMessage: Hashable, CustomStringConvertible {
   var contextJson: String? = nil
   var credentials: CredentialsMessage? = nil
   var redirectToWeb: RedirectToWebMessage? = nil
+  /// `authorized`: the outcome of `kc_action` (spec/21), absent without one.
+  var kcActionStatus: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -625,13 +639,15 @@ struct FlowStepMessage: Hashable, CustomStringConvertible {
     let contextJson: String? = nilOrValue(pigeonVar_list[2])
     let credentials: CredentialsMessage? = nilOrValue(pigeonVar_list[3])
     let redirectToWeb: RedirectToWebMessage? = nilOrValue(pigeonVar_list[4])
+    let kcActionStatus: String? = nilOrValue(pigeonVar_list[5])
 
     return FlowStepMessage(
       kind: kind,
       challenges: challenges,
       contextJson: contextJson,
       credentials: credentials,
-      redirectToWeb: redirectToWeb
+      redirectToWeb: redirectToWeb,
+      kcActionStatus: kcActionStatus
     )
   }
   func toList() -> [Any?] {
@@ -641,13 +657,14 @@ struct FlowStepMessage: Hashable, CustomStringConvertible {
       contextJson,
       credentials,
       redirectToWeb,
+      kcActionStatus,
     ]
   }
   static func == (lhs: FlowStepMessage, rhs: FlowStepMessage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.kind, rhs.kind) && MessagesPigeonInternal.deepEquals(lhs.challenges, rhs.challenges) && MessagesPigeonInternal.deepEquals(lhs.contextJson, rhs.contextJson) && MessagesPigeonInternal.deepEquals(lhs.credentials, rhs.credentials) && MessagesPigeonInternal.deepEquals(lhs.redirectToWeb, rhs.redirectToWeb)
+    return MessagesPigeonInternal.deepEquals(lhs.kind, rhs.kind) && MessagesPigeonInternal.deepEquals(lhs.challenges, rhs.challenges) && MessagesPigeonInternal.deepEquals(lhs.contextJson, rhs.contextJson) && MessagesPigeonInternal.deepEquals(lhs.credentials, rhs.credentials) && MessagesPigeonInternal.deepEquals(lhs.redirectToWeb, rhs.redirectToWeb) && MessagesPigeonInternal.deepEquals(lhs.kcActionStatus, rhs.kcActionStatus)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -657,10 +674,11 @@ struct FlowStepMessage: Hashable, CustomStringConvertible {
     MessagesPigeonInternal.deepHash(value: contextJson, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: credentials, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: redirectToWeb, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: kcActionStatus, hasher: &hasher)
   }
 
   public var description: String {
-    return "FlowStepMessage(kind: \(String(describing: kind)), challenges: \(String(describing: challenges)), contextJson: \(String(describing: contextJson)), credentials: \(String(describing: credentials)), redirectToWeb: \(String(describing: redirectToWeb)))"
+    return "FlowStepMessage(kind: \(String(describing: kind)), challenges: \(String(describing: challenges)), contextJson: \(String(describing: contextJson)), credentials: \(String(describing: credentials)), redirectToWeb: \(String(describing: redirectToWeb)), kcActionStatus: \(String(describing: kcActionStatus)))"
   }
 }
 
@@ -716,6 +734,8 @@ struct AnswerMessage: Hashable, CustomStringConvertible {
   var credentialId: String? = nil
   /// `terms`.
   var accepted: Bool? = nil
+  /// `updatePassword`: "Sign out of other devices" (spec/21 D5); sent only when set.
+  var logoutOtherSessions: Bool? = nil
   /// `skip` and `custom`: the challenge type on the wire.
   var type: String? = nil
   /// `custom`: the form fields in send order.
@@ -729,8 +749,9 @@ struct AnswerMessage: Hashable, CustomStringConvertible {
     let confirm: String? = nilOrValue(pigeonVar_list[2])
     let credentialId: String? = nilOrValue(pigeonVar_list[3])
     let accepted: Bool? = nilOrValue(pigeonVar_list[4])
-    let type: String? = nilOrValue(pigeonVar_list[5])
-    let fields: [FormFieldMessage]? = nilOrValue(pigeonVar_list[6])
+    let logoutOtherSessions: Bool? = nilOrValue(pigeonVar_list[5])
+    let type: String? = nilOrValue(pigeonVar_list[6])
+    let fields: [FormFieldMessage]? = nilOrValue(pigeonVar_list[7])
 
     return AnswerMessage(
       kind: kind,
@@ -738,6 +759,7 @@ struct AnswerMessage: Hashable, CustomStringConvertible {
       confirm: confirm,
       credentialId: credentialId,
       accepted: accepted,
+      logoutOtherSessions: logoutOtherSessions,
       type: type,
       fields: fields
     )
@@ -749,6 +771,7 @@ struct AnswerMessage: Hashable, CustomStringConvertible {
       confirm,
       credentialId,
       accepted,
+      logoutOtherSessions,
       type,
       fields,
     ]
@@ -757,7 +780,7 @@ struct AnswerMessage: Hashable, CustomStringConvertible {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.kind, rhs.kind) && MessagesPigeonInternal.deepEquals(lhs.value, rhs.value) && MessagesPigeonInternal.deepEquals(lhs.confirm, rhs.confirm) && MessagesPigeonInternal.deepEquals(lhs.credentialId, rhs.credentialId) && MessagesPigeonInternal.deepEquals(lhs.accepted, rhs.accepted) && MessagesPigeonInternal.deepEquals(lhs.type, rhs.type) && MessagesPigeonInternal.deepEquals(lhs.fields, rhs.fields)
+    return MessagesPigeonInternal.deepEquals(lhs.kind, rhs.kind) && MessagesPigeonInternal.deepEquals(lhs.value, rhs.value) && MessagesPigeonInternal.deepEquals(lhs.confirm, rhs.confirm) && MessagesPigeonInternal.deepEquals(lhs.credentialId, rhs.credentialId) && MessagesPigeonInternal.deepEquals(lhs.accepted, rhs.accepted) && MessagesPigeonInternal.deepEquals(lhs.logoutOtherSessions, rhs.logoutOtherSessions) && MessagesPigeonInternal.deepEquals(lhs.type, rhs.type) && MessagesPigeonInternal.deepEquals(lhs.fields, rhs.fields)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -767,12 +790,13 @@ struct AnswerMessage: Hashable, CustomStringConvertible {
     MessagesPigeonInternal.deepHash(value: confirm, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: credentialId, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: accepted, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: logoutOtherSessions, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: type, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: fields, hasher: &hasher)
   }
 
   public var description: String {
-    return "AnswerMessage(kind: \(String(describing: kind)), value: \(String(describing: value)), confirm: \(String(describing: confirm)), credentialId: \(String(describing: credentialId)), accepted: \(String(describing: accepted)), type: \(String(describing: type)), fields: \(String(describing: fields)))"
+    return "AnswerMessage(kind: \(String(describing: kind)), value: \(String(describing: value)), confirm: \(String(describing: confirm)), credentialId: \(String(describing: credentialId)), accepted: \(String(describing: accepted)), logoutOtherSessions: \(String(describing: logoutOtherSessions)), type: \(String(describing: type)), fields: \(String(describing: fields)))"
   }
 }
 

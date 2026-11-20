@@ -310,7 +310,7 @@ const MODELED_PARAMS: Record<string, string[]> = {
     'resend_allowed_at',
   ],
   recovery_code: ['remaining', 'warning_threshold'],
-  update_password: ['username', 'policy'],
+  update_password: ['username', 'policy', 'logout_other_sessions'],
   pin: ['length'],
   pin_setup: ['length'],
   verify_email: ['email_masked', 'digits', 'ttl', 'sent', 'resend_allowed_at'],

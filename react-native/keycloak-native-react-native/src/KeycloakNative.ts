@@ -8,6 +8,7 @@ import {
   type Challenge,
   type ChallengeAnswer,
   type Credentials,
+  type KcActionStatus,
   type FlowStep,
   type JsonObject,
   type JsonValue,
@@ -37,6 +38,12 @@ export interface LoginParameters {
   deviceName?: string;
   /** Stable app-generated UUID. */
   deviceId?: string;
+  /**
+   * Application-initiated action (spec/21, `kc_action`): the alias of a required action to run once
+   * the user is authenticated, e.g. `UPDATE_PASSWORD`. Usually set through
+   * `authentication.requiredAction`; the outcome is the `authorized` step's `kcActionStatus`.
+   */
+  kcAction?: string;
   /** Extra fields of the initial request (spec/03 §2.3); use the reserved `x_` prefix. */
   additionalParameters?: Record<string, string>;
   /** Extra fields of every continuation request of the flow. */
@@ -144,6 +151,23 @@ export class KeycloakNative {
      */
     stepUp: (parameters: LoginParameters = {}): Promise<NativeLoginFlow> =>
       this.createFlow({ scope: 'openid', ...parameters }, true),
+    /**
+     * Application-initiated action (spec/21): runs the required action `alias` for the signed-in
+     * user, e.g. `'UPDATE_PASSWORD'` for a "Change password" button. A step-up with `kc_action`: the
+     * server asks for the factors again when the action's maximum authentication age (the realm's
+     * setting) has passed, or always with `maxAge: 0`; then it shows the action's challenge, which
+     * the user may cancel. The `authorized` step's `kcActionStatus` says whether the action
+     * succeeded, was cancelled or could not run. Fails with `credentials_not_found` when nobody is
+     * signed in.
+     */
+    requiredAction: (
+      alias: string,
+      parameters: Omit<LoginParameters, 'kcAction'> = {}
+    ): Promise<NativeLoginFlow> =>
+      this.createFlow(
+        { scope: 'openid', ...parameters, kcAction: alias },
+        true
+      ),
   };
 
   /** Completes a `redirectToWeb` step through the system browser (spec/03 §3.4). */
@@ -448,6 +472,15 @@ export class NativeLoginFlow {
   private stateValue: FlowState = 'idle';
   private pending: Challenge[] = [];
   private lastRedirect: RedirectToWebRequest | undefined;
+  private actionStatus: KcActionStatus | undefined;
+
+  /**
+   * Outcome of `LoginParameters.kcAction` once the flow is authorized (spec/21), also after the
+   * browser fallback; `undefined` without `kc_action`.
+   */
+  get kcActionStatus(): KcActionStatus | undefined {
+    return this.actionStatus;
+  }
   private inFlight = false;
 
   /** @internal Created by `KeycloakNative.authentication`. */
@@ -609,7 +642,11 @@ export class NativeLoginFlow {
       );
     }
     const json = await call(() => nativeModule().completeWebFallback(this.id));
-    const credentials = parseCredentials(JSON.parse(json));
+    const parsed = JSON.parse(json) as JsonValue;
+    const credentials = parseCredentials(parsed);
+    const status = (parsed as { kcActionStatus?: unknown } | null)
+      ?.kcActionStatus;
+    if (typeof status === 'string') this.actionStatus = status;
     credentialsSource.set(credentials, this.id);
     return credentials;
   }
@@ -662,6 +699,7 @@ export class NativeLoginFlow {
         case 'authorized':
           this.stateValue = 'finished';
           this.pending = [];
+          this.actionStatus = step.kcActionStatus;
           credentialsSource.set(step.credentials, this.id);
           break;
         case 'redirectToWeb':

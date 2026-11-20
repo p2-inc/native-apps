@@ -219,7 +219,7 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
     val request = record.redirect ?: throw NativeAuthError(NativeAuthError.Code.FLOW_STATE, errorDescription = "The flow has no redirect_to_web step")
     val credentials = record.instance.webFallback().complete(request, record.flow)
     record.redirect = null
-    record.hold(credentials)
+    record.hold(credentials).copy(kcActionStatus = record.flow.kcActionStatus?.wire)
   }
 
   override suspend fun storeCredentials(instance: String, handle: String) = bridgedSuspend {
@@ -371,7 +371,12 @@ public class KeycloakNativePlugin : FlutterPlugin, ActivityAware, KeycloakNative
       challenges = step.challenges.map { it.message() },
       contextJson = step.context.raw.toString(),
     )
-    is FlowStep.Authorized -> FlowStepMessage(kind = FlowStepKind.AUTHORIZED, challenges = emptyList(), credentials = hold(step.credentials))
+    is FlowStep.Authorized -> FlowStepMessage(
+      kind = FlowStepKind.AUTHORIZED,
+      challenges = emptyList(),
+      credentials = hold(step.credentials),
+      kcActionStatus = flow.kcActionStatus?.wire,
+    )
     is FlowStep.RedirectToWeb -> {
       redirect = step.request
       FlowStepMessage(kind = FlowStepKind.REDIRECT_TO_WEB, challenges = emptyList(), redirectToWeb = step.request.message())
@@ -424,6 +429,7 @@ internal fun LoginParametersMessage.toSdk(): LoginParameters = LoginParameters(
   uiLocales = uiLocales,
   deviceName = deviceName,
   deviceId = deviceId,
+  kcAction = kcAction,
   additionalParameters = additionalParameters,
   continuationParameters = continuationParameters,
 )
@@ -437,7 +443,7 @@ internal fun AnswerMessage.toSdk(): ChallengeAnswer {
     AnswerKind.TOTP -> ChallengeAnswer.Totp(required("value", value), credentialId)
     AnswerKind.OTP -> ChallengeAnswer.Otp(required("value", value))
     AnswerKind.OTP_RESEND -> ChallengeAnswer.OtpResend
-    AnswerKind.UPDATE_PASSWORD -> ChallengeAnswer.UpdatePassword(required("value", value), required("confirm", confirm))
+    AnswerKind.UPDATE_PASSWORD -> ChallengeAnswer.UpdatePassword(required("value", value), required("confirm", confirm), logoutOtherSessions)
     AnswerKind.VERIFY_EMAIL -> ChallengeAnswer.VerifyEmail(required("value", value))
     AnswerKind.VERIFY_EMAIL_RESEND -> ChallengeAnswer.VerifyEmailResend
     AnswerKind.TERMS -> ChallengeAnswer.Terms(accepted ?: false)

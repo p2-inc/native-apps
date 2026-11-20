@@ -38,6 +38,17 @@ public struct Authentication: Sendable {
     try await stepUp(LoginParameters(scope: scope, acrValues: acrValues, maxAge: maxAge, deviceName: deviceName))
   }
 
+  /// Application-initiated action (spec/21): runs the required action `alias` for the signed-in user,
+  /// e.g. `"UPDATE_PASSWORD"` for a "Change password" button. A step-up with `kc_action`: the server
+  /// asks for the factors again when the action's maximum authentication age (the realm's setting;
+  /// for Update Password also the password policy's `maxAuthAge`) has passed, or always with
+  /// `maxAge: 0`; then it shows the action's challenge, which the user may cancel. Drive the flow like
+  /// a login; after `.authorized`, `flow.kcActionStatus` says whether the action succeeded, was
+  /// cancelled or could not run. Throws `credentials_not_found` when nobody is signed in.
+  public func requiredAction(_ alias: String, maxAge: Int? = nil, scope: String? = "openid", deviceName: String? = nil) async throws -> NativeLoginFlow {
+    try await stepUp(LoginParameters(scope: scope, maxAge: maxAge, deviceName: deviceName, kcAction: alias))
+  }
+
   /// Continues after an endpoint refused a token with `insufficient_authorization` and handed back an
   /// `auth_session` (`reauthentication_required` from `CredentialsManager.credentials()`, or the §6
   /// registration endpoints): a step-up flow with that session, `max_age` taken from the error when

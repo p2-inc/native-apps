@@ -61,6 +61,12 @@ class NativeLoginStrings {
   String get recoveryCodeLow => 'You are running low on recovery codes; generate new ones after signing in.';
   String get chooseNewPassword => 'Choose a new password';
   String get passwordMustUpdate => 'Your password must be updated before you can continue.';
+
+  /// Subtitle when the app asked for the change (spec/21).
+  String get passwordEnterNew => 'Enter a new password for your account.';
+
+  /// "Sign out of other devices" switch (spec/21 D5).
+  String get logoutOtherSessions => 'Sign out of other devices';
   String get newPassword => 'New password';
   String get confirmNewPassword => 'Confirm new password';
   String get passwordsDoNotMatch => 'Passwords do not match';
@@ -257,6 +263,10 @@ class NativeLoginStringsDe extends NativeLoginStrings {
   String get chooseNewPassword => 'Neues Passwort wählen';
   @override
   String get passwordMustUpdate => 'Ihr Passwort muss aktualisiert werden, bevor Sie fortfahren können.';
+  @override
+  String get passwordEnterNew => 'Geben Sie ein neues Passwort für Ihr Konto ein.';
+  @override
+  String get logoutOtherSessions => 'Von anderen Geräten abmelden';
   @override
   String get newPassword => 'Neues Passwort';
   @override

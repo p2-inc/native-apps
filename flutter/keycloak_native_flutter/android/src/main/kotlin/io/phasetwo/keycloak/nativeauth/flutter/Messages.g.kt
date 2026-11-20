@@ -339,6 +339,8 @@ data class LoginParametersMessage (
   val uiLocales: String? = null,
   val deviceName: String? = null,
   val deviceId: String? = null,
+  /** Application-initiated action (spec/21, `kc_action`). */
+  val kcAction: String? = null,
   val additionalParameters: Map<String, String>,
   val continuationParameters: Map<String, String>
 )
@@ -354,9 +356,10 @@ data class LoginParametersMessage (
       val uiLocales = pigeonVar_list[6] as String?
       val deviceName = pigeonVar_list[7] as String?
       val deviceId = pigeonVar_list[8] as String?
-      val additionalParameters = pigeonVar_list[9] as Map<String, String>
-      val continuationParameters = pigeonVar_list[10] as Map<String, String>
-      return LoginParametersMessage(scope, acrValues, loginHint, prompt, maxAge, nonce, uiLocales, deviceName, deviceId, additionalParameters, continuationParameters)
+      val kcAction = pigeonVar_list[9] as String?
+      val additionalParameters = pigeonVar_list[10] as Map<String, String>
+      val continuationParameters = pigeonVar_list[11] as Map<String, String>
+      return LoginParametersMessage(scope, acrValues, loginHint, prompt, maxAge, nonce, uiLocales, deviceName, deviceId, kcAction, additionalParameters, continuationParameters)
     }
   }
   fun toList(): List<Any?> {
@@ -370,6 +373,7 @@ data class LoginParametersMessage (
       uiLocales,
       deviceName,
       deviceId,
+      kcAction,
       additionalParameters,
       continuationParameters,
     )
@@ -382,7 +386,7 @@ data class LoginParametersMessage (
       return true
     }
     val other = other as LoginParametersMessage
-    return MessagesPigeonUtils.deepEquals(this.scope, other.scope) && MessagesPigeonUtils.deepEquals(this.acrValues, other.acrValues) && MessagesPigeonUtils.deepEquals(this.loginHint, other.loginHint) && MessagesPigeonUtils.deepEquals(this.prompt, other.prompt) && MessagesPigeonUtils.deepEquals(this.maxAge, other.maxAge) && MessagesPigeonUtils.deepEquals(this.nonce, other.nonce) && MessagesPigeonUtils.deepEquals(this.uiLocales, other.uiLocales) && MessagesPigeonUtils.deepEquals(this.deviceName, other.deviceName) && MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.additionalParameters, other.additionalParameters) && MessagesPigeonUtils.deepEquals(this.continuationParameters, other.continuationParameters)
+    return MessagesPigeonUtils.deepEquals(this.scope, other.scope) && MessagesPigeonUtils.deepEquals(this.acrValues, other.acrValues) && MessagesPigeonUtils.deepEquals(this.loginHint, other.loginHint) && MessagesPigeonUtils.deepEquals(this.prompt, other.prompt) && MessagesPigeonUtils.deepEquals(this.maxAge, other.maxAge) && MessagesPigeonUtils.deepEquals(this.nonce, other.nonce) && MessagesPigeonUtils.deepEquals(this.uiLocales, other.uiLocales) && MessagesPigeonUtils.deepEquals(this.deviceName, other.deviceName) && MessagesPigeonUtils.deepEquals(this.deviceId, other.deviceId) && MessagesPigeonUtils.deepEquals(this.kcAction, other.kcAction) && MessagesPigeonUtils.deepEquals(this.additionalParameters, other.additionalParameters) && MessagesPigeonUtils.deepEquals(this.continuationParameters, other.continuationParameters)
   }
 
   override fun hashCode(): Int {
@@ -396,12 +400,13 @@ data class LoginParametersMessage (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.uiLocales)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceName)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.deviceId)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.kcAction)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.additionalParameters)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.continuationParameters)
     return result
   }
   override fun toString(): String {
-    return "LoginParametersMessage(scope=$scope, acrValues=$acrValues, loginHint=$loginHint, prompt=$prompt, maxAge=$maxAge, nonce=$nonce, uiLocales=$uiLocales, deviceName=$deviceName, deviceId=$deviceId, additionalParameters=$additionalParameters, continuationParameters=$continuationParameters)"
+    return "LoginParametersMessage(scope=$scope, acrValues=$acrValues, loginHint=$loginHint, prompt=$prompt, maxAge=$maxAge, nonce=$nonce, uiLocales=$uiLocales, deviceName=$deviceName, deviceId=$deviceId, kcAction=$kcAction, additionalParameters=$additionalParameters, continuationParameters=$continuationParameters)"
   }
 }
 
@@ -500,7 +505,9 @@ data class CredentialsMessage (
   /** Absent when the server sent no `refresh_expires_in`; a far-future value for offline tokens. */
   val refreshExpiresAtMillis: Long? = null,
   val issuedAtMillis: Long,
-  val hasRefreshToken: Boolean
+  val hasRefreshToken: Boolean,
+  /** `completeWebFallback` only: the browser callback's `kc_action_status` (spec/21). */
+  val kcActionStatus: String? = null
 )
  {
   companion object {
@@ -514,7 +521,8 @@ data class CredentialsMessage (
       val refreshExpiresAtMillis = pigeonVar_list[6] as Long?
       val issuedAtMillis = pigeonVar_list[7] as Long
       val hasRefreshToken = pigeonVar_list[8] as Boolean
-      return CredentialsMessage(handle, accessToken, tokenType, idToken, scope, expiresAtMillis, refreshExpiresAtMillis, issuedAtMillis, hasRefreshToken)
+      val kcActionStatus = pigeonVar_list[9] as String?
+      return CredentialsMessage(handle, accessToken, tokenType, idToken, scope, expiresAtMillis, refreshExpiresAtMillis, issuedAtMillis, hasRefreshToken, kcActionStatus)
     }
   }
   fun toList(): List<Any?> {
@@ -528,6 +536,7 @@ data class CredentialsMessage (
       refreshExpiresAtMillis,
       issuedAtMillis,
       hasRefreshToken,
+      kcActionStatus,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -538,7 +547,7 @@ data class CredentialsMessage (
       return true
     }
     val other = other as CredentialsMessage
-    return MessagesPigeonUtils.deepEquals(this.handle, other.handle) && MessagesPigeonUtils.deepEquals(this.accessToken, other.accessToken) && MessagesPigeonUtils.deepEquals(this.tokenType, other.tokenType) && MessagesPigeonUtils.deepEquals(this.idToken, other.idToken) && MessagesPigeonUtils.deepEquals(this.scope, other.scope) && MessagesPigeonUtils.deepEquals(this.expiresAtMillis, other.expiresAtMillis) && MessagesPigeonUtils.deepEquals(this.refreshExpiresAtMillis, other.refreshExpiresAtMillis) && MessagesPigeonUtils.deepEquals(this.issuedAtMillis, other.issuedAtMillis) && MessagesPigeonUtils.deepEquals(this.hasRefreshToken, other.hasRefreshToken)
+    return MessagesPigeonUtils.deepEquals(this.handle, other.handle) && MessagesPigeonUtils.deepEquals(this.accessToken, other.accessToken) && MessagesPigeonUtils.deepEquals(this.tokenType, other.tokenType) && MessagesPigeonUtils.deepEquals(this.idToken, other.idToken) && MessagesPigeonUtils.deepEquals(this.scope, other.scope) && MessagesPigeonUtils.deepEquals(this.expiresAtMillis, other.expiresAtMillis) && MessagesPigeonUtils.deepEquals(this.refreshExpiresAtMillis, other.refreshExpiresAtMillis) && MessagesPigeonUtils.deepEquals(this.issuedAtMillis, other.issuedAtMillis) && MessagesPigeonUtils.deepEquals(this.hasRefreshToken, other.hasRefreshToken) && MessagesPigeonUtils.deepEquals(this.kcActionStatus, other.kcActionStatus)
   }
 
   override fun hashCode(): Int {
@@ -552,10 +561,11 @@ data class CredentialsMessage (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.refreshExpiresAtMillis)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.issuedAtMillis)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.hasRefreshToken)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.kcActionStatus)
     return result
   }
   override fun toString(): String {
-    return "CredentialsMessage(handle=$handle, accessToken=$accessToken, tokenType=$tokenType, idToken=$idToken, scope=$scope, expiresAtMillis=$expiresAtMillis, refreshExpiresAtMillis=$refreshExpiresAtMillis, issuedAtMillis=$issuedAtMillis, hasRefreshToken=$hasRefreshToken)"
+    return "CredentialsMessage(handle=$handle, accessToken=$accessToken, tokenType=$tokenType, idToken=$idToken, scope=$scope, expiresAtMillis=$expiresAtMillis, refreshExpiresAtMillis=$refreshExpiresAtMillis, issuedAtMillis=$issuedAtMillis, hasRefreshToken=$hasRefreshToken, kcActionStatus=$kcActionStatus)"
   }
 }
 
@@ -627,7 +637,9 @@ data class FlowStepMessage (
   /** The response's `context` object as JSON text. */
   val contextJson: String? = null,
   val credentials: CredentialsMessage? = null,
-  val redirectToWeb: RedirectToWebMessage? = null
+  val redirectToWeb: RedirectToWebMessage? = null,
+  /** `authorized`: the outcome of `kc_action` (spec/21), absent without one. */
+  val kcActionStatus: String? = null
 )
  {
   companion object {
@@ -637,7 +649,8 @@ data class FlowStepMessage (
       val contextJson = pigeonVar_list[2] as String?
       val credentials = pigeonVar_list[3] as CredentialsMessage?
       val redirectToWeb = pigeonVar_list[4] as RedirectToWebMessage?
-      return FlowStepMessage(kind, challenges, contextJson, credentials, redirectToWeb)
+      val kcActionStatus = pigeonVar_list[5] as String?
+      return FlowStepMessage(kind, challenges, contextJson, credentials, redirectToWeb, kcActionStatus)
     }
   }
   fun toList(): List<Any?> {
@@ -647,6 +660,7 @@ data class FlowStepMessage (
       contextJson,
       credentials,
       redirectToWeb,
+      kcActionStatus,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -657,7 +671,7 @@ data class FlowStepMessage (
       return true
     }
     val other = other as FlowStepMessage
-    return MessagesPigeonUtils.deepEquals(this.kind, other.kind) && MessagesPigeonUtils.deepEquals(this.challenges, other.challenges) && MessagesPigeonUtils.deepEquals(this.contextJson, other.contextJson) && MessagesPigeonUtils.deepEquals(this.credentials, other.credentials) && MessagesPigeonUtils.deepEquals(this.redirectToWeb, other.redirectToWeb)
+    return MessagesPigeonUtils.deepEquals(this.kind, other.kind) && MessagesPigeonUtils.deepEquals(this.challenges, other.challenges) && MessagesPigeonUtils.deepEquals(this.contextJson, other.contextJson) && MessagesPigeonUtils.deepEquals(this.credentials, other.credentials) && MessagesPigeonUtils.deepEquals(this.redirectToWeb, other.redirectToWeb) && MessagesPigeonUtils.deepEquals(this.kcActionStatus, other.kcActionStatus)
   }
 
   override fun hashCode(): Int {
@@ -667,10 +681,11 @@ data class FlowStepMessage (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.contextJson)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.credentials)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.redirectToWeb)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.kcActionStatus)
     return result
   }
   override fun toString(): String {
-    return "FlowStepMessage(kind=$kind, challenges=$challenges, contextJson=$contextJson, credentials=$credentials, redirectToWeb=$redirectToWeb)"
+    return "FlowStepMessage(kind=$kind, challenges=$challenges, contextJson=$contextJson, credentials=$credentials, redirectToWeb=$redirectToWeb, kcActionStatus=$kcActionStatus)"
   }
 }
 
@@ -729,6 +744,8 @@ data class AnswerMessage (
   val credentialId: String? = null,
   /** `terms`. */
   val accepted: Boolean? = null,
+  /** `updatePassword`: "Sign out of other devices" (spec/21 D5); sent only when set. */
+  val logoutOtherSessions: Boolean? = null,
   /** `skip` and `custom`: the challenge type on the wire. */
   val type: String? = null,
   /** `custom`: the form fields in send order. */
@@ -742,9 +759,10 @@ data class AnswerMessage (
       val confirm = pigeonVar_list[2] as String?
       val credentialId = pigeonVar_list[3] as String?
       val accepted = pigeonVar_list[4] as Boolean?
-      val type = pigeonVar_list[5] as String?
-      val fields = pigeonVar_list[6] as List<FormFieldMessage>?
-      return AnswerMessage(kind, value, confirm, credentialId, accepted, type, fields)
+      val logoutOtherSessions = pigeonVar_list[5] as Boolean?
+      val type = pigeonVar_list[6] as String?
+      val fields = pigeonVar_list[7] as List<FormFieldMessage>?
+      return AnswerMessage(kind, value, confirm, credentialId, accepted, logoutOtherSessions, type, fields)
     }
   }
   fun toList(): List<Any?> {
@@ -754,6 +772,7 @@ data class AnswerMessage (
       confirm,
       credentialId,
       accepted,
+      logoutOtherSessions,
       type,
       fields,
     )
@@ -766,7 +785,7 @@ data class AnswerMessage (
       return true
     }
     val other = other as AnswerMessage
-    return MessagesPigeonUtils.deepEquals(this.kind, other.kind) && MessagesPigeonUtils.deepEquals(this.value, other.value) && MessagesPigeonUtils.deepEquals(this.confirm, other.confirm) && MessagesPigeonUtils.deepEquals(this.credentialId, other.credentialId) && MessagesPigeonUtils.deepEquals(this.accepted, other.accepted) && MessagesPigeonUtils.deepEquals(this.type, other.type) && MessagesPigeonUtils.deepEquals(this.fields, other.fields)
+    return MessagesPigeonUtils.deepEquals(this.kind, other.kind) && MessagesPigeonUtils.deepEquals(this.value, other.value) && MessagesPigeonUtils.deepEquals(this.confirm, other.confirm) && MessagesPigeonUtils.deepEquals(this.credentialId, other.credentialId) && MessagesPigeonUtils.deepEquals(this.accepted, other.accepted) && MessagesPigeonUtils.deepEquals(this.logoutOtherSessions, other.logoutOtherSessions) && MessagesPigeonUtils.deepEquals(this.type, other.type) && MessagesPigeonUtils.deepEquals(this.fields, other.fields)
   }
 
   override fun hashCode(): Int {
@@ -776,12 +795,13 @@ data class AnswerMessage (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.confirm)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.credentialId)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.accepted)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.logoutOtherSessions)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.type)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.fields)
     return result
   }
   override fun toString(): String {
-    return "AnswerMessage(kind=$kind, value=$value, confirm=$confirm, credentialId=$credentialId, accepted=$accepted, type=$type, fields=$fields)"
+    return "AnswerMessage(kind=$kind, value=$value, confirm=$confirm, credentialId=$credentialId, accepted=$accepted, logoutOtherSessions=$logoutOtherSessions, type=$type, fields=$fields)"
   }
 }
 
