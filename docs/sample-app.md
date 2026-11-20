@@ -16,7 +16,7 @@ xcodebuild -project KeycloakNativeDemo.xcodeproj -scheme KeycloakNativeDemo \
 
 Open the committed `KeycloakNativeDemo.xcodeproj` in Xcode, choose application scheme **KeycloakNativeDemo**, select a simulator, and Run. Package-library schemes are not executables. The generated project is committed; XcodeGen is needed only when regenerating from [project.yml](../ios/KeycloakNativeDemo/project.yml): `xcodegen generate` in that directory. Keep simulator ad hoc signing; disabling signing can cause Keychain `-34018`.
 
-[Config.plist](../ios/KeycloakNativeDemo/App/Config.plist) supplies `Issuer=http://localhost:8089/realms/demo`, `ClientId=demo-native`, `PasskeyClientId=demo-native-passkey`, `StepUpClientId=demo-native-stepup`, `OtpClientId=demo-native-otp`, `PinClientId=demo-native-pin`, `ResourceServer=http://localhost:8091`, `AllowRpIdMismatch=false`, `DeviceName=KeycloakNativeDemo`. [DemoConfig](../ios/KeycloakNativeDemo/Sources/KeycloakNativeDemoApp/DemoConfig.swift) loads these from the app bundle and has matching fallback defaults. There is no settings UI. On a physical device, `localhost` is that device; use a reachable correctly configured HTTPS server/issuer.
+[Config.plist](../ios/KeycloakNativeDemo/App/Config.plist) supplies `Issuer=http://localhost:8089/realms/demo`, `ClientId=demo-native`, `PasskeyClientId=demo-native-passkey`, `StepUpClientId=demo-native-stepup`, `OtpClientId=demo-native-otp`, `PinClientId=demo-native-pin`, `ResourceServer=http://localhost:8091`, `AllowRpIdMismatch=false`, `DeviceName=KeycloakNativeDemo`. [DemoConfig](../ios/KeycloakNativeDemo/Sources/KeycloakNativeDemoApp/DemoConfig.swift) loads these from the app bundle and has matching fallback defaults. The **Server** screen (toolbar on Scenarios and Home) overrides the server URL, realm, client IDs and step-up API at runtime; see [Server settings](#server-settings). On a physical device, `localhost` is that device; use a reachable correctly configured HTTPS server/issuer.
 
 Begin with S3 (alice/password/TOTP; current code from the walkthrough), or bob/password on a regular flow to skip second factor. Home's claims/token type/expiry and a successful `/token` exchange in Diagnostics confirm SDK completion. A `.challenges` username/context value alone does not mean authentication succeeded.
 
@@ -80,6 +80,26 @@ For S7 register `demoapp://auth/callback` on the client (export already does). `
 ## Android demo
 
 [android/demo](../android/demo/README.md) is the Android counterpart, with Login, Home, Push and Diagnostics tabs on the SDK's default Compose screens. From the emulator the compose stack is `http://10.0.2.2:8080`. Real FCM delivery needs a Firebase project, its `google-services.json` and the server override `keycloak-native-auth/demo/docker-compose.fcm.yml` with the service account. Real passkeys need an HTTPS RP ID that serves `assetlinks.json`, and the app's `android:apk-key-hash:` origin in the Passwordless policy. Its README has the steps.
+
+## Server settings
+
+All four example apps start against the compose stack and can be pointed at another Keycloak at runtime from a small Server screen, without rebuilding:
+
+| App | Where | Fields | Saved in | Defaults from |
+|---|---|---|---|---|
+| iOS demo | Server button in the Scenarios and Home toolbars | Server URL, realm, client ID, the other demo clients, step-up API | UserDefaults | `App/Config.plist` |
+| Android demo | Server button at the top | Same as iOS | SharedPreferences | `-Pdemo.<name>` build properties |
+| React Native example | Server settings on the home screen | Server URL, realm, client ID | AsyncStorage | `10.0.2.2:8080` (Android) or `localhost:8080` (iOS) |
+| Flutter example | Server button in the app bar | Server URL, realm, client ID | shared_preferences | `--dart-define=ISSUER` / `CLIENT_ID`, else as React Native |
+
+The issuer is `<server URL>/realms/<realm>`. Each screen validates the URL and offers **Reset to defaults**. Saving signs out: the stored credentials and the local push enrollment are cleared on the device (the old server is not called, since it may be unreachable, so its sessions simply expire) and the SDK instances are rebuilt for the new issuer.
+
+Platform rules that the validation enforces:
+
+- **iOS (ATS).** The apps' only exception is `NSAllowsLocalNetworking`, so plain HTTP works for `localhost` on the simulator and nothing else. Any other server must be HTTPS with a valid certificate; don't add `NSAllowsArbitraryLoads` or per-domain exceptions to reach a LAN host, use a tunnel with a real certificate instead.
+- **Android (cleartext).** Debug builds allow cleartext only to `10.0.2.2` and `localhost` (`src/debug/res/xml/network_security_config.xml` in the Android demo and the Flutter example; the React Native template's debug `usesCleartextTraffic`). Release builds allow none. Anything else must be HTTPS.
+- **Redirect URI.** The browser fallback returns to `demoapp://auth/callback`, the scheme the apps register. A client on another server must list that redirect URI, or browser-only steps (registration, profile updates, social login) cannot return to the app.
+- **Passkeys** still need the RP ID setup in [Real passkeys](#real-passkeys); changing the server in the app does not change the app's associated domains.
 
 ## Sample shortcuts to replace
 

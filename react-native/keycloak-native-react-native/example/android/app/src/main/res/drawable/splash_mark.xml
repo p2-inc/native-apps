@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launch screen icon (windowSplashScreenAnimatedIcon): the slash mark, 104dp wide, centered on the
+     288dp canvas so it stays inside the 192dp circle the system keeps. Source: design/brand/mark.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="288dp"
+  android:height="288dp"
+  android:viewportWidth="288"
+  android:viewportHeight="288">
+  <group
+    android:scaleX="0.65468"
+    android:scaleY="0.65468"
+    android:translateX="80.87"
+    android:translateY="80.98">
+    <path android:fillColor="@color/brand_slash" android:pathData="M95.2097 33H124.902L55.7661 153.692C53.9329 156.897 49.8486 159.517 46.6951 159.517H17L86.1356 38.8253C87.972 35.6201 92.0531 33 95.2097 33Z" />
+    <path android:fillColor="@color/brand_slash" android:pathData="M146.162 33H175.857L106.721 153.692C104.885 156.897 100.804 159.517 97.6471 159.517H67.9519L137.088 38.8253C138.924 35.6201 143.005 33 146.162 33Z" />
+  </group>
+</vector>

@@ -32,7 +32,9 @@ cd ../../android && ./gradlew :demo:installDebug     # an emulator or device mus
 
 The emulator reaches the host's `localhost` as `10.0.2.2`, so the app's issuer is `http://10.0.2.2:8080/realms/demo` and the tokens carry that issuer. `RS_EXTRA_ISSUERS` lets the step-up demo API accept them. Plain HTTP is allowed for `10.0.2.2` and `localhost` in debug builds only (`src/debug/res/xml/network_security_config.xml`).
 
-Settings are Gradle properties, read at build time (`-Pdemo.<name>=…` or `~/.gradle/gradle.properties`):
+The **Server** button at the top opens the server settings: server URL, realm and client ID, plus the other demo clients and the step-up demo API. They are saved in SharedPreferences and override the build's defaults; **Reset to defaults** goes back to them. Saving signs out: every client's stored credentials and the local push enrollment are cleared on the device (not revoked at the old server, which may be unreachable), and the app builds new SDK instances for the new issuer. Plain HTTP is accepted only for `10.0.2.2`, `localhost` and `127.0.0.1` in debug builds, the hosts the debug network security config allows; anything else must be `https://`, and the cleartext exception is not widened to other hosts. A client on another server must list `demoapp://auth/callback` as a redirect URI for the browser fallback.
+
+The defaults are Gradle properties, read at build time (`-Pdemo.<name>=…` or `~/.gradle/gradle.properties`):
 
 | Property | Default |
 |---|---|

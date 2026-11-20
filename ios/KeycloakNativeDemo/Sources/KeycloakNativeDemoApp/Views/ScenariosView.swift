@@ -5,9 +5,15 @@ struct ScenariosView: View {
 
   var body: some View {
     List {
-      Section("Issuer") {
+      Section {
+        BrandHeader()
+      }
+      Section("Server") {
         Text(model.config.issuer.absoluteString).font(.footnote.monospaced())
+          .accessibilityIdentifier("issuer")
         Text("Clients: \(model.config.clientId), \(model.config.passkeyClientId)").font(.footnote)
+        NavigationLink("Change server") { SettingsView() }
+          .accessibilityIdentifier("changeServer")
       }
       Section("Scenarios (spec/06 §2)") {
         ForEach(Scenario.allCases) { scenario in
@@ -36,5 +42,6 @@ struct ScenariosView: View {
       }
     }
     .navigationTitle("Scenarios")
+    .toolbar { ServerSettingsButton() }
   }
 }

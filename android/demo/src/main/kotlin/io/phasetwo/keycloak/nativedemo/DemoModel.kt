@@ -29,6 +29,7 @@ import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -289,6 +290,19 @@ class DemoModel(
   }
 
   fun clearLog() = mutableLog.update { emptyList() }
+
+  // Server change (DemoApplication.switchServer)
+
+  /** Clears every client's stored login and the local push enrollment, without calling the server. */
+  suspend fun clearLocalState() {
+    for (client in DemoClient.entries) runCatching { sdk(client).credentialsManager().clear() }
+    runCatching { push.forgetEnrollment() }
+  }
+
+  /** Stops this model's work; the app has moved on to a model for another server. */
+  fun close() = scope.cancel()
+
+  fun noteServerChanged() = mutableState.update { it.copy(status = "Signed out. Now using ${config.issuer} with client ${config.clientId}.") }
 
   // Helpers
 

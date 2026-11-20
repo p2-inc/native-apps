@@ -9,7 +9,9 @@ import Observation
 @MainActor
 @Observable
 public final class DemoModel {
-  public let config: DemoConfig
+  public private(set) var config: DemoConfig
+  /// `Config.plist` as bundled: what "Reset to defaults" on the Settings screen goes back to.
+  public let bundledConfig: DemoConfig
   public private(set) var flowLog: [FlowLogEntry] = []
   public private(set) var scenario: Scenario?
   public private(set) var flow: NativeLoginFlow?
@@ -48,8 +50,33 @@ public final class DemoModel {
 
   private var sdks: [String: KeycloakNative] = [:]
 
-  public init(config: DemoConfig) {
+  public init(config: DemoConfig, bundledConfig: DemoConfig? = nil) {
     self.config = config
+    self.bundledConfig = bundledConfig ?? config
+  }
+
+  /// Settings screen: switches to another server, realm or clients. The stored logins and the local
+  /// push enrolment belong to the old server, so they are cleared (locally: the old server may be
+  /// unreachable), the SDK instances are dropped and rebuilt for the new configuration on first use.
+  public func apply(_ newConfig: DemoConfig) async {
+    for clientId in Set([config.clientId, config.passkeyClientId, config.stepUpClientId, config.otpClientId, config.pinClientId]) {
+      try? await sdk(for: clientId).credentialsManager().clear()
+    }
+    try? push.forgetEnrollment()
+    sdks = [:]
+    config = newConfig
+    scenario = nil
+    flow = nil
+    step = nil
+    credentials = nil
+    lastError = nil
+    metadata = nil
+    dpopThumbprint = nil
+    registeredPasskeys = []
+    resourceResult = nil
+    flowLog = []
+    refreshPushState()
+    status = "Signed out. Now using \(newConfig.issuer.absoluteString) with client \(newConfig.clientId)."
   }
 
   public var activeClientId: String {
