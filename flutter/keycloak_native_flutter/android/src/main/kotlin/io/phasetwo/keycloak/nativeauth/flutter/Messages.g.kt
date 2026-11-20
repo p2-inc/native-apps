@@ -505,7 +505,9 @@ data class CredentialsMessage (
   /** Absent when the server sent no `refresh_expires_in`; a far-future value for offline tokens. */
   val refreshExpiresAtMillis: Long? = null,
   val issuedAtMillis: Long,
-  val hasRefreshToken: Boolean
+  val hasRefreshToken: Boolean,
+  /** `completeWebFallback` only: the browser callback's `kc_action_status` (spec/21). */
+  val kcActionStatus: String? = null
 )
  {
   companion object {
@@ -519,7 +521,8 @@ data class CredentialsMessage (
       val refreshExpiresAtMillis = pigeonVar_list[6] as Long?
       val issuedAtMillis = pigeonVar_list[7] as Long
       val hasRefreshToken = pigeonVar_list[8] as Boolean
-      return CredentialsMessage(handle, accessToken, tokenType, idToken, scope, expiresAtMillis, refreshExpiresAtMillis, issuedAtMillis, hasRefreshToken)
+      val kcActionStatus = pigeonVar_list[9] as String?
+      return CredentialsMessage(handle, accessToken, tokenType, idToken, scope, expiresAtMillis, refreshExpiresAtMillis, issuedAtMillis, hasRefreshToken, kcActionStatus)
     }
   }
   fun toList(): List<Any?> {
@@ -533,6 +536,7 @@ data class CredentialsMessage (
       refreshExpiresAtMillis,
       issuedAtMillis,
       hasRefreshToken,
+      kcActionStatus,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -543,7 +547,7 @@ data class CredentialsMessage (
       return true
     }
     val other = other as CredentialsMessage
-    return MessagesPigeonUtils.deepEquals(this.handle, other.handle) && MessagesPigeonUtils.deepEquals(this.accessToken, other.accessToken) && MessagesPigeonUtils.deepEquals(this.tokenType, other.tokenType) && MessagesPigeonUtils.deepEquals(this.idToken, other.idToken) && MessagesPigeonUtils.deepEquals(this.scope, other.scope) && MessagesPigeonUtils.deepEquals(this.expiresAtMillis, other.expiresAtMillis) && MessagesPigeonUtils.deepEquals(this.refreshExpiresAtMillis, other.refreshExpiresAtMillis) && MessagesPigeonUtils.deepEquals(this.issuedAtMillis, other.issuedAtMillis) && MessagesPigeonUtils.deepEquals(this.hasRefreshToken, other.hasRefreshToken)
+    return MessagesPigeonUtils.deepEquals(this.handle, other.handle) && MessagesPigeonUtils.deepEquals(this.accessToken, other.accessToken) && MessagesPigeonUtils.deepEquals(this.tokenType, other.tokenType) && MessagesPigeonUtils.deepEquals(this.idToken, other.idToken) && MessagesPigeonUtils.deepEquals(this.scope, other.scope) && MessagesPigeonUtils.deepEquals(this.expiresAtMillis, other.expiresAtMillis) && MessagesPigeonUtils.deepEquals(this.refreshExpiresAtMillis, other.refreshExpiresAtMillis) && MessagesPigeonUtils.deepEquals(this.issuedAtMillis, other.issuedAtMillis) && MessagesPigeonUtils.deepEquals(this.hasRefreshToken, other.hasRefreshToken) && MessagesPigeonUtils.deepEquals(this.kcActionStatus, other.kcActionStatus)
   }
 
   override fun hashCode(): Int {
@@ -557,10 +561,11 @@ data class CredentialsMessage (
     result = 31 * result + MessagesPigeonUtils.deepHash(this.refreshExpiresAtMillis)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.issuedAtMillis)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.hasRefreshToken)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.kcActionStatus)
     return result
   }
   override fun toString(): String {
-    return "CredentialsMessage(handle=$handle, accessToken=$accessToken, tokenType=$tokenType, idToken=$idToken, scope=$scope, expiresAtMillis=$expiresAtMillis, refreshExpiresAtMillis=$refreshExpiresAtMillis, issuedAtMillis=$issuedAtMillis, hasRefreshToken=$hasRefreshToken)"
+    return "CredentialsMessage(handle=$handle, accessToken=$accessToken, tokenType=$tokenType, idToken=$idToken, scope=$scope, expiresAtMillis=$expiresAtMillis, refreshExpiresAtMillis=$refreshExpiresAtMillis, issuedAtMillis=$issuedAtMillis, hasRefreshToken=$hasRefreshToken, kcActionStatus=$kcActionStatus)"
   }
 }
 

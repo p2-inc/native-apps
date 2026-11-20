@@ -488,6 +488,8 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
   var refreshExpiresAtMillis: Int64? = nil
   var issuedAtMillis: Int64
   var hasRefreshToken: Bool
+  /// `completeWebFallback` only: the browser callback's `kc_action_status` (spec/21).
+  var kcActionStatus: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -501,6 +503,7 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
     let refreshExpiresAtMillis: Int64? = nilOrValue(pigeonVar_list[6])
     let issuedAtMillis = pigeonVar_list[7] as! Int64
     let hasRefreshToken = pigeonVar_list[8] as! Bool
+    let kcActionStatus: String? = nilOrValue(pigeonVar_list[9])
 
     return CredentialsMessage(
       handle: handle,
@@ -511,7 +514,8 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
       expiresAtMillis: expiresAtMillis,
       refreshExpiresAtMillis: refreshExpiresAtMillis,
       issuedAtMillis: issuedAtMillis,
-      hasRefreshToken: hasRefreshToken
+      hasRefreshToken: hasRefreshToken,
+      kcActionStatus: kcActionStatus
     )
   }
   func toList() -> [Any?] {
@@ -525,13 +529,14 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
       refreshExpiresAtMillis,
       issuedAtMillis,
       hasRefreshToken,
+      kcActionStatus,
     ]
   }
   static func == (lhs: CredentialsMessage, rhs: CredentialsMessage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.handle, rhs.handle) && MessagesPigeonInternal.deepEquals(lhs.accessToken, rhs.accessToken) && MessagesPigeonInternal.deepEquals(lhs.tokenType, rhs.tokenType) && MessagesPigeonInternal.deepEquals(lhs.idToken, rhs.idToken) && MessagesPigeonInternal.deepEquals(lhs.scope, rhs.scope) && MessagesPigeonInternal.deepEquals(lhs.expiresAtMillis, rhs.expiresAtMillis) && MessagesPigeonInternal.deepEquals(lhs.refreshExpiresAtMillis, rhs.refreshExpiresAtMillis) && MessagesPigeonInternal.deepEquals(lhs.issuedAtMillis, rhs.issuedAtMillis) && MessagesPigeonInternal.deepEquals(lhs.hasRefreshToken, rhs.hasRefreshToken)
+    return MessagesPigeonInternal.deepEquals(lhs.handle, rhs.handle) && MessagesPigeonInternal.deepEquals(lhs.accessToken, rhs.accessToken) && MessagesPigeonInternal.deepEquals(lhs.tokenType, rhs.tokenType) && MessagesPigeonInternal.deepEquals(lhs.idToken, rhs.idToken) && MessagesPigeonInternal.deepEquals(lhs.scope, rhs.scope) && MessagesPigeonInternal.deepEquals(lhs.expiresAtMillis, rhs.expiresAtMillis) && MessagesPigeonInternal.deepEquals(lhs.refreshExpiresAtMillis, rhs.refreshExpiresAtMillis) && MessagesPigeonInternal.deepEquals(lhs.issuedAtMillis, rhs.issuedAtMillis) && MessagesPigeonInternal.deepEquals(lhs.hasRefreshToken, rhs.hasRefreshToken) && MessagesPigeonInternal.deepEquals(lhs.kcActionStatus, rhs.kcActionStatus)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -545,10 +550,11 @@ struct CredentialsMessage: Hashable, CustomStringConvertible {
     MessagesPigeonInternal.deepHash(value: refreshExpiresAtMillis, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: issuedAtMillis, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: hasRefreshToken, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: kcActionStatus, hasher: &hasher)
   }
 
   public var description: String {
-    return "CredentialsMessage(handle: \(String(describing: handle)), accessToken: \(String(describing: accessToken)), tokenType: \(String(describing: tokenType)), idToken: \(String(describing: idToken)), scope: \(String(describing: scope)), expiresAtMillis: \(String(describing: expiresAtMillis)), refreshExpiresAtMillis: \(String(describing: refreshExpiresAtMillis)), issuedAtMillis: \(String(describing: issuedAtMillis)), hasRefreshToken: \(String(describing: hasRefreshToken)))"
+    return "CredentialsMessage(handle: \(String(describing: handle)), accessToken: \(String(describing: accessToken)), tokenType: \(String(describing: tokenType)), idToken: \(String(describing: idToken)), scope: \(String(describing: scope)), expiresAtMillis: \(String(describing: expiresAtMillis)), refreshExpiresAtMillis: \(String(describing: refreshExpiresAtMillis)), issuedAtMillis: \(String(describing: issuedAtMillis)), hasRefreshToken: \(String(describing: hasRefreshToken)), kcActionStatus: \(String(describing: kcActionStatus)))"
   }
 }
 

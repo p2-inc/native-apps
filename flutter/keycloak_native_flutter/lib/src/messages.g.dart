@@ -433,6 +433,7 @@ class CredentialsMessage {
     this.refreshExpiresAtMillis,
     required this.issuedAtMillis,
     required this.hasRefreshToken,
+    this.kcActionStatus,
   });
 
   /// Names the native `Credentials` object for `storeCredentials`; the refresh token and the
@@ -456,6 +457,9 @@ class CredentialsMessage {
 
   bool hasRefreshToken;
 
+  /// `completeWebFallback` only: the browser callback's `kc_action_status` (spec/21).
+  String? kcActionStatus;
+
   List<Object?> _toList() {
     return <Object?>[
       handle,
@@ -467,6 +471,7 @@ class CredentialsMessage {
       refreshExpiresAtMillis,
       issuedAtMillis,
       hasRefreshToken,
+      kcActionStatus,
     ];
   }
 
@@ -485,6 +490,7 @@ class CredentialsMessage {
       refreshExpiresAtMillis: result[6] as int?,
       issuedAtMillis: result[7]! as int,
       hasRefreshToken: result[8]! as bool,
+      kcActionStatus: result[9] as String?,
     );
   }
 
@@ -497,7 +503,7 @@ class CredentialsMessage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(handle, other.handle) && _deepEquals(accessToken, other.accessToken) && _deepEquals(tokenType, other.tokenType) && _deepEquals(idToken, other.idToken) && _deepEquals(scope, other.scope) && _deepEquals(expiresAtMillis, other.expiresAtMillis) && _deepEquals(refreshExpiresAtMillis, other.refreshExpiresAtMillis) && _deepEquals(issuedAtMillis, other.issuedAtMillis) && _deepEquals(hasRefreshToken, other.hasRefreshToken);
+    return _deepEquals(handle, other.handle) && _deepEquals(accessToken, other.accessToken) && _deepEquals(tokenType, other.tokenType) && _deepEquals(idToken, other.idToken) && _deepEquals(scope, other.scope) && _deepEquals(expiresAtMillis, other.expiresAtMillis) && _deepEquals(refreshExpiresAtMillis, other.refreshExpiresAtMillis) && _deepEquals(issuedAtMillis, other.issuedAtMillis) && _deepEquals(hasRefreshToken, other.hasRefreshToken) && _deepEquals(kcActionStatus, other.kcActionStatus);
   }
 
   @override
@@ -506,7 +512,7 @@ class CredentialsMessage {
 
   @override
   String toString() {
-    return 'CredentialsMessage(handle: $handle, accessToken: $accessToken, tokenType: $tokenType, idToken: $idToken, scope: $scope, expiresAtMillis: $expiresAtMillis, refreshExpiresAtMillis: $refreshExpiresAtMillis, issuedAtMillis: $issuedAtMillis, hasRefreshToken: $hasRefreshToken)';
+    return 'CredentialsMessage(handle: $handle, accessToken: $accessToken, tokenType: $tokenType, idToken: $idToken, scope: $scope, expiresAtMillis: $expiresAtMillis, refreshExpiresAtMillis: $refreshExpiresAtMillis, issuedAtMillis: $issuedAtMillis, hasRefreshToken: $hasRefreshToken, kcActionStatus: $kcActionStatus)';
   }
 }
 
