@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Phase Two slash blue: the mark. -->
+    <color name="brand_slash">#3FA1E3</color>
+    <!-- Launch screen background: the app's background in src/App.tsx (light). -->
+    <color name="splash_background">#FFFFFF</color>
+</resources>

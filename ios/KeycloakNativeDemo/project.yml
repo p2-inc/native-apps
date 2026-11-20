@@ -35,7 +35,11 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: KC Native
-        UILaunchScreen: {}
+        # Launch screen without a storyboard: the Phase Two mark on a neutral background (light and dark
+        # variants in the asset catalog; sources in design/brand).
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: BrandMark
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         NSAppTransportSecurity:
@@ -48,6 +52,8 @@ targets:
         SWIFT_STRICT_CONCURRENCY: complete
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
+        # Phase Two accent (Assets.xcassets/AccentColor): tint of the app's controls.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     preBuildScripts: []
     attributes:
       SystemCapabilities:

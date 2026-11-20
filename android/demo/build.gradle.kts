@@ -80,5 +80,6 @@ dependencies {
   implementation(libs.compose.foundation)
   implementation(libs.compose.material3)
   implementation(libs.androidx.activity.compose)
+  implementation(libs.androidx.core.splashscreen)
   implementation(libs.coroutines.android)
 }

@@ -4,6 +4,13 @@
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+    </style>
+
+    <!-- The launch screen without a dependency: MainActivity's theme until it switches to AppTheme in
+         onCreate. Android 12+ shows the system splash screen with the values-v31 attributes. -->
+    <style name="LaunchTheme" parent="AppTheme">
+        <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
 
 </resources>

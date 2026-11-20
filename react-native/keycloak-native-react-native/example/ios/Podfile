@@ -31,5 +31,14 @@ target 'ReactNativeKeycloakNativeExample' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+    # Resource-bundle targets keep their pod's minimum (AsyncStorage: iOS 13.4), which current
+    # Xcode no longer builds for; raise them to the app's.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |build_configuration|
+        if build_configuration.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 17.0
+          build_configuration.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
+        end
+      end
+    end
   end
 end

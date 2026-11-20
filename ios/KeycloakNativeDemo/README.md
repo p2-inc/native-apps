@@ -36,6 +36,12 @@ choose **S3**, log in as `alice / alice-password` and the TOTP from
 `keycloak-native-auth/demo/scripts/walkthrough.sh` (it prints the current code) or any
 authenticator app seeded with `alice-totp-secret-20261014`.
 
+### Another server: the Server screen
+
+The **Server** screen (the server button in the Scenarios and Home toolbars, or Scenarios → Change server) sets the server URL, realm and client ID, plus the other demo clients and the step-up demo API, at runtime. The values are saved in UserDefaults on top of `Config.plist`, which stays the default; **Reset to defaults** goes back to it. Saving signs out: every client's stored credentials and the local push enrollment are cleared on the device (not revoked at the old server, which may be unreachable), and the SDK instances are rebuilt for the new issuer.
+
+The URL must be `https://`, except `http://localhost`, `127.0.0.1` and `[::1]` for the compose stack: the app's ATS exception is `NSAllowsLocalNetworking` only, and it is not widened to arbitrary hosts. A Keycloak elsewhere on the network needs HTTPS (a tunnel such as the one in §2 works). The browser fallback returns to `demoapp://auth/callback`, so a client on another server must list that redirect URI. The XCUITests expect the defaults: reset the Server screen (or delete the app) before running them.
+
 **S14** runs itself from the Scenarios tab (user `erin`, five wrong passwords → `access_denied`;
 the realm's `failureFactor` is 5 and the lock lasts 60 s).
 
@@ -171,6 +177,4 @@ extension need a device and an Apple team (spec/14 "Left out").
 
 ## Not demonstrated here
 
-Real push delivery (APNs needs a device). The app has no Settings bundle yet; edit `Config.plist`
-(`Issuer`, `ClientId`, `PasskeyClientId`, `StepUpClientId`, `OtpClientId`, `ResourceServer`,
-`AllowRpIdMismatch`, `DeviceName`).
+Real push delivery (APNs needs a device). `AllowRpIdMismatch` and `DeviceName` have no field on the Server screen; edit `Config.plist` for those (and to change the defaults).

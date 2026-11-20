@@ -9,6 +9,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.phasetwo.keycloak.nativeauth.sdk.android.AuthTabWebPresenter
 
 class MainActivity : ComponentActivity() {
@@ -17,11 +20,16 @@ class MainActivity : ComponentActivity() {
   private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    // The launch screen (Theme.Demo.Starting) hands over to Theme.Demo once the first frame is drawn.
+    installSplashScreen()
     super.onCreate(savedInstanceState)
     // Registers an activity result launcher, so it must be created before the activity starts.
     app.webPresenter = AuthTabWebPresenter(this)
     enableEdgeToEdge()
-    setContent { DemoApp(app.model) }
+    setContent {
+      val model by app.modelFlow.collectAsState()
+      DemoApp(model, app)
+    }
     askForNotifications()
     handleNotificationTap(intent)
   }
