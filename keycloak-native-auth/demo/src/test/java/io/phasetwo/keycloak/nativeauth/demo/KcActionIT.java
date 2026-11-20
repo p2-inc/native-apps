@@ -45,29 +45,32 @@ class KcActionIT {
     return (Map<String, Object>) descriptor(r, type).get("params");
   }
 
-  private static Response loginAlice(Pkce pkce) {
+  /** A signed-in app: alice's login with the code exchanged, as an SDK does. */
+  private record SignedIn(String postLogin, String refreshToken) {}
+
+  private static SignedIn signIn() {
+    Pkce pkce = Pkce.s256();
     Response r = login(CLIENT, pkce, "alice", "alice-password", ALICE_TOTP_SECRET);
     assertEquals(200, r.statusCode(), r.asString());
-    return r;
+    assertNull(r.jsonPath().getString("kc_action_status"), "no kc_action, no status");
+    Response tokens = exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null);
+    assertEquals(200, tokens.statusCode(), tokens.asString());
+    return new SignedIn(r.jsonPath().getString("auth_session"), tokens.jsonPath().getString("refresh_token"));
   }
 
   @Test
   void aliceChangesHerPasswordRightAfterSigningInAndHerOtherSessionsEnd() {
     try {
       // Another device, signed in first.
-      Pkce other = Pkce.s256();
-      Response otherLogin = loginAlice(other);
-      String otherRefresh = exchange(CLIENT, otherLogin.jsonPath().getString("authorization_code"), other, null).jsonPath().getString("refresh_token");
+      String otherRefresh = signIn().refreshToken();
 
       // This app.
-      Pkce pkce = Pkce.s256();
-      Response r = loginAlice(pkce);
-      String postLogin = r.jsonPath().getString("auth_session");
-      String refreshToken = exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null).jsonPath().getString("refresh_token");
+      SignedIn app = signIn();
+      String refreshToken = app.refreshToken();
 
       // Within Update Password's maximum authentication age (300 s): straight to the action, no factor.
       Pkce pkce2 = Pkce.s256();
-      r = stepUp(CLIENT, pkce2, postLogin, "kc_action", "UPDATE_PASSWORD");
+      Response r = stepUp(CLIENT, pkce2, app.postLogin(), "kc_action", "UPDATE_PASSWORD");
       assertChallenge(r, "update_password");
       Map<String, Object> d = descriptor(r, "update_password");
       assertEquals("native-update-password", d.get("id"));
@@ -97,8 +100,7 @@ class KcActionIT {
     // Update Password follows the password policy's maxAuthAge (Keycloak's UpdatePassword.getMaxAuthAge).
     Admin.setPasswordPolicy("maxAuthAge(0)");
     try {
-      Pkce pkce = Pkce.s256();
-      String postLogin = loginAlice(pkce).jsonPath().getString("auth_session");
+      String postLogin = signIn().postLogin();
       Thread.sleep(1100); // auth_time + 0 < now, and outside the quick-login window
 
       Pkce pkce2 = Pkce.s256();
@@ -120,8 +122,7 @@ class KcActionIT {
 
   @Test
   void maxAgeZeroReauthenticatesAndCancellingKeepsThePassword() throws Exception {
-    Pkce pkce = Pkce.s256();
-    String postLogin = loginAlice(pkce).jsonPath().getString("auth_session");
+    String postLogin = signIn().postLogin();
     Thread.sleep(1100);
 
     Pkce pkce2 = Pkce.s256();
@@ -144,8 +145,7 @@ class KcActionIT {
 
   @Test
   void anActionThatCannotBeInitiatedReportsError() {
-    Pkce pkce = Pkce.s256();
-    String postLogin = loginAlice(pkce).jsonPath().getString("auth_session");
+    String postLogin = signIn().postLogin();
 
     // Terms are only shown when Keycloak schedules them; an unknown alias is not configured at all.
     for (String action : new String[] {"TERMS_AND_CONDITIONS", "no-such-action"}) {
@@ -153,13 +153,9 @@ class KcActionIT {
       Response r = stepUp(CLIENT, p, postLogin, "kc_action", action);
       assertEquals(200, r.statusCode(), action + ": " + r.asString());
       assertEquals("error", r.jsonPath().getString("kc_action_status"), action);
+      assertEquals(200, exchange(CLIENT, r.jsonPath().getString("authorization_code"), p, null).statusCode());
       postLogin = r.jsonPath().getString("auth_session");
     }
   }
 
-  @Test
-  void aLoginWithoutKcActionHasNoStatus() {
-    Response r = loginAlice(Pkce.s256());
-    assertNull(r.jsonPath().getString("kc_action_status"));
-  }
 }
