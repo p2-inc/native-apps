@@ -50,6 +50,8 @@
   <string name="nl_recovery_code_low">Ihre Wiederherstellungscodes gehen zur Neige; erzeugen Sie nach der Anmeldung neue.</string>
   <string name="nl_choose_new_password">Neues Passwort wählen</string>
   <string name="nl_password_must_update">Ihr Passwort muss aktualisiert werden, bevor Sie fortfahren können.</string>
+  <string name="nl_password_enter_new">Geben Sie ein neues Passwort für Ihr Konto ein.</string>
+  <string name="nl_logout_other_sessions">Von anderen Geräten abmelden</string>
   <string name="nl_new_password">Neues Passwort</string>
   <string name="nl_confirm_new_password">Neues Passwort bestätigen</string>
   <string name="nl_passwords_do_not_match">Die Passwörter stimmen nicht überein</string>

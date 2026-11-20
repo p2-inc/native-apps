@@ -50,6 +50,8 @@
   <string name="nl_recovery_code_low">You are running low on recovery codes; generate new ones after signing in.</string>
   <string name="nl_choose_new_password">Choose a new password</string>
   <string name="nl_password_must_update">Your password must be updated before you can continue.</string>
+  <string name="nl_password_enter_new">Enter a new password for your account.</string>
+  <string name="nl_logout_other_sessions">Sign out of other devices</string>
   <string name="nl_new_password">New password</string>
   <string name="nl_confirm_new_password">Confirm new password</string>
   <string name="nl_passwords_do_not_match">Passwords do not match</string>

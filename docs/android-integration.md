@@ -267,6 +267,26 @@ val registered = kc.passkeys().registerNewPasskey(label = "Pixel", credentials =
 
 Stale authentication needs a step-up and a fresh registration attempt; the SDK does not replay registration after the new login.
 
+### Change password and other application-initiated actions
+
+A "Change password" button in your settings starts Keycloak's `UPDATE_PASSWORD` required action for the signed-in user ([spec/21](../spec/21-application-initiated-actions.md)):
+
+```kotlin
+val flow = kc.authentication().requiredAction("UPDATE_PASSWORD")
+NativeLoginScreen(kc, flow, onResult = { result ->
+  if (result is NativeLoginResult.Authorized) scope.launch {
+    kc.credentialsManager().store(result.credentials)
+    when (flow.kcActionStatus) {
+      KcActionStatus.Success -> { /* password changed */ }
+      KcActionStatus.Cancelled -> { /* the user tapped Cancel */ }
+      else -> { /* the server could not run the action */ }
+    }
+  }
+})
+```
+
+It is a step-up with `kc_action`, so it needs stored credentials (`credentials_not_found` otherwise). The user proves who they are first when the authentication is older than the action's *Maximum Age of Authentication* in the realm (Authentication → Required actions → Update Password; also the password policy's `maxAuthAge`; default 5 minutes). Pass `maxAge = 0` to always ask for the factors again regardless of the realm setting. The default screen then shows the new-password fields, "Sign out of other devices" (on by default; it ends every other session of the user and keeps this one) and Cancel. With custom screens, answer `ChallengeAnswer.UpdatePassword(new, new, logoutOtherSessions = true)` or `ChallengeAnswer.Skip(ChallengeType.UpdatePassword)`; `challenge.updatePasswordParams?.logoutOtherSessions` is `null` when the server does not offer the option. `flow.kcActionStatus` is `Success`, `Cancelled`, `Error` (unknown, disabled, or not allowed to be started by the app) or `null` without `kc_action`; in every case the flow ends `Authorized` with fresh tokens for the same session. The same call runs other actions the server allows to be app-initiated.
+
 ### Protected credentials
 
 To keep tokens in a store that requires user authentication, pass it as `credentialsStore`; the DPoP key reference and push enrollment stay in `secureStore`, which the SDK reads on every signed request without user interaction. The SDK ships no biometric-gated `SecureStore` yet; implement the three-method `SecureStore` interface (`data`, `set`, `remove`) over a Keystore key that requires authentication, and surface a failed or canceled authentication as `keychain_authentication_failed`.

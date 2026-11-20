@@ -24,6 +24,12 @@ public data class LoginParameters(
   /** Stable app-generated UUID. */
   public val deviceId: String? = null,
   /**
+   * Application-initiated action (spec/21, `kc_action`): the alias of a required action to run once
+   * the user is authenticated, e.g. `UPDATE_PASSWORD`. Usually set through
+   * `Authentication.requiredAction`; the outcome is [NativeLoginFlow.kcActionStatus].
+   */
+  public val kcAction: String? = null,
+  /**
    * Extra fields of the initial request (spec/03 §2.3), e.g. a device or risk signal from another
    * on-device SDK. Use the reserved `x_` prefix so a future profile parameter cannot collide; the
    * Keycloak implementation keeps them for the whole login. Sent in key order.
@@ -78,6 +84,7 @@ public class NativeLoginFlow internal constructor(
   private var session: String? = null
   private var pending: List<Challenge> = emptyList()
   private var lastExpiresIn: Int? = null
+  private var actionStatus: KcActionStatus? = null
 
   public val currentState: State get() = synchronized(lock) { state }
   override val authSession: String? get() = synchronized(lock) { session }
@@ -86,6 +93,12 @@ public class NativeLoginFlow internal constructor(
 
   /** Remaining lifetime of the authentication session as last reported. */
   public val expiresIn: Int? get() = synchronized(lock) { lastExpiresIn }
+
+  /**
+   * Outcome of `LoginParameters.kcAction` once the flow is `Authorized` (spec/21); `null` before that
+   * and when the request carried no `kc_action`.
+   */
+  public val kcActionStatus: KcActionStatus? get() = synchronized(lock) { actionStatus }
 
   override suspend fun start(): FlowStep {
     synchronized(lock) {
@@ -113,6 +126,7 @@ public class NativeLoginFlow internal constructor(
     parameters.uiLocales?.let { fields += "ui_locales" to it }
     parameters.deviceName?.let { fields += "device_name" to it }
     parameters.deviceId?.let { fields += "device_id" to it }
+    parameters.kcAction?.let { fields += "kc_action" to it }
     fields += extraFields(parameters.additionalParameters, fields)
     // spec/03 §5: a §2.1 request plus the post-login auth_session = step-up / re-authentication.
     stepUpSession?.let { fields += "auth_session" to it }
@@ -203,6 +217,7 @@ public class NativeLoginFlow internal constructor(
         state = State.FINISHED
         pending = emptyList()
         session = outcome.authSession
+        actionStatus = outcome.kcActionStatus?.let(KcActionStatus::fromWire)
       }
       FlowStep.Authorized(tokens.exchange(outcome.code, pkce.verifier, authSession = outcome.authSession))
     }
@@ -239,7 +254,7 @@ public class NativeLoginFlow internal constructor(
     /** Names the SDK itself sends on some request (spec/03 §2.1, §2.2); callers may not override them. */
     val RESERVED_FIELD_NAMES: Set<String> = setOf(
       "client_id", "response_type", "scope", "code_challenge", "code_challenge_method", "acr_values", "login_hint",
-      "prompt", "max_age", "nonce", "ui_locales", "device_name", "device_id", "auth_session", "challenge_type",
+      "prompt", "max_age", "nonce", "ui_locales", "device_name", "device_id", "kc_action", "auth_session", "challenge_type",
       "challenge_id", "action",
     )
 
