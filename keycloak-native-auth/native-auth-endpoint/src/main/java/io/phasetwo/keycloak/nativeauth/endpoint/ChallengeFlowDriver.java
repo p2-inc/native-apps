@@ -153,6 +153,9 @@ final class ChallengeFlowDriver {
     copyNote(form, Protocol.MAX_AGE, authSession, OIDCLoginProtocol.MAX_AGE_PARAM);
     copyNote(form, Protocol.UI_LOCALES, authSession, LocaleSelectorProvider.CLIENT_REQUEST_LOCALE);
     copyNote(form, Protocol.ACR_VALUES, authSession, OIDCLoginProtocol.ACR_PARAM);
+    // spec/21: Keycloak's own kc_action handling (nextRequiredAction, requireReauthentication, AcrStore)
+    // reads this client note, exactly as for the authorization endpoint's kc_action parameter.
+    copyNote(form, Protocol.KC_ACTION, authSession, Constants.KC_ACTION);
     requestedLevelOfAuthentication(authSession, client, form.getFirst(Protocol.ACR_VALUES));
     if (codeChallenge != null) {
       authSession.setClientNote(OIDCLoginProtocol.CODE_CHALLENGE_PARAM, codeChallenge);
@@ -270,7 +273,16 @@ final class ChallengeFlowDriver {
     } else {
       int previous = acrStore.getHighestAuthenticatedLevelFromPreviousAuthentication(flow.getId());
       acrStore.setLevelAuthenticatedToCurrentRequest(previous);
-      log.debugf("step-up for user session %s: previously authenticated level %d, requested %d", ref, previous, acrStore.getRequestedLevelOfAuthentication(flow));
+      int requested = acrStore.getRequestedLevelOfAuthentication(flow);
+      log.debugf("step-up for user session %s: previously authenticated level %d, requested %d", ref, previous, requested);
+      if (authSession.getClientNote(Constants.KC_ACTION) != null && requested <= previous) {
+        // spec/21: an application-initiated action within the action's maximum authentication age and
+        // without a higher level to reach goes straight to the action, like a browser whose identity
+        // cookie satisfies the login (CookieAuthenticator's cookie-only branch). Without this, a flow
+        // without LoA conditions would re-run every factor and the realm's max-age would never apply.
+        log.debugf("step-up for user session %s: kc_action within max age, no authentication needed", ref);
+        return complete(authSession, event);
+      }
     }
     return run(authSession, flow, event);
   }
@@ -472,7 +484,9 @@ final class ChallengeFlowDriver {
       if (alias == null) {
         event.success();
         return Responses.json(
-            Response.Status.OK, new AuthorizationCodeResponse(outcome.code(), mintPostLogin(authSession, outcome.userSessionId())));
+            Response.Status.OK,
+            new AuthorizationCodeResponse(outcome.code(), mintPostLogin(authSession, outcome.userSessionId()))
+                .setKcActionStatus(outcome.kcActionStatus()));
       }
       NativeRequiredActionFactory factory = RequiredActionDriver.nativeFactory(session, providerIdOf(alias));
       if (factory == null) {

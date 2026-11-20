@@ -8,6 +8,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.List;
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationProcessor;
+import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionContextResult;
 import org.keycloak.authentication.RequiredActionFactory;
@@ -16,6 +17,7 @@ import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.http.HttpRequest;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
@@ -86,6 +88,18 @@ final class RequiredActionDriver {
     NativeRequestContext.setPendingRequiredActionAlias(authSession, alias);
     RequiredActionContextResult context = context(authSession, factory);
     RequiredActionProvider provider = AuthenticationManager.createRequiredAction(context);
+    if (isKcAction(authSession, factory, alias)) {
+      // AuthenticationManager.executeAction's kc_action checks (spec/21): the action must allow being
+      // initiated by the application and be enabled; otherwise report `error` and carry on without it.
+      RequiredActionProviderModel model = realm.getRequiredActionProviderByAlias(factory.getId());
+      if (provider.initiatedActionSupport() == InitiatedActionSupport.NOT_SUPPORTED || model == null || !model.isEnabled()) {
+        log.debugf("Requested kc_action '%s' (served by '%s') cannot be initiated by the application", alias, factory.getId());
+        setKcActionStatus(authSession, factory, alias, RequiredActionContext.KcActionStatus.ERROR);
+        NativeRequestContext.clearPendingRequiredAction(authSession);
+        return Status.SUCCESS;
+      }
+      authSession.setClientNote(Constants.KC_ACTION_EXECUTING, alias);
+    }
     provider.requiredActionChallenge(context);
     return afterChallenge(authSession, factory, context, provider);
   }
@@ -146,7 +160,14 @@ final class RequiredActionDriver {
     if (!(provider instanceof NativeRequiredAction nativeAction)) {
       throw new IllegalStateException("Required action " + factory.getId() + " is not a native required action");
     }
-    nativeAction.processSkip(context);
+    String pendingAlias = NativeRequestContext.pendingRequiredActionAlias(authSession);
+    if (isKcAction(authSession, factory, pendingAlias) && !nativeAction.isSkippable(context)) {
+      // spec/21: the user may always cancel an action the application asked for (Keycloak's
+      // cancel-aia), unless it is also pending on the user (then it is not marked skippable at all).
+      context.success();
+    } else {
+      nativeAction.processSkip(context);
+    }
     event.event(EventType.LOGIN);
     if (context.getStatus() == RequiredActionContext.Status.SUCCESS) {
       event.clone().event(EventType.CUSTOM_REQUIRED_ACTION).detail(Details.CUSTOM_REQUIRED_ACTION, factory.getId()).detail(DETAIL_SKIPPED, "true").success();
@@ -154,7 +175,7 @@ final class RequiredActionDriver {
       authSession.removeRequiredAction(alias);
       authSession.removeRequiredAction(factory.getId());
       authSession.removeAuthNote(AuthenticationProcessor.CURRENT_AUTHENTICATION_EXECUTION);
-      AuthenticationManager.setKcActionStatus(factory.getId(), RequiredActionContext.KcActionStatus.CANCELLED, authSession);
+      setKcActionStatus(authSession, factory, alias, RequiredActionContext.KcActionStatus.CANCELLED);
       NativeRequestContext.clearPendingRequiredAction(authSession);
       return Status.SUCCESS;
     }
@@ -193,7 +214,7 @@ final class RequiredActionDriver {
           authSession.removeRequiredAction(done);
         }
         authSession.removeAuthNote(AuthenticationProcessor.CURRENT_AUTHENTICATION_EXECUTION);
-        AuthenticationManager.setKcActionStatus(factory.getId(), RequiredActionContext.KcActionStatus.SUCCESS, authSession);
+        setKcActionStatus(authSession, factory, alias, RequiredActionContext.KcActionStatus.SUCCESS);
         NativeRequestContext.clearPendingRequiredAction(authSession);
         return Status.SUCCESS;
       }
@@ -226,7 +247,10 @@ final class RequiredActionDriver {
     UserModel user = authSession.getAuthenticatedUser();
     boolean storedOnUser =
         user != null && user.getRequiredActionsStream().anyMatch(a -> a.equals(alias) || a.equals(factory.getId()));
-    boolean skippable = provider instanceof NativeRequiredAction nativeAction && !storedOnUser && nativeAction.isSkippable(context);
+    boolean skippable =
+        provider instanceof NativeRequiredAction nativeAction
+            && !storedOnUser
+            && (nativeAction.isSkippable(context) || isKcAction(authSession, factory, alias));
     if (!skippable) {
       authSession.removeAuthNote(NativeRequestContext.AUTH_NOTE_REQUIRED_ACTION_SKIPPABLE);
       return;
@@ -236,6 +260,27 @@ final class RequiredActionDriver {
     if (envelope != null) {
       envelope.challenges().forEach(d -> d.setSkippable(true));
     }
+  }
+
+  /**
+   * Whether this action is the one the application asked for with {@code kc_action} (spec/21): the
+   * requested alias is either the native action's own id or the Keycloak action it substitutes for.
+   */
+  private static boolean isKcAction(AuthenticationSessionModel authSession, NativeRequiredActionFactory factory, String alias) {
+    String kcAction = authSession.getClientNote(Constants.KC_ACTION);
+    return kcAction != null && (kcAction.equals(alias) || kcAction.equals(factory.getId()));
+  }
+
+  /**
+   * {@code AuthenticationManager.setKcActionStatus} under the name the application used: Keycloak
+   * only records the status when the provider id equals the {@code kc_action} note, which is the
+   * substituted alias (e.g. {@code UPDATE_PASSWORD}) rather than the native id.
+   */
+  private static void setKcActionStatus(
+      AuthenticationSessionModel authSession, NativeRequiredActionFactory factory, String alias, RequiredActionContext.KcActionStatus status) {
+    String kcAction = authSession.getClientNote(Constants.KC_ACTION);
+    String name = kcAction != null && kcAction.equals(alias) ? alias : factory.getId();
+    AuthenticationManager.setKcActionStatus(name, status, authSession);
   }
 
   private RequiredActionContextResult context(AuthenticationSessionModel authSession, RequiredActionFactory factory) {
