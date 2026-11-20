@@ -380,7 +380,7 @@ private actor FlowHandle {
     case .redirectToWeb(let request): redirect = request
     case .challenges: break
     }
-    return try BridgeJSON.string(BridgeJSON.step(step, expiresIn: await flow.expiresIn))
+    return try BridgeJSON.string(BridgeJSON.step(step, expiresIn: await flow.expiresIn, kcActionStatus: await flow.kcActionStatus))
   }
 }
 

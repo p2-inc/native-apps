@@ -143,6 +143,25 @@ A descriptor `error` on a new set is inline feedback (a wrong password), not a t
 
 Step-up: `kc.authentication.stepUp({ acrValues, maxAge })` starts a flow inside the stored session; it reads the post-login session natively and fails with `credentials_not_found` when there is none.
 
+### Change password and other application-initiated actions
+
+A "Change password" button starts Keycloak's `UPDATE_PASSWORD` required action for the signed-in user ([spec/21](../spec/21-application-initiated-actions.md)):
+
+```tsx
+const flow = await kc.authentication.requiredAction('UPDATE_PASSWORD');
+<NativeLoginScreen
+  kc={kc}
+  flow={flow}
+  onResult={async (result) => {
+    if (result.kind !== 'authorized') return;
+    await kc.credentialsManager.store(result.credentials);
+    // result.kcActionStatus: 'success' | 'cancelled' | 'error'
+  }}
+/>;
+```
+
+It is a step-up with `kc_action`, so it needs stored credentials. The user proves who they are first when the authentication is older than the action's *Maximum Age of Authentication* in the realm (Authentication → Required actions → Update Password; also the password policy's `maxAuthAge`; default 5 minutes); pass `{ maxAge: 0 }` to always ask for the factors again. The default screen shows "Sign out of other devices" (on by default; it ends every other session of the user and keeps this one) and Cancel. Custom screens answer `{ kind: 'updatePassword', password, confirm, logoutOtherSessions: true }` or `{ kind: 'skip' }`; `challenge.params.logoutOtherSessions` is `undefined` when the server does not offer the option. Driving the flow yourself, the `authorized` step carries `kcActionStatus`. The same call runs other actions the server allows to be app-initiated.
+
 ## Tokens and DPoP
 
 Only the access token and the ID token reach JavaScript. The refresh token (and the post-login session a step-up uses) stays in the iOS Keychain or the Android Keystore-backed store, and the SDK refreshes on the native side; `Credentials` carries `hasRefreshToken` instead of the token. There is deliberately no API to export it, because the JavaScript side of a React Native app is the wrong place for a long-lived credential:

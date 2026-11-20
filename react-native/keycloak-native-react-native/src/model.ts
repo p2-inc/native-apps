@@ -173,6 +173,11 @@ export interface RecoveryCodeParams {
 
 export interface UpdatePasswordParams {
   username?: string;
+  /**
+   * The suggested default for "Sign out of other devices" when the server offers it (spec/21 D5);
+   * `undefined` when it does not (older servers): then don't show the option or send the field.
+   */
+  logoutOtherSessions?: boolean;
   /** Keycloak policy id → configured value (`length: 8`, `digits: 1`, `notUsername: true`, …). */
   policy: JsonObject;
   minimumLength?: number;
@@ -496,6 +501,7 @@ function typedParams(type: string, p: JsonObject): unknown {
       const policy = asObject(p.policy) ?? {};
       return {
         username: str(p.username),
+        logoutOtherSessions: bool(p.logout_other_sessions),
         policy,
         minimumLength: int(policy.length),
         maximumLength: int(policy.maxLength),
@@ -683,8 +689,19 @@ export type FlowStep =
       /** Remaining lifetime of the authentication session, in seconds. */
       expiresIn?: number;
     }
-  | { kind: 'authorized'; credentials: Credentials }
+  | {
+      kind: 'authorized';
+      credentials: Credentials;
+      /** Outcome of `LoginParameters.kcAction` (spec/21); absent without `kc_action`. */
+      kcActionStatus?: KcActionStatus;
+    }
   | { kind: 'redirectToWeb'; request: RedirectToWebRequest };
+
+/**
+ * Outcome of an application-initiated action (spec/21): `success`, `cancelled` (the user declined),
+ * `error` (unknown, disabled, or not allowed to be started by the app), or a newer value.
+ */
+export type KcActionStatus = 'success' | 'cancelled' | 'error' | (string & {});
 
 /** Parses the native module's step JSON (`NativeFlowStep`, spec/19 §4). */
 export function parseFlowStep(json: JsonValue): FlowStep {
@@ -707,6 +724,9 @@ export function parseFlowStep(json: JsonValue): FlowStep {
       return {
         kind: 'authorized',
         credentials: parseCredentials(o?.credentials),
+        ...(str(o?.kcActionStatus) !== undefined && {
+          kcActionStatus: str(o?.kcActionStatus),
+        }),
       };
     case 'redirectToWeb': {
       const request = parseRedirectToWeb(o?.request);
@@ -734,7 +754,13 @@ export type ChallengeAnswer =
   | { kind: 'otp'; code: string }
   | { kind: 'otpResend' }
   | { kind: 'recoveryCode'; code: string }
-  | { kind: 'updatePassword'; password: string; confirm: string }
+  | {
+      kind: 'updatePassword';
+      password: string;
+      confirm: string;
+      /** "Sign out of other devices" (spec/21 D5); sent only when set. */
+      logoutOtherSessions?: boolean;
+    }
   | { kind: 'verifyEmail'; code: string }
   | { kind: 'verifyEmailResend' }
   | { kind: 'terms'; accepted: boolean }

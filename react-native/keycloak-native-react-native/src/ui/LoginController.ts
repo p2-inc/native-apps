@@ -7,6 +7,7 @@ import {
   type Credentials,
   type FlowContext,
   type FlowStep,
+  type KcActionStatus,
   type PushProviderRegistration,
   type RedirectToWebRequest,
   type SavedPassword,
@@ -14,7 +15,12 @@ import {
 
 /** Outcome of a `NativeLoginScreen` (spec/05 §4). The screen does not store the credentials. */
 export type NativeLoginResult =
-  | { kind: 'authorized'; credentials: Credentials }
+  | {
+      kind: 'authorized';
+      credentials: Credentials;
+      /** Outcome of an application-initiated action (spec/21); absent without `kc_action`. */
+      kcActionStatus?: KcActionStatus;
+    }
   | { kind: 'cancelled' }
   | { kind: 'failed'; error: NativeAuthError };
 
@@ -362,7 +368,13 @@ export class LoginController {
           }
         }
         this.update({ phase: { kind: 'finished' } });
-        this.onResult({ kind: 'authorized', credentials: step.credentials });
+        this.onResult({
+          kind: 'authorized',
+          credentials: step.credentials,
+          ...(step.kcActionStatus !== undefined && {
+            kcActionStatus: step.kcActionStatus,
+          }),
+        });
         break;
       }
       case 'redirectToWeb':

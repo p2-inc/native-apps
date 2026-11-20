@@ -279,7 +279,7 @@ class KeycloakNativeModule(private val reactContext: ReactApplicationContext) : 
       is FlowStep.RedirectToWeb -> redirect = step.request
       is FlowStep.Challenges -> {}
     }
-    return BridgeJson.step(step, flow.expiresIn)
+    return BridgeJson.step(step, flow.expiresIn, flow.kcActionStatus)
   }
 
   /** The pending challenge with this id and type; JavaScript checks too, the native flow is the authority. */
