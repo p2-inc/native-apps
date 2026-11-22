@@ -4,7 +4,7 @@ import SwiftUI
 @main
 struct KeycloakNativeDemoApp: App {
   @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-  private let model = DemoModel(config: DemoConfig.load())
+  private let model = DemoModel(config: DemoConfig.current(), bundledConfig: DemoConfig.load())
 
   var body: some Scene {
     WindowGroup {

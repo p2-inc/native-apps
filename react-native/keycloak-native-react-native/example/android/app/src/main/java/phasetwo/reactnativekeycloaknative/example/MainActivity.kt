@@ -10,6 +10,8 @@ import io.phasetwo.keycloak.nativeauth.reactnative.KeycloakNativeActivity
 class MainActivity : ReactActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    // LaunchTheme (the Phase Two launch screen) is the manifest theme; the app runs on AppTheme.
+    setTheme(R.style.AppTheme)
     super.onCreate(savedInstanceState)
     // The browser fallback registers its activity result launcher here, before the activity starts.
     KeycloakNativeActivity.register(this)

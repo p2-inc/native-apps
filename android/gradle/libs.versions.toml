@@ -8,6 +8,8 @@ agp = "9.5.0"
 credentials = "1.6.0"
 browser = "1.10.0"
 activity = "1.13.0"
+# The demo app's launch screen (Android 12+ SplashScreen API, backported).
+splashscreen = "1.0.1"
 lifecycle = "2.11.0"
 androidx-test-junit = "1.3.0"
 androidx-test-runner = "1.7.0"
@@ -39,6 +41,7 @@ compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview"
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "splashscreen" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 androidx-test-espresso = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }

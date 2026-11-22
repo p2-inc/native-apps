@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Phase Two slash blue: the mark. -->
+  <color name="brand_slash">#3FA1E3</color>
+  <!-- Launch screen background: the Material 3 surface of the app's theme (DemoTheme.kt). -->
+  <color name="splash_background">#F9F9FF</color>
+</resources>

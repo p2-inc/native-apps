@@ -86,6 +86,7 @@ struct HomeView: View {
       }
     }
     .navigationTitle("Home")
+    .toolbar { ServerSettingsButton() }
   }
 
   private func claim(_ name: String, _ claims: JSONValue?) -> some View {

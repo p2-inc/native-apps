@@ -10,6 +10,8 @@ dependencies:
     sdk: flutter
   keycloak_native_flutter:
     path: ../
+  # The server settings (Settings screen); the Flutter team's key-value store.
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   crypto: ^3.0.8
@@ -21,3 +23,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # The Phase Two mark (design/brand/mark.svg, rendered by design/brand/render.sh).
+    - assets/brand_mark.png

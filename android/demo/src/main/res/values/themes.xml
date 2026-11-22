@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- The window behind the Compose UI; colors come from DemoTheme. -->
+  <style name="Theme.Demo" parent="@android:style/Theme.Material.Light.NoActionBar">
+    <item name="android:windowBackground">@color/splash_background</item>
+  </style>
+
+  <!-- Launch screen (androidx.core:core-splashscreen, the Android 12 SplashScreen API on API 28+). -->
+  <style name="Theme.Demo.Starting" parent="Theme.SplashScreen">
+    <item name="windowSplashScreenBackground">@color/splash_background</item>
+    <item name="windowSplashScreenAnimatedIcon">@drawable/splash_mark</item>
+    <item name="postSplashScreenTheme">@style/Theme.Demo</item>
+  </style>
+</resources>
