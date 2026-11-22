@@ -30,6 +30,13 @@ public final class Protocol {
   public static final String AUTH_SESSION = "auth_session";
   public static final String DEVICE_NAME = "device_name";
   public static final String DEVICE_ID = "device_id";
+  /**
+   * Application-initiated action (spec/21): the alias of a required action to run after the user is
+   * authenticated, like Keycloak's {@code kc_action} authorization parameter.
+   */
+  public static final String KC_ACTION = "kc_action";
+  /** Outcome of the {@link #KC_ACTION} in the success body: {@code success}, {@code cancelled} or {@code error} (spec/21). */
+  public static final String KC_ACTION_STATUS = "kc_action_status";
   public static final String CHALLENGE_TYPE = "challenge_type";
   public static final String CHALLENGE_ID = "challenge_id";
   public static final String ACTION = "action";
@@ -70,6 +77,8 @@ public final class Protocol {
   public static final String RECOVERY_CODE = "recovery_code";
   // update_password (spec/03 §4.12): PASSWORD plus
   public static final String PASSWORD_CONFIRM = "password_confirm";
+  /** update_password param and answer: sign out the user's other sessions after the change (spec/21). */
+  public static final String LOGOUT_OTHER_SESSIONS = "logout_other_sessions";
   // verify_email (spec/03 §4.13)
   public static final String CODE = "code";
   // terms (spec/03 §4.14)
