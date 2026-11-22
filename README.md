@@ -52,6 +52,7 @@ The protocol follows the IETF draft [OAuth 2.0 for First-Party Applications](htt
 | 📲 Push approval | number matching, through APNs or Firebase Cloud Messaging |
 | ⬆️ Step-up | ask for a stronger factor before a sensitive action |
 | 📋 Required actions | update password, verify email, accept terms, set a PIN, register a passkey or push device |
+| ⚙️ Actions from your app | "Change password", "Change PIN", "Verify email" or "Add a passkey" buttons in your settings: the user proves who they are first, can sign out other devices, and your app learns the outcome (Keycloak's `kc_action`) |
 
 Every SDK has default screens for all of these. Use them as they are, or replace them one at a time.
 

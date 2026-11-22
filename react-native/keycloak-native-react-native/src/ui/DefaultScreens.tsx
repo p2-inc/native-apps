@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -715,16 +716,31 @@ export function UpdatePasswordScreen(
     presentation;
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  // "Sign out of other devices" (spec/21 D5): shown only when offered, seeded with the server's default.
+  const suggestedLogout = challenge.params.logoutOtherSessions;
+  const [logoutOtherSessions, setLogoutOtherSessions] = useState(
+    suggestedLogout ?? false
+  );
+  // A skippable password change is one the app asked for (spec/21): the user chose it and may cancel.
+  const requested = challenge.skippable;
   const canSubmit =
     password.length > 0 && confirm === password && !isSubmitting;
   const send = () => {
-    if (canSubmit) submit({ kind: 'updatePassword', password, confirm });
+    if (canSubmit)
+      submit({
+        kind: 'updatePassword',
+        password,
+        confirm,
+        ...(suggestedLogout !== undefined && { logoutOtherSessions }),
+      });
   };
   return (
     <ChallengeFrame
       presentation={presentation as ChallengePresentationProps}
       title={strings.chooseNewPassword}
-      subtitle={strings.passwordMustUpdate}
+      subtitle={
+        requested ? strings.passwordEnterNew : strings.passwordMustUpdate
+      }
     >
       <AutofillUsernameField
         username={flowContext.username ?? challenge.params.username}
@@ -763,6 +779,20 @@ export function UpdatePasswordScreen(
       {confirm.length > 0 && confirm !== password && (
         <Text style={styles.error}>{strings.passwordsDoNotMatch}</Text>
       )}
+      {suggestedLogout !== undefined && (
+        <View style={styles.row}>
+          <Text style={[styles.body, styles.grow]}>
+            {strings.logoutOtherSessions}
+          </Text>
+          <Switch
+            value={logoutOtherSessions}
+            onValueChange={setLogoutOtherSessions}
+            disabled={isSubmitting}
+            accessibilityLabel={strings.logoutOtherSessions}
+            testID="kc-logout-other-sessions"
+          />
+        </View>
+      )}
       <PrimaryButton
         title={strings.updatePassword}
         onPress={send}
@@ -770,9 +800,9 @@ export function UpdatePasswordScreen(
         busy={isSubmitting}
         testID="kc-update-password"
       />
-      {challenge.skippable && (
+      {requested && (
         <SecondaryButton
-          title={strings.notNow}
+          title={strings.cancel}
           onPress={() => submit({ kind: 'skip' })}
           disabled={isSubmitting}
           testID="kc-skip"
@@ -1326,6 +1356,7 @@ export const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700' },
   label: { fontSize: 15, fontWeight: '500' },
   body: { fontSize: 15 },
+  grow: { flex: 1 },
   caption: { fontSize: 13, color: '#6b7280' },
   error: { fontSize: 13, color: '#b91c1c' },
   warning: { fontSize: 13, color: '#b45309' },

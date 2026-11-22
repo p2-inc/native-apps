@@ -1,5 +1,8 @@
 ## 0.5.0-dev
 
+- Application-initiated actions (spec/21): `Authentication.requiredAction(alias, maxAge:)` (a step-up with `kc_action`, e.g. `UPDATE_PASSWORD` for a "Change password" button), `LoginParameters.kcAction`, `KcActionStatus` on `AuthorizedStep` and `NativeLoginAuthorized`.
+- `update_password`: `UpdatePasswordChallenge.logoutOtherSessions` and the answer's `logoutOtherSessions`; the default screen offers "Sign out of other devices" and, when the app asked for the change, Cancel (English and German).
+
 ## 0.4.0
 
 - PIN (spec/20): the `pin` and `pin_setup` challenge types (`PinChallenge`, `PinSetupChallenge`, `Challenge.isLocked`), the answers `ChallengeAnswer.pin` and `ChallengeAnswer.pinSetup`, the error codes `credential_locked`, `pin_mismatch`, `invalid_format` and `weak_pin`, and the default `PinScreen` and `PinSetupScreen` with a numeric keypad, in English and German.

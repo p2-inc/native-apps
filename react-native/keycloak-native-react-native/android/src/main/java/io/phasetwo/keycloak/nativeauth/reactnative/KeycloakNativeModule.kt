@@ -27,6 +27,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * The TurboModule over the Android SDK (spec/19 §4–§5). Each JavaScript `KeycloakNative` is one SDK
@@ -152,7 +154,10 @@ class KeycloakNativeModule(private val reactContext: ReactApplicationContext) : 
       ?: throw NativeAuthError(NativeAuthError.Code.FLOW_STATE, errorDescription = "This flow did not end in redirectToWeb")
     val credentials = handle.kc.webFallback().complete(request, handle.flow)
     handle.credentials = credentials
-    BridgeJson.credentials(credentials).toString()
+    // spec/21: an application-initiated action that continued in the browser reports its outcome.
+    val status = handle.flow.kcActionStatus?.wire
+    val json = BridgeJson.credentials(credentials)
+    (if (status == null) json else JsonObject(json + ("kcActionStatus" to JsonPrimitive(status)))).toString()
   }
 
   override fun storeCredentials(flowId: String, promise: Promise) = settle(promise) {
@@ -279,7 +284,7 @@ class KeycloakNativeModule(private val reactContext: ReactApplicationContext) : 
       is FlowStep.RedirectToWeb -> redirect = step.request
       is FlowStep.Challenges -> {}
     }
-    return BridgeJson.step(step, flow.expiresIn)
+    return BridgeJson.step(step, flow.expiresIn, flow.kcActionStatus)
   }
 
   /** The pending challenge with this id and type; JavaScript checks too, the native flow is the authority. */

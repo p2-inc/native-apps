@@ -57,6 +57,9 @@ class LoginParametersMessage {
   String? uiLocales;
   String? deviceName;
   String? deviceId;
+
+  /// Application-initiated action (spec/21, `kc_action`).
+  String? kcAction;
   Map<String, String> additionalParameters;
   Map<String, String> continuationParameters;
 }
@@ -114,6 +117,9 @@ class CredentialsMessage {
   int? refreshExpiresAtMillis;
   int issuedAtMillis;
   bool hasRefreshToken;
+
+  /// `completeWebFallback` only: the browser callback's `kc_action_status` (spec/21).
+  String? kcActionStatus;
 }
 
 class RedirectToWebMessage {
@@ -140,6 +146,9 @@ class FlowStepMessage {
   String? contextJson;
   CredentialsMessage? credentials;
   RedirectToWebMessage? redirectToWeb;
+
+  /// `authorized`: the outcome of `kc_action` (spec/21), absent without one.
+  String? kcActionStatus;
 }
 
 /// One case of the native `ChallengeAnswer` (spec/03 §4). Passkey, passkey registration and push
@@ -188,6 +197,9 @@ class AnswerMessage {
 
   /// `terms`.
   bool? accepted;
+
+  /// `updatePassword`: "Sign out of other devices" (spec/21 D5); sent only when set.
+  bool? logoutOtherSessions;
 
   /// `skip` and `custom`: the challenge type on the wire.
   String? type;

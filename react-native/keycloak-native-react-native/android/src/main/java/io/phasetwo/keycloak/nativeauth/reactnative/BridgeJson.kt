@@ -3,6 +3,7 @@ package io.phasetwo.keycloak.nativeauth.reactnative
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.ChallengeAnswer
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.ChallengeType
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.FlowStep
+import io.phasetwo.keycloak.nativeauth.sdk.challenge.KcActionStatus
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.FormField
 import io.phasetwo.keycloak.nativeauth.sdk.challenge.LoginParameters
 import io.phasetwo.keycloak.nativeauth.sdk.dpop.DPoPMode
@@ -83,6 +84,7 @@ internal object BridgeJson {
       uiLocales = o.string("uiLocales"),
       deviceName = o.string("deviceName"),
       deviceId = o.string("deviceId"),
+      kcAction = o.string("kcAction"),
       additionalParameters = stringMap(o["additionalParameters"]),
       continuationParameters = stringMap(o["continuationParameters"]),
     )
@@ -105,7 +107,7 @@ internal object BridgeJson {
       "otp" -> ChallengeAnswer.Otp(field("code"))
       "otpResend" -> ChallengeAnswer.OtpResend
       "recoveryCode" -> ChallengeAnswer.RecoveryCode(field("code"))
-      "updatePassword" -> ChallengeAnswer.UpdatePassword(field("password"), field("confirm"))
+      "updatePassword" -> ChallengeAnswer.UpdatePassword(field("password"), field("confirm"), o.bool("logoutOtherSessions"))
       "verifyEmail" -> ChallengeAnswer.VerifyEmail(field("code"))
       "verifyEmailResend" -> ChallengeAnswer.VerifyEmailResend
       "terms" -> ChallengeAnswer.Terms(o.bool("accepted") ?: throw invalid("The terms answer needs 'accepted'"))
@@ -127,7 +129,7 @@ internal object BridgeJson {
   }
 
   /** `NativeFlowStep`: the descriptors and context as the server sent them. */
-  fun step(step: FlowStep, expiresIn: Int?): String = when (step) {
+  fun step(step: FlowStep, expiresIn: Int?, kcActionStatus: KcActionStatus? = null): String = when (step) {
     is FlowStep.Challenges -> buildJsonObject {
       put("kind", "challenges")
       put("challenges", JsonArray(step.challenges.map { it.raw }))
@@ -137,6 +139,7 @@ internal object BridgeJson {
     is FlowStep.Authorized -> buildJsonObject {
       put("kind", "authorized")
       put("credentials", credentials(step.credentials))
+      kcActionStatus?.let { put("kcActionStatus", it.wire) }
     }
     is FlowStep.RedirectToWeb -> buildJsonObject {
       put("kind", "redirectToWeb")

@@ -53,7 +53,10 @@ FlowStep flowStepFromMessage(FlowStepMessage m) => switch (m.kind) {
     [for (final c in m.challenges) challengeFromMessage(c)],
     FlowContext(decodeObject(m.contextJson)),
   ),
-  FlowStepKind.authorized => AuthorizedStep(credentialsFromMessage(m.credentials!)),
+  FlowStepKind.authorized => AuthorizedStep(
+    credentialsFromMessage(m.credentials!),
+    kcActionStatus: m.kcActionStatus == null ? null : KcActionStatus.fromWire(m.kcActionStatus!),
+  ),
   FlowStepKind.redirectToWeb => RedirectToWebStep(redirectFromMessage(m.redirectToWeb!)),
 };
 
@@ -63,7 +66,12 @@ AnswerMessage answerToMessage(ChallengeAnswer answer) => switch (answer) {
   TotpAnswer(:final code, :final credentialId) => AnswerMessage(kind: AnswerKind.totp, value: code, credentialId: credentialId),
   OtpAnswer(:final code) => AnswerMessage(kind: AnswerKind.otp, value: code),
   OtpResendAnswer() => AnswerMessage(kind: AnswerKind.otpResend),
-  UpdatePasswordAnswer(:final password, :final confirm) => AnswerMessage(kind: AnswerKind.updatePassword, value: password, confirm: confirm),
+  UpdatePasswordAnswer(:final password, :final confirm, :final logoutOtherSessions) => AnswerMessage(
+    kind: AnswerKind.updatePassword,
+    value: password,
+    confirm: confirm,
+    logoutOtherSessions: logoutOtherSessions,
+  ),
   VerifyEmailAnswer(:final code) => AnswerMessage(kind: AnswerKind.verifyEmail, value: code),
   VerifyEmailResendAnswer() => AnswerMessage(kind: AnswerKind.verifyEmailResend),
   TermsAnswer(:final accepted) => AnswerMessage(kind: AnswerKind.terms, accepted: accepted),
@@ -91,6 +99,7 @@ LoginParametersMessage parametersToMessage(LoginParameters p) => LoginParameters
   uiLocales: p.uiLocales,
   deviceName: p.deviceName,
   deviceId: p.deviceId,
+  kcAction: p.kcAction,
   additionalParameters: p.additionalParameters,
   continuationParameters: p.continuationParameters,
 );

@@ -130,7 +130,13 @@ public final class KeycloakNativeBridge: NSObject {
       }
       let credentials = try await handle.kc.webFallback().complete(request, flow: handle.flow)
       await handle.setCredentials(credentials)
-      return try BridgeJSON.string(BridgeJSON.credentials(credentials))
+      var json = BridgeJSON.credentials(credentials)
+      // spec/21: an application-initiated action that continued in the browser reports its outcome.
+      if case .object(var o) = json, let status = await handle.flow.kcActionStatus {
+        o["kcActionStatus"] = .string(status.wire)
+        json = .object(o)
+      }
+      return try BridgeJSON.string(json)
     }
   }
 
@@ -380,7 +386,7 @@ private actor FlowHandle {
     case .redirectToWeb(let request): redirect = request
     case .challenges: break
     }
-    return try BridgeJSON.string(BridgeJSON.step(step, expiresIn: await flow.expiresIn))
+    return try BridgeJSON.string(BridgeJSON.step(step, expiresIn: await flow.expiresIn, kcActionStatus: await flow.kcActionStatus))
   }
 }
 

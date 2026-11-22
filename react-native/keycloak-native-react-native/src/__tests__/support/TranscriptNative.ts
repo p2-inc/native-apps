@@ -103,6 +103,7 @@ export class TranscriptNative implements Spec {
       ui_locales: p.uiLocales,
       device_name: p.deviceName,
       device_id: p.deviceId,
+      kc_action: p.kcAction,
       ...p.additionalParameters,
     };
     const presenceOnly = new Set(this.perRunFields);
@@ -213,8 +214,16 @@ export class TranscriptNative implements Spec {
     }
     const credentials = this.credentialsFrom(exchange);
     this.lastCredentials.set(flowId, credentials);
-    return JSON.stringify(credentials);
+    // What the browser callback carried (spec/21); the browser itself is not recorded.
+    return JSON.stringify(
+      this.webFallbackKcActionStatus === undefined
+        ? credentials
+        : { ...credentials, kcActionStatus: this.webFallbackKcActionStatus }
+    );
   }
+
+  /** `kc_action_status` the scripted browser callback returns. */
+  webFallbackKcActionStatus: string | undefined;
 
   async storeCredentials(flowId: string): Promise<void> {
     const credentials = this.lastCredentials.get(flowId);
@@ -476,7 +485,13 @@ export class TranscriptNative implements Spec {
       );
       const credentials = this.credentialsFrom(token);
       this.lastCredentials.set(flowId, credentials);
-      return JSON.stringify({ kind: 'authorized', credentials });
+      return JSON.stringify({
+        kind: 'authorized',
+        credentials,
+        ...(typeof body.kc_action_status === 'string' && {
+          kcActionStatus: body.kc_action_status,
+        }),
+      });
     }
     if (
       body.error === 'insufficient_authorization' &&
@@ -566,7 +581,13 @@ export function answerFields(answer: ChallengeAnswer): Record<string, string> {
     case 'recoveryCode':
       return { recovery_code: answer.code };
     case 'updatePassword':
-      return { password: answer.password, password_confirm: answer.confirm };
+      return {
+        password: answer.password,
+        password_confirm: answer.confirm,
+        ...(answer.logoutOtherSessions !== undefined && {
+          logout_other_sessions: String(answer.logoutOtherSessions),
+        }),
+      };
     case 'verifyEmail':
       return { code: answer.code };
     case 'terms':

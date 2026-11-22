@@ -24,7 +24,7 @@ internal class ChallengeSet(
 )
 
 internal sealed class ChallengeOutcome {
-  class AuthorizationCode(val code: String, val authSession: String?) : ChallengeOutcome()
+  class AuthorizationCode(val code: String, val authSession: String?, val kcActionStatus: String? = null) : ChallengeOutcome()
   class Challenges(val set: ChallengeSet) : ChallengeOutcome()
   class RedirectToWeb(val request: RedirectToWebRequest) : ChallengeOutcome()
 }
@@ -68,7 +68,7 @@ internal class ChallengeEndpointClient(
       if (response.statusCode == 200) {
         val code = json["authorization_code"].stringValue
           ?: throw NativeAuthError(NativeAuthError.Code.INVALID_RESPONSE, statusCode = 200, errorDescription = "200 without authorization_code", details = json)
-        return ChallengeOutcome.AuthorizationCode(code, json["auth_session"].stringValue)
+        return ChallengeOutcome.AuthorizationCode(code, json["auth_session"].stringValue, json["kc_action_status"].stringValue)
       }
       val error = json["error"].stringValue
       val challenges = json["challenges"].arrayValue

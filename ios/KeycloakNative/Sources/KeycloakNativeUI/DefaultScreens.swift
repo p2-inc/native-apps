@@ -309,11 +309,19 @@ struct UpdatePasswordScreen: View {
   let presentation: ChallengePresentationContext
   @State private var password = ""
   @State private var confirm = ""
+  /// "Sign out of other devices" (spec/21 D5); `nil` until seeded from the server's suggested default.
+  @State private var logoutOtherSessions: Bool?
   @Environment(\.nativeLoginStrings) private var l
 
   var body: some View {
     let params = presentation.challenge.updatePasswordParams
-    ChallengeFrame(presentation: presentation, title: l("Choose a new password"), subtitle: l("Your password must be updated before you can continue.")) {
+    // A skippable password change is one the app asked for (spec/21): the user chose it and may cancel.
+    let requested = presentation.challenge.isSkippable
+    ChallengeFrame(
+      presentation: presentation,
+      title: l("Choose a new password"),
+      subtitle: requested ? l("Enter a new password for your account.") : l("Your password must be updated before you can continue.")
+    ) {
       AutofillUsernameField(username: presentation.flowContext.username)
       SecureField(l("New password"), text: $password)
         .textContentType(.newPassword)
@@ -332,14 +340,27 @@ struct UpdatePasswordScreen: View {
       if !confirm.isEmpty, confirm != password {
         Text(l("Passwords do not match")).font(.footnote).foregroundStyle(.red)
       }
+      if let suggested = params?.logoutOtherSessions {
+        Toggle(l("Sign out of other devices"), isOn: Binding(get: { logoutOtherSessions ?? suggested }, set: { logoutOtherSessions = $0 }))
+          .font(.callout)
+          .accessibilityIdentifier("logoutOtherSessions")
+      }
       Button(l("Update password"), action: submit)
         .buttonStyle(.borderedProminent)
         .disabled(password.isEmpty || confirm != password || presentation.isSubmitting)
         .accessibilityIdentifier("updatePassword")
+      if requested {
+        Button(l("Cancel")) { presentation.submit(.skip(presentation.challenge.type)) }
+          .disabled(presentation.isSubmitting)
+          .accessibilityIdentifier("cancelUpdatePassword")
+      }
     }
   }
 
-  private func submit() { presentation.submit(.updatePassword(password, confirm: confirm)) }
+  private func submit() {
+    let logout = presentation.challenge.updatePasswordParams?.logoutOtherSessions.map { logoutOtherSessions ?? $0 }
+    presentation.submit(.updatePassword(password, confirm: confirm, logoutOtherSessions: logout))
+  }
 }
 
 /// `verify_email` (spec/03 §4.13): the code sent to the masked address, with resend and cooldown.
