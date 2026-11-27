@@ -1,8 +1,8 @@
 {
   "test": "RegistrationIT.fieldErrorsComeBackOnTheRegistrationChallenge",
-  "recorded_at": "2026-11-27T15:02:04.407910Z",
+  "recorded_at": "2026-11-27T15:12:57.988656Z",
   "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
-  "base_url": "http://localhost:50784",
+  "base_url": "http://localhost:55243",
   "masked_form_fields": [
     "client_secret",
     "code_verifier",
@@ -30,7 +30,7 @@
           "client_id": "demo-native",
           "response_type": "code",
           "scope": "openid profile",
-          "code_challenge": "IQ1ZdX9SpNn7farRrKaVFCP_i4RuRlv3AhmW6E5To8A",
+          "code_challenge": "web7jmBTpKR_HO93BEwt1BTF1S1XfTh2R9ps5uM4Rro",
           "code_challenge_method": "S256",
           "device_name": "NativeAuthIT",
           "native_flow": "registration"
@@ -46,13 +46,13 @@
         "json": {
           "error": "insufficient_authorization",
           "error_description": "Authentication required",
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDJjOTIzMWItZmQ1OS00ZDA5LTgwNjMtMDYzMjBmMWMyYjhjIn0..YlZeyFDKASjb5tEV.cOsym0DgKjd8Ncc1DnHAMbK-C9nFHkegSWmtT3uVoeB_3eD31gbPGQKt4cS5xaoEigFxb4e_OHGmZ-8CTr6mEdD7JIh-sIK1vO_OHTaiVxjRcrA8pPgXyovTCqGOpdET5t0ag2SW_l0qubqzNA18XKlv5tVU5hYLWwQ4oBmRTbkER0rYMwydoxvyPxCLkfPvOv0S4g.kRGx2yt_PNLKfAuYF9SUHg",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..xKIxJG5vyG6yMRVo.SqEbZGtj5vC9o_gV_ykcaWkHojmNdjt5wbNrrN_TNsvWFTNKPHU3KUJ78ttEBFq3eg74CeXG1n_rD-uk1SBR0KgcUx0FpUPMmral4OHIAO79JrJdgVPh9BXbwYp3FumTctMfIFCBnhRuWnp11EmhOBKo4vxBDZGHb4njM0sDkSN0ohhVt7S10MVWa-vtaBVJxx1xtw.nHYXnnAVj74k9w0geoz0Xw",
           "protocol_version": "1",
-          "expires_in": 1799,
+          "expires_in": 1800,
           "challenges": [
             {
               "type": "registration",
-              "id": "7308e309-22e2-42ea-9ca4-1275cb5a794f",
+              "id": "cd115ac1-cf09-43da-be5a-ff0949e80b3b",
               "label": "Create an account",
               "required": true,
               "params": {
@@ -151,12 +151,12 @@
           "Accept": "application/json"
         },
         "form": {
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDJjOTIzMWItZmQ1OS00ZDA5LTgwNjMtMDYzMjBmMWMyYjhjIn0..YlZeyFDKASjb5tEV.cOsym0DgKjd8Ncc1DnHAMbK-C9nFHkegSWmtT3uVoeB_3eD31gbPGQKt4cS5xaoEigFxb4e_OHGmZ-8CTr6mEdD7JIh-sIK1vO_OHTaiVxjRcrA8pPgXyovTCqGOpdET5t0ag2SW_l0qubqzNA18XKlv5tVU5hYLWwQ4oBmRTbkER0rYMwydoxvyPxCLkfPvOv0S4g.kRGx2yt_PNLKfAuYF9SUHg",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..xKIxJG5vyG6yMRVo.SqEbZGtj5vC9o_gV_ykcaWkHojmNdjt5wbNrrN_TNsvWFTNKPHU3KUJ78ttEBFq3eg74CeXG1n_rD-uk1SBR0KgcUx0FpUPMmral4OHIAO79JrJdgVPh9BXbwYp3FumTctMfIFCBnhRuWnp11EmhOBKo4vxBDZGHb4njM0sDkSN0ohhVt7S10MVWa-vtaBVJxx1xtw.nHYXnnAVj74k9w0geoz0Xw",
           "challenge_type": "registration",
-          "challenge_id": "7308e309-22e2-42ea-9ca4-1275cb5a794f",
+          "challenge_id": "cd115ac1-cf09-43da-be5a-ff0949e80b3b",
           "username": "bob",
           "email": "not-an-email",
-          "firstName": "Rita",
+          "firstName": "Rhea",
           "lastName": "Example",
           "password": "***",
           "password_confirm": "***"
@@ -172,13 +172,13 @@
         "json": {
           "error": "insufficient_authorization",
           "error_description": "Authentication required",
-          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiNDJjOTIzMWItZmQ1OS00ZDA5LTgwNjMtMDYzMjBmMWMyYjhjIn0..AFNu4uRj_LdejyNB.NzE9JLXV_JSgfwQZk2Rdcr6dybNoG8rosNOp-5VfE7Mne36ZmvKFL5MOggCnJ9Ayk67ItFprsUl1mXiARjNhVrbODBCzp3i1mO8k57iHQioFMgReAqpHDQRDskA9C4zx7OKPWgW0m2GWrJnL2S0MFVyL_mZMhl8wngAJhpUv7CLxbHYeC4vW_Gro_NVTt9InSoqAfg.Lc5b_6NZ1PV_QCCgbobnTw",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..MPNQzHfDfak3gTsM.3TmBLHMsqA5w5FWSV6EWr88zsl2z0xI0c8Uno4cqeqHnIiRkDZvQp22awlL23Nnz9SeArM8y6fboemD_5buNWQ8o-gWzgg37Ynlpnjb-RGHUeQESUS7ht4XPD6wNn-b4X6vnRuDZARBk3U37MmYyDTY9V2tWkHUaSyVg2MEbyBDwXhmC7v3DKG_Y_rQ4Axv62xoQTw._XSZO6GzrNoRoEi4BcNdqw",
           "protocol_version": "1",
           "expires_in": 1800,
           "challenges": [
             {
               "type": "registration",
-              "id": "7308e309-22e2-42ea-9ca4-1275cb5a794f",
+              "id": "cd115ac1-cf09-43da-be5a-ff0949e80b3b",
               "label": "Create an account",
               "required": true,
               "error": {

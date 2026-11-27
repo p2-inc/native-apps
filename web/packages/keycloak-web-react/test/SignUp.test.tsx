@@ -36,7 +36,7 @@ describe('<SignUp>', () => {
     expect(screen.getByLabelText('Email').getAttribute('type')).toBe('email');
     type('username', 'bob');
     type('email', 'not-an-email');
-    type('firstName', 'Rita');
+    type('firstName', 'Rhea');
     type('lastName', 'Example');
     type('password', 'x');
     type('password_confirm', 'x');
@@ -50,7 +50,7 @@ describe('<SignUp>', () => {
   });
 
   it('creates the account and signs the user in', async () => {
-    const { kc, transport } = replay(['RegistrationIT.ritaRegistersAndIsSignedIn'], DEMO, { range: [1, 3] });
+    const { kc, transport } = replay(['RegistrationIT.rheaRegistersAndIsSignedIn'], DEMO, { range: [1, 3] });
     render(
       <KeycloakProvider kc={kc}>
         <Status />
@@ -58,14 +58,14 @@ describe('<SignUp>', () => {
       </KeycloakProvider>
     );
     await screen.findByLabelText('Username');
-    type('username', 'rita');
-    type('email', 'rita@example.com');
-    type('firstName', 'Rita');
+    type('username', 'rhea');
+    type('email', 'rhea@example.com');
+    type('firstName', 'Rhea');
     type('lastName', 'Example');
-    type('password', 'rita-password-1');
-    type('password_confirm', 'rita-password-1');
+    type('password', 'rhea-password-1');
+    type('password_confirm', 'rhea-password-1');
     await submit();
-    await waitFor(() => expect(screen.getByTestId('user').textContent).toBe('rita'));
+    await waitFor(() => expect(screen.getByTestId('user').textContent).toBe('rhea'));
     expect(transport.remaining).toBe(0);
   });
 });

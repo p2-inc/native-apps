@@ -31,7 +31,7 @@ class RegistrationReplayTest {
     assertTrue(params.attributes.all { it.required })
     step = flow.respond(
       ChallengeAnswer.Registration(
-        mapOf("username" to listOf("bob"), "email" to listOf("not-an-email"), "firstName" to listOf("Rita"), "lastName" to listOf("Example")),
+        mapOf("username" to listOf("bob"), "email" to listOf("not-an-email"), "firstName" to listOf("Rhea"), "lastName" to listOf("Example")),
         password = "x",
         confirm = "y",
       ),
@@ -44,34 +44,34 @@ class RegistrationReplayTest {
   }
 
   @Test
-  fun ritaRegistersAndIsSignedIn() = runTest {
-    val (h, transport, _) = Harness.replay(listOf("RegistrationIT.ritaRegistersAndIsSignedIn"), TranscriptReplayTest.DEMO, range = 1..3)
+  fun rheaRegistersAndIsSignedIn() = runTest {
+    val (h, transport, _) = Harness.replay(listOf("RegistrationIT.rheaRegistersAndIsSignedIn"), TranscriptReplayTest.DEMO, range = 1..3)
     val flow = h.sdk.authentication().startLogin(registration)
     val step = flow.start()
     val credentials = flow.respond(
       ChallengeAnswer.Registration(
-        mapOf("username" to listOf("rita"), "email" to listOf("rita@example.com"), "firstName" to listOf("Rita"), "lastName" to listOf("Example")),
-        password = "rita-password-1",
-        confirm = "rita-password-1",
+        mapOf("username" to listOf("rhea"), "email" to listOf("rhea@example.com"), "firstName" to listOf("Rhea"), "lastName" to listOf("Example")),
+        password = "rhea-password-1",
+        confirm = "rhea-password-1",
       ),
       step.require(ChallengeType.Registration),
     ).credentials.req()
-    assertEquals("rita", credentials.accessTokenClaims["preferred_username"].stringValue)
+    assertEquals("rhea", credentials.accessTokenClaims["preferred_username"].stringValue)
     assertEquals(0, transport.remaining)
   }
 
   @Test
   fun forgotPasswordIsUsernameCodeAndANewPassword() = runTest {
-    val (h, transport, _) = Harness.replay(listOf("RegistrationIT.ritaResetsHerPasswordWithAnEmailedCode"), TranscriptReplayTest.DEMO, range = 1..6)
+    val (h, transport, _) = Harness.replay(listOf("RegistrationIT.rheaResetsHerPasswordWithAnEmailedCode"), TranscriptReplayTest.DEMO, range = 1..6)
     val flow = h.sdk.authentication().startLogin(reset)
     var step = flow.start()
     assertEquals(listOf("username"), step.challenges?.types())
-    step = flow.respond(ChallengeAnswer.Username("rita@example.com"), step.require(ChallengeType.Username))
+    step = flow.respond(ChallengeAnswer.Username("rhea@example.com"), step.require(ChallengeType.Username))
     val otp = step.require(ChallengeType.Otp)
     assertEquals("r***@example.com", otp.otpParams.req().destinationMasked)
     step = flow.respond(ChallengeAnswer.Otp("000000"), otp)
     step = flow.respond(ChallengeAnswer.Otp("123456"), step.require(ChallengeType.Otp))
-    step = flow.respond(ChallengeAnswer.UpdatePassword("rita-password-2", "rita-password-2"), step.require(ChallengeType.UpdatePassword))
+    step = flow.respond(ChallengeAnswer.UpdatePassword("rhea-password-2", "rhea-password-2"), step.require(ChallengeType.UpdatePassword))
     assertTrue(step is FlowStep.Authorized)
     assertEquals(0, transport.remaining)
   }

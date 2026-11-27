@@ -25,7 +25,7 @@ describe('registration', () => {
     step = await flow.respond(
       {
         kind: 'registration',
-        attributes: { username: 'bob', email: 'not-an-email', firstName: 'Rita', lastName: 'Example' },
+        attributes: { username: 'bob', email: 'not-an-email', firstName: 'Rhea', lastName: 'Example' },
         password: 'x',
         confirm: 'y',
       },
@@ -41,8 +41,8 @@ describe('registration', () => {
     expect(transport.remaining).toBe(0);
   });
 
-  it('rita registers and is signed in', async () => {
-    const { kc, transport } = replay(['RegistrationIT.ritaRegistersAndIsSignedIn'], DEMO, { range: [1, 3] });
+  it('rhea registers and is signed in', async () => {
+    const { kc, transport } = replay(['RegistrationIT.rheaRegistersAndIsSignedIn'], DEMO, { range: [1, 3] });
     const controller = new LoginController(kc, { mode: { kind: 'registration', parameters: IT_PARAMETERS } });
     await controller.start();
     const phase = controller.state.phase;
@@ -50,26 +50,26 @@ describe('registration', () => {
     await controller.submit(
       {
         kind: 'registration',
-        attributes: { username: 'rita', email: 'rita@example.com', firstName: 'Rita', lastName: 'Example' },
-        password: 'rita-password-1',
-        confirm: 'rita-password-1',
+        attributes: { username: 'rhea', email: 'rhea@example.com', firstName: 'Rhea', lastName: 'Example' },
+        password: 'rhea-password-1',
+        confirm: 'rhea-password-1',
       },
       phase.selected
     );
     const done = controller.state.phase;
     expect(done.kind === 'finished' && done.result.kind).toBe('authorized');
-    expect(accessTokenClaims(kc.credentialsManager().snapshot!)?.preferred_username).toBe('rita');
+    expect(accessTokenClaims(kc.credentialsManager().snapshot!)?.preferred_username).toBe('rhea');
     expect(transport.remaining).toBe(0);
   });
 });
 
 describe('forgot password', () => {
   it('username, emailed code, new password, signed in', async () => {
-    const { kc, transport } = replay(['RegistrationIT.ritaResetsHerPasswordWithAnEmailedCode'], DEMO, { range: [1, 6] });
+    const { kc, transport } = replay(['RegistrationIT.rheaResetsHerPasswordWithAnEmailedCode'], DEMO, { range: [1, 6] });
     const flow = await kc.authentication().startLogin({ ...IT_PARAMETERS, flow: 'reset_credentials' });
     let step = await flow.start();
     expect(types(step)).toEqual(['username']);
-    step = await flow.respond({ kind: 'username', username: 'rita@example.com' }, requireChallenge(step, 'username'));
+    step = await flow.respond({ kind: 'username', username: 'rhea@example.com' }, requireChallenge(step, 'username'));
     const otp = requireChallenge(step, 'otp');
     expect(otp.params.sent).toBe(true);
     expect(otp.params.destinationMasked).toBe('r***@example.com');
@@ -77,8 +77,8 @@ describe('forgot password', () => {
     expect(requireChallenge(step, 'otp').error?.code).toBe('invalid_credential');
     step = await flow.respond({ kind: 'otp', code: '123456' }, requireChallenge(step, 'otp'));
     const update = requireChallenge(step, 'update_password');
-    step = await flow.respond({ kind: 'updatePassword', password: 'rita-password-2', confirm: 'rita-password-2' }, update);
-    expect(accessTokenClaims(authorized(step).credentials)?.preferred_username).toBe('rita');
+    step = await flow.respond({ kind: 'updatePassword', password: 'rhea-password-2', confirm: 'rhea-password-2' }, update);
+    expect(accessTokenClaims(authorized(step).credentials)?.preferred_username).toBe('rhea');
     expect(transport.remaining).toBe(0);
   });
 });

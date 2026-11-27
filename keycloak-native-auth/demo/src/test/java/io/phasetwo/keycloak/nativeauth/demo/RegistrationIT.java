@@ -31,16 +31,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 /**
  * Native registration and forgotten-password reset (spec/22 phase 3). {@code native_flow} (or OIDC
  * {@code prompt=create}) picks the realm's {@code native-registration} / {@code
- * native-reset-credentials} flow; the demo realm allows both. rita is created here and only here.
+ * native-reset-credentials} flow; the demo realm allows both. rhea is created here and only here.
  */
 @ExtendWith(TranscriptRecorder.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class RegistrationIT {
 
-  static final String RITA = "rita";
-  static final String RITA_EMAIL = "rita@example.com";
-  static final String RITA_PASSWORD = "rita-password-1";
-  static final String RITA_NEW_PASSWORD = "rita-password-2";
+  static final String RHEA = "rhea";
+  static final String RHEA_EMAIL = "rhea@example.com";
+  static final String RHEA_PASSWORD = "rhea-password-1";
+  static final String RHEA_NEW_PASSWORD = "rhea-password-2";
 
   @BeforeAll
   static void startContainer() {
@@ -82,7 +82,7 @@ class RegistrationIT {
     assertEquals("Email", email.get("display_name"), "the ${email} key resolves through the login theme");
 
     // bob's username is taken, the email is malformed, the passwords differ.
-    r = answer(r, "registration", "username", "bob", "email", "not-an-email", "firstName", "Rita", "lastName", "Example", "password", "x", "password_confirm", "y");
+    r = answer(r, "registration", "username", "bob", "email", "not-an-email", "firstName", "Rhea", "lastName", "Example", "password", "x", "password_confirm", "y");
     assertChallenge(r, "registration");
     assertEquals("invalid_profile", errorCode(r, "registration"));
     @SuppressWarnings("unchecked")
@@ -93,28 +93,28 @@ class RegistrationIT {
 
   @Test
   @Order(3)
-  void ritaRegistersAndIsSignedIn() {
+  void rheaRegistersAndIsSignedIn() {
     Pkce pkce = Pkce.s256();
     Response r = start("registration", pkce);
     assertChallenge(r, "registration");
-    r = answer(r, "registration", "username", RITA, "email", RITA_EMAIL, "firstName", "Rita", "lastName", "Example", "password", RITA_PASSWORD, "password_confirm", RITA_PASSWORD);
+    r = answer(r, "registration", "username", RHEA, "email", RHEA_EMAIL, "firstName", "Rhea", "lastName", "Example", "password", RHEA_PASSWORD, "password_confirm", RHEA_PASSWORD);
     assertEquals(200, r.statusCode(), r.asString());
     Response tokens = exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null);
     assertEquals(200, tokens.statusCode(), tokens.asString());
 
     // And she can sign in with the password she chose.
-    Response again = login(CLIENT, Pkce.s256(), RITA, RITA_PASSWORD, null);
+    Response again = login(CLIENT, Pkce.s256(), RHEA, RHEA_PASSWORD, null);
     assertEquals(200, again.statusCode(), again.asString());
   }
 
   @Test
   @Order(4)
-  void ritaResetsHerPasswordWithAnEmailedCode() {
+  void rheaResetsHerPasswordWithAnEmailedCode() {
     Mailpit.clear();
     Pkce pkce = Pkce.s256();
     Response r = start("reset_credentials", pkce);
     assertChallenge(r, "username");
-    r = answer(r, "username", "username", RITA_EMAIL);
+    r = answer(r, "username", "username", RHEA_EMAIL);
     assertChallenge(r, "otp");
     @SuppressWarnings("unchecked")
     Map<String, Object> otp = (Map<String, Object>) descriptor(r, "otp").get("params");
@@ -123,13 +123,13 @@ class RegistrationIT {
 
     r = answer(r, "otp", "otp", "000000");
     assertEquals("invalid_credential", errorCode(r, "otp"));
-    r = answer(r, "otp", "otp", Mailpit.latestCode(RITA_EMAIL));
+    r = answer(r, "otp", "otp", Mailpit.latestCode(RHEA_EMAIL));
     assertChallenge(r, "update_password");
-    r = answer(r, "update_password", "password", RITA_NEW_PASSWORD, "password_confirm", RITA_NEW_PASSWORD);
+    r = answer(r, "update_password", "password", RHEA_NEW_PASSWORD, "password_confirm", RHEA_NEW_PASSWORD);
     assertEquals(200, r.statusCode(), r.asString());
     assertEquals(200, exchange(CLIENT, r.jsonPath().getString("authorization_code"), pkce, null).statusCode());
 
-    Response newPassword = login(CLIENT, Pkce.s256(), RITA, RITA_NEW_PASSWORD, null);
+    Response newPassword = login(CLIENT, Pkce.s256(), RHEA, RHEA_NEW_PASSWORD, null);
     assertEquals(200, newPassword.statusCode(), newPassword.asString());
   }
 
