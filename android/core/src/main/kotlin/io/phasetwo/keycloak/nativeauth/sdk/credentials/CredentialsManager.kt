@@ -131,10 +131,13 @@ public class CredentialsManager internal constructor(
    * Server and network failures are logged, not thrown: the local state is cleared regardless.
    */
   public suspend fun logout() {
-    val refreshToken = runCatching { stored() }.getOrNull()?.refreshToken
+    val stored = runCatching { stored() }.getOrNull()
+    val refreshToken = stored?.refreshToken
     if (refreshToken != null) {
       try {
-        tokens.logout(refreshToken)
+        // Keycloak refuses a DPoP-bound refresh token on /logout ("DPoP proof is missing", even with a
+        // proof: the endpoint never reads it). Revoking it with a proof ends the session.
+        if (stored.isDPoPBound) tokens.revoke(refreshToken) else tokens.logout(refreshToken)
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {

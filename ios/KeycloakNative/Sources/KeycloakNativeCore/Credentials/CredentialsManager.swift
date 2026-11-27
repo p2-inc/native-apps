@@ -94,7 +94,13 @@ public actor CredentialsManager {
   public func logout() async {
     if let credentials = try? stored(), let refreshToken = credentials.refreshToken {
       do {
-        try await tokens.logout(refreshToken: refreshToken)
+        if credentials.isDPoPBound {
+          // Keycloak refuses a DPoP-bound refresh token on /logout ("DPoP proof is missing", even with a
+          // proof: the endpoint never reads it). Revoking it with a proof ends the session.
+          try await tokens.revoke(token: refreshToken)
+        } else {
+          try await tokens.logout(refreshToken: refreshToken)
+        }
       } catch {
         logger.log(.warning, "Server logout failed: \(error)")
       }
