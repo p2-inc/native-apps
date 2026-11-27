@@ -126,13 +126,16 @@ public class Tokens internal constructor(
   /** RFC 7009 revocation (`/protocol/openid-connect/revoke`). */
   public suspend fun revoke(token: String, tokenTypeHint: String? = "refresh_token") {
     val fields = listOfNotNull("client_id" to clientId, "token" to token, tokenTypeHint?.let { "token_type_hint" to it })
-    val response = post(oidcEndpoint("revoke"), fields, withProof = false)
+    val response = post(oidcEndpoint("revoke"), fields)
     if (response.statusCode !in 200..299) throw NativeAuthError.from(response)
   }
 
-  /** RP-initiated logout with the refresh token (`/protocol/openid-connect/logout`). */
+  /**
+   * RP-initiated logout with the refresh token (`/protocol/openid-connect/logout`). Keycloak (26.4 to 26.8)
+   * refuses a DPoP-bound refresh token here even with a proof; `CredentialsManager.logout()` revokes those.
+   */
   public suspend fun logout(refreshToken: String) {
-    val response = post(oidcEndpoint("logout"), listOf("client_id" to clientId, "refresh_token" to refreshToken), withProof = false)
+    val response = post(oidcEndpoint("logout"), listOf("client_id" to clientId, "refresh_token" to refreshToken))
     if (response.statusCode !in 200..299) throw NativeAuthError.from(response)
   }
 

@@ -122,13 +122,14 @@ public struct Tokens: Sendable {
   public func revoke(token: String, tokenTypeHint: String? = "refresh_token") async throws {
     var fields: [(name: String, value: String)] = [("client_id", clientId), ("token", token)]
     if let tokenTypeHint { fields.append(("token_type_hint", tokenTypeHint)) }
-    let response = try await post(oidcEndpoint("revoke"), fields, withProof: false)
+    let response = try await post(oidcEndpoint("revoke"), fields)
     guard (200..<300).contains(response.statusCode) else { throw NativeAuthError.from(response: response) }
   }
 
-  /// RP-initiated logout with the refresh token (`/protocol/openid-connect/logout`).
+  /// RP-initiated logout with the refresh token (`/protocol/openid-connect/logout`). Keycloak (26.4 to 26.8)
+  /// refuses a DPoP-bound refresh token here even with a proof; `CredentialsManager.logout()` revokes those.
   public func logout(refreshToken: String) async throws {
-    let response = try await post(oidcEndpoint("logout"), [("client_id", clientId), ("refresh_token", refreshToken)], withProof: false)
+    let response = try await post(oidcEndpoint("logout"), [("client_id", clientId), ("refresh_token", refreshToken)])
     guard (200..<300).contains(response.statusCode) else { throw NativeAuthError.from(response: response) }
   }
 

@@ -143,4 +143,18 @@ class CredentialsAndTokensTest {
     assertTrue(transport.sent.size == 1 && transport.sent.first().url.path == "/realms/demo/protocol/openid-connect/logout")
     assertNull(manager.stored())
   }
+
+  @Test
+  fun logoutRevokesADPoPBoundRefreshToken() = runTest {
+    // Keycloak refuses a DPoP-bound refresh token on /logout even with a proof (DPoPLogoutIT).
+    val transport = ScriptedTransport({ HttpResponse(200) })
+    val manager = manager(InMemorySecureStore(), transport)
+    manager.store(credentials(100).copy(tokenType = "DPoP"))
+    manager.logout()
+    val request = transport.sent.single()
+    assertEquals("/realms/demo/protocol/openid-connect/revoke", request.url.path)
+    val fields = request.formFields.orEmpty()
+    assertTrue(fields.contains("token" to "r") && fields.contains("token_type_hint" to "refresh_token"))
+    assertNull(manager.stored())
+  }
 }
