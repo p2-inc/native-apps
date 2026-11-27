@@ -3,7 +3,8 @@
   "displayName": "Native Auth Demo",
   "enabled": true,
   "sslRequired": "external",
-  "registrationAllowed": false,
+  "registrationAllowed": true,
+  "resetPasswordAllowed": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "bruteForceProtected": true,
@@ -1271,6 +1272,38 @@
           "priority": 20,
           "userSetupAllowed": false,
           "authenticator": "push-mfa-authenticator"
+        }
+      ]
+    },
+    {
+      "alias": "native-registration",
+      "description": "Native registration (spec/22 phase 3): the 'registration' challenge from the user profile; then required actions such as email verification",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "native-registration"
+        }
+      ]
+    },
+    {
+      "alias": "native-reset-credentials",
+      "description": "Native forgot password (spec/22 phase 3): username or email -> emailed code -> update password -> signed in",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "native-reset-credentials"
         }
       ]
     }

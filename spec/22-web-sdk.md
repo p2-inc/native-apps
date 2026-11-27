@@ -1,6 +1,6 @@
 # 22 — Web SDK and drop-in components
 
-**Status:** phases 1–2 implemented (27 November 2026); phases 3–7 planned below.
+**Status:** phases 1–3 implemented (27 November 2026); phases 4–7 planned below.
 **Audience:** implementers of the web packages and the server changes they need.
 
 The browser becomes a fifth client of the challenge protocol (spec/03): the same `/native-auth/challenge` endpoint, the same challenge types and the same recorded transcripts as the iOS, Android, React Native and Flutter SDKs. A single-page app signs users in with its own screens, with no redirect to Keycloak, unless the flow reaches a step that has no native variant; then a popup carries it.
@@ -33,11 +33,21 @@ React (`@p2-inc/keycloak-web-react`): `KeycloakProvider` (restores the session a
 
 Tests: the core replays the transcripts with the same matching rules as `MockTransport.kt` / `MockTransport.swift`; React components run in jsdom against the same transcripts. Verified by hand in Chromium against the compose stack: password + TOTP login, reload restore, `max_age=0` step-up, `kc_action` cancel, RFC 9470 step-up to acr 2 against the demo resource server, passkey registration and sign-in with a virtual authenticator, the popup fallback for a non-native required action, and sign-out revoking the session.
 
+## 2.1 What phase 3 delivered
+
+Protocol (spec/03 §2.1, §4.19): the initial parameter `native_flow` (`login`, `registration`, `reset_credentials`; `prompt=create` also means registration), metadata `flows_supported`, and the `registration` challenge. "Forgot password" needs no new challenge type: it is `username`, then the emailed code as `otp`, then `update_password`, which every SDK already renders.
+
+Server: module `native-auth-registration` with `native-registration` (the realm's declarative user profile for registration, labels resolved through the login theme, Keycloak's validators and password policy, `invalid_profile` with `field_errors`, the user created and the flow continuing into required actions) and `native-reset-credentials` (username or email, a code through the email OTP sender, then Update Password natively, the user signed in; an unknown, disabled or email-less account looks the same and no code matches). The flows are chosen by `native-auth.registration-flow-alias` / `native-auth.reset-credentials-flow-alias` (client, then realm, then `native-registration` / `native-reset-credentials`) and need the realm's "User registration" / "Forgot password" switches. The demo realm has both flows and both switches on. `RegistrationIT` (6 tests, recorded as transcripts): metadata, field errors, registration, reset with the code from mailpit, an unknown account, an unknown `native_flow`.
+
+SDKs: `LoginParameters.flow` and the `registration` model and answer in the web, Kotlin and Swift cores (Kotlin and web replay the RegistrationIT transcripts); default registration screens for the web (`<SignUp>`, plus `<ResetPassword>` and links in `<SignIn>` driven by `flows_supported`), Compose and SwiftUI. Verified in Chromium: an account created from `<SignIn>` → "Create an account", then "Forgot password?" with the code from mailpit and a sign-in with the new password.
+
+Not yet: the React Native and Flutter wrappers (their native bridges need `flow` and the `registration` answer; until then they show `registration` as unsupported), and a reset email of its own (the reset reuses the one-time-code email).
+
 ## 3. Phases
 
 1. **Spike** — done.
 2. **Web SDK 0.x** — done (popup fallback, step-up, `kc_action`, DPoP, IndexedDB).
-3. **Registration and forgot password,** native in every SDK. New challenge types `registration` (fields from the declarative user profile, `register_url` fallback) and `reset_credentials` (email code, then `update_password`); new authenticators in a `native-auth-registration` module bound through a client's `native-auth.registration-flow-alias` / `native-auth.reset-flow-alias`; SDK calls `authentication().startRegistration()` / `startPasswordReset()`. Gate: sign-up with email verification and a reset run end to end on web, iOS and Android.
+3. **Registration and forgot password** — done, see §2.1.
 4. **Account widgets and web components.** `kc.account()` over `/realms/{realm}/account` (profile with user-profile metadata, credentials, sessions and devices, linked accounts), keycloak-orgs' user endpoints and the active-organization API; React components `<Profile>`, `<Credentials>`, `<Sessions>`, `<OrganizationSwitcher>`; `@p2-inc/keycloak-elements` (`<kc-sign-in>`, `<kc-profile>`, `<kc-credentials>`, `<kc-sessions>`) with a styled default themed by CSS custom properties and `::part()`, inputs in the light DOM; a shadcn registry with styled copies. Gate: the dashboard or a customer uses them.
 5. **Extensions** in every SDK: `magic_link` (wait-and-poll like push, approved by the magic-link continuation mechanism; optional link back to the app with a one-time token), `captcha` (Turnstile through keycloak-bot-protection, verified before the username step), `organization_select` (keycloak-orgs). Gate: bot-protection review of the public endpoint.
 6. **SSO cookie session.** A client setting (`native-auth.web-sso-cookie`) that, when on, lets the SDK trade its post-login `auth_session` for a one-time code and set Keycloak's browser SSO cookie through a top-level navigation or the popup, so the user is also signed in to other apps, the account console and the browser fallback. Off, the IndexedDB refresh token alone keeps the session.

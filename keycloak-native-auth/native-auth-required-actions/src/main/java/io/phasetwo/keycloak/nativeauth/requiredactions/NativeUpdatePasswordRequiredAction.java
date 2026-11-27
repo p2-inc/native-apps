@@ -86,7 +86,7 @@ public class NativeUpdatePasswordRequiredAction extends NativeRequiredActionBase
   }
 
   /** The realm's password policy by Keycloak id, minus hashing/lifetime entries (spec/03 §4.12). */
-  static Map<String, Object> policyHints(RealmModel realm) {
+  public static Map<String, Object> policyHints(RealmModel realm) {
     Map<String, Object> hints = new LinkedHashMap<>();
     PasswordPolicy policy = realm.getPasswordPolicy();
     if (policy == null) return hints;

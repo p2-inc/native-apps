@@ -31,6 +31,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -80,6 +82,7 @@ internal fun DefaultChallengeScreen(presentation: ChallengePresentationContext) 
     ChallengeType.PushEnrollment -> PushEnrollmentScreen(presentation)
     ChallengeType.Pin -> PinScreen(presentation)
     ChallengeType.PinSetup -> PinSetupScreen(presentation)
+    ChallengeType.Registration -> RegistrationScreen(presentation)
     else -> UnsupportedScreen(presentation)
   }
 }
@@ -409,6 +412,56 @@ internal fun UpdatePasswordScreen(presentation: ChallengePresentationContext) {
         Text(stringResource(R.string.nl_cancel))
       }
     }
+  }
+}
+
+/** `registration` (spec/22 phase 3): the realm's user-profile fields, the password twice, the server's field errors. */
+@Composable
+internal fun RegistrationScreen(presentation: ChallengePresentationContext) {
+  val params = presentation.challenge.registrationParams
+  val attributes = params?.attributes.orEmpty()
+  val errors = params?.fieldErrors.orEmpty()
+  val values = remember { mutableStateMapOf<String, String>() }
+  var password by rememberSaveable { mutableStateOf("") }
+  var confirm by rememberSaveable { mutableStateOf("") }
+  val missing = attributes.any { it.required && (values[it.name] ?: it.defaultValue).orEmpty().isBlank() }
+  val canSubmit = !missing && password.isNotEmpty() && confirm == password && !presentation.isSubmitting
+  val autofill = LocalAutofillManager.current
+  val submit = {
+    if (canSubmit) {
+      autofill?.commit()
+      val answer = attributes.associate { it.name to listOf((values[it.name] ?: it.defaultValue).orEmpty().trim()) }
+      presentation.submit(ChallengeAnswer.Registration(answer, password, confirm))
+    }
+  }
+  ChallengeFrame(presentation, stringResource(R.string.nl_create_your_account), null) {
+    attributes.forEach { attribute ->
+      val email = attribute.name == "email" || attribute.inputType == "html5-email"
+      AutofillField(
+        value = values[attribute.name] ?: attribute.defaultValue.orEmpty(),
+        onValueChange = { values[attribute.name] = it },
+        label = attribute.displayName,
+        contentType = when (attribute.name) {
+          "username" -> ContentType.NewUsername
+          "email" -> ContentType.EmailAddress
+          "firstName" -> ContentType.PersonFirstName
+          "lastName" -> ContentType.PersonLastName
+          "phoneNumber" -> ContentType.PhoneNumber
+          else -> null
+        },
+        tag = "registration_${attribute.name}",
+        keyboardType = if (email) KeyboardType.Email else if (attribute.inputType == "html5-tel") KeyboardType.Phone else KeyboardType.Text,
+        capitalization = if (email || attribute.name == "username") KeyboardCapitalization.None else KeyboardCapitalization.Words,
+      )
+      errors[attribute.name]?.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+    }
+    AutofillField(value = password, onValueChange = { password = it }, label = stringResource(R.string.nl_password), contentType = ContentType.NewPassword, tag = "registration_password", secret = true)
+    errors["password"]?.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+    AutofillField(value = confirm, onValueChange = { confirm = it }, label = stringResource(R.string.nl_confirm_password), contentType = ContentType.NewPassword, tag = "registration_passwordConfirm", secret = true, onDone = submit)
+    if (confirm.isNotEmpty() && confirm != password) {
+      Text(stringResource(R.string.nl_passwords_do_not_match), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    }
+    Button(onClick = submit, enabled = canSubmit, modifier = Modifier.fillMaxWidth().testTag("createAccount")) { Text(stringResource(R.string.nl_create_account)) }
   }
 }
 

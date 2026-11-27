@@ -42,13 +42,97 @@ export interface LoginRenderProps extends UseLoginResult {
   alternatives: Challenge[];
 }
 
+/** The `native_flow`s the realm allows (metadata `flows_supported`), `['login']` until known. */
+export function useFlowsSupported(): string[] {
+  const { kc } = useKeycloakContext();
+  const [flows, setFlows] = useState<string[]>(['login']);
+  useEffect(() => {
+    let active = true;
+    kc.metadata()
+      .then((m) => active && setFlows(m.flowsSupported))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [kc]);
+  return flows;
+}
+
+export interface SignInProps extends LoginViewProps {
+  parameters?: LoginParameters;
+  /**
+   * Offer "Create an account" and "Forgot password?" when the realm allows them (metadata
+   * `flows_supported`). Default `true`; the views switch in place.
+   */
+  links?: boolean;
+}
+
 /**
  * The sign-in UI with no styles: semantic HTML and `data-kc-part` attributes to style, every
  * challenge type replaceable through `components`. Renders the flow Keycloak sends; change the flow
- * in the admin console and this follows without a release.
+ * in the admin console and this follows without a release. With `links`, it also switches to
+ * registration and "forgot password" in place.
  */
-export function SignIn(props: LoginViewProps & { parameters?: LoginParameters }) {
-  return <LoginView {...props} options={{ mode: { kind: 'login', ...(props.parameters && { parameters: props.parameters }) } }} />;
+export function SignIn(props: SignInProps) {
+  const flows = useFlowsSupported();
+  const { strings: contextStrings } = useKeycloakContext();
+  const strings = { ...contextStrings, ...props.strings };
+  const [mode, setMode] = useState<'login' | 'registration' | 'resetPassword'>('login');
+  const links = props.links ?? true;
+  const parameters = props.parameters;
+  const options: LoginControllerOptions =
+    mode === 'login'
+      ? { mode: { kind: 'login', ...(parameters && { parameters }) } }
+      : { mode: { kind: mode, ...(parameters && { parameters }) } };
+  const title = mode === 'registration' ? strings.signUpTitle : mode === 'resetPassword' ? strings.resetPasswordTitle : props.title;
+  return (
+    <>
+      <LoginView key={mode} {...props} title={title} showCancel={false} options={options} />
+      {links && (
+        <div data-kc-part="links">
+          {mode === 'login' && flows.includes('reset_credentials') && (
+            <button data-kc-part="link" data-kc-link="reset-password" type="button" onClick={() => setMode('resetPassword')}>
+              {strings.forgotPassword}
+            </button>
+          )}
+          {mode === 'login' && flows.includes('registration') && (
+            <button data-kc-part="link" data-kc-link="sign-up" type="button" onClick={() => setMode('registration')}>
+              {strings.createAccount}
+            </button>
+          )}
+          {mode !== 'login' && (
+            <button data-kc-part="link" data-kc-link="sign-in" type="button" onClick={() => setMode('login')}>
+              {strings.backToSignIn}
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** New-user registration on its own (spec/22 phase 3): the realm's user profile and a password. */
+export function SignUp(props: LoginViewProps & { parameters?: LoginParameters }) {
+  const { strings } = useKeycloakContext();
+  return (
+    <LoginView
+      title={strings.signUpTitle}
+      {...props}
+      options={{ mode: { kind: 'registration', ...(props.parameters && { parameters: props.parameters }) } }}
+    />
+  );
+}
+
+/** "Forgot password" on its own (spec/22 phase 3): username or email, an emailed code, a new password. */
+export function ResetPassword(props: LoginViewProps & { parameters?: LoginParameters }) {
+  const { strings } = useKeycloakContext();
+  return (
+    <LoginView
+      title={strings.resetPasswordTitle}
+      {...props}
+      options={{ mode: { kind: 'resetPassword', ...(props.parameters && { parameters: props.parameters }) } }}
+    />
+  );
 }
 
 /**

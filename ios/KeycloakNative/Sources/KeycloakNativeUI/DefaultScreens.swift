@@ -21,6 +21,7 @@ struct DefaultChallengeScreen: View {
     case .pushEnrollment: PushEnrollmentScreen(presentation: presentation)
     case .pin: PinScreen(presentation: presentation)
     case .pinSetup: PinSetupScreen(presentation: presentation)
+    case .registration: RegistrationScreen(presentation: presentation)
     case .select, .unknown: UnsupportedScreen(presentation: presentation)
     }
   }
@@ -361,6 +362,95 @@ struct UpdatePasswordScreen: View {
     let logout = presentation.challenge.updatePasswordParams?.logoutOtherSessions.map { logoutOtherSessions ?? $0 }
     presentation.submit(.updatePassword(password, confirm: confirm, logoutOtherSessions: logout))
   }
+}
+
+/// `registration` (spec/22 phase 3): the realm's user-profile fields, then the password twice; the
+/// server's field errors under each field.
+struct RegistrationScreen: View {
+  let presentation: ChallengePresentationContext
+  @State private var values: [String: String] = [:]
+  @State private var password = ""
+  @State private var confirm = ""
+  @Environment(\.nativeLoginStrings) private var l
+
+  var body: some View {
+    let params = presentation.challenge.registrationParams
+    let attributes = params?.attributes ?? []
+    let errors = params?.fieldErrors ?? [:]
+    let missing = attributes.contains { $0.required && (values[$0.name] ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
+    ChallengeFrame(presentation: presentation, title: l("Create your account"), subtitle: nil, errorText: errors.isEmpty ? nil : l("Some fields need attention.")) {
+      ForEach(attributes, id: \.name) { attribute in
+        VStack(alignment: .leading, spacing: 4) {
+          TextField(attribute.displayName, text: binding(attribute))
+            .modifier(RegistrationFieldTraits(attribute: attribute))
+            .autocorrectionDisabled()
+            .textFieldStyle(.roundedBorder)
+            .accessibilityIdentifier("registration_\(attribute.name)")
+          ForEach(errors[attribute.name] ?? [], id: \.self) { Text($0).font(.footnote).foregroundStyle(.red) }
+        }
+      }
+      SecureField(l("Password"), text: $password)
+        .textContentType(.newPassword)
+        .textFieldStyle(.roundedBorder)
+        .accessibilityIdentifier("registration_password")
+      ForEach(errors["password"] ?? [], id: \.self) { Text($0).font(.footnote).foregroundStyle(.red) }
+      SecureField(l("Confirm password"), text: $confirm)
+        .textContentType(.newPassword)
+        .textFieldStyle(.roundedBorder)
+        .accessibilityIdentifier("registration_passwordConfirm")
+      if !confirm.isEmpty, confirm != password {
+        Text(l("Passwords do not match")).font(.footnote).foregroundStyle(.red)
+      }
+      Button(l("Create account"), action: submit)
+        .buttonStyle(.borderedProminent)
+        .disabled(missing || password.isEmpty || confirm != password || presentation.isSubmitting)
+        .accessibilityIdentifier("createAccount")
+    }
+  }
+
+  private func binding(_ attribute: RegistrationParams.Attribute) -> Binding<String> {
+    Binding(get: { values[attribute.name] ?? attribute.defaultValue ?? "" }, set: { values[attribute.name] = $0 })
+  }
+
+  private func submit() {
+    let attributes = presentation.challenge.registrationParams?.attributes ?? []
+    var answer: [String: [String]] = [:]
+    for attribute in attributes {
+      answer[attribute.name] = [(values[attribute.name] ?? attribute.defaultValue ?? "").trimmingCharacters(in: .whitespaces)]
+    }
+    presentation.submit(.registration(attributes: answer, password: password, confirm: confirm))
+  }
+
+}
+
+/// Keyboard, capitalization and AutoFill hints for a user-profile field (iOS only).
+private struct RegistrationFieldTraits: ViewModifier {
+  let attribute: RegistrationParams.Attribute
+
+  func body(content: Content) -> some View {
+    #if os(iOS)
+    let email = attribute.name == "email" || attribute.inputType == "html5-email"
+    content
+      .textContentType(contentType)
+      .keyboardType(email ? .emailAddress : attribute.inputType == "html5-tel" ? .phonePad : .default)
+      .textInputAutocapitalization(email || attribute.name == "username" ? .never : .words)
+    #else
+    content
+    #endif
+  }
+
+  #if os(iOS)
+  private var contentType: UITextContentType? {
+    switch attribute.name {
+    case "username": .username
+    case "email": .emailAddress
+    case "firstName": .givenName
+    case "lastName": .familyName
+    case "phoneNumber": .telephoneNumber
+    default: nil
+    }
+  }
+  #endif
 }
 
 /// `verify_email` (spec/03 §4.13): the code sent to the masked address, with resend and cooldown.

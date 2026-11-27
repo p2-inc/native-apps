@@ -56,6 +56,42 @@ public final class NativeAuthConfig {
     return realm.getFlowByAlias(flowAlias(realm, client));
   }
 
+  /** The flow alias behind a {@code native_flow} value (spec/22 phase 3): client attribute, realm attribute, default. */
+  public static String flowAlias(RealmModel realm, ClientModel client, String nativeFlow) {
+    String attribute;
+    String fallback;
+    if (Protocol.NATIVE_FLOW_REGISTRATION.equals(nativeFlow)) {
+      attribute = Protocol.ATTR_REGISTRATION_FLOW_ALIAS;
+      fallback = Protocol.DEFAULT_REGISTRATION_FLOW_ALIAS;
+    } else if (Protocol.NATIVE_FLOW_RESET_CREDENTIALS.equals(nativeFlow)) {
+      attribute = Protocol.ATTR_RESET_CREDENTIALS_FLOW_ALIAS;
+      fallback = Protocol.DEFAULT_RESET_CREDENTIALS_FLOW_ALIAS;
+    } else {
+      return flowAlias(realm, client);
+    }
+    String alias = client == null ? null : client.getAttribute(attribute);
+    if (alias == null || alias.isBlank()) alias = realm.getAttribute(attribute);
+    if (alias == null || alias.isBlank()) alias = fallback;
+    return alias;
+  }
+
+  /**
+   * The {@code native_flow} values available in the realm (metadata {@code flows_supported}): login,
+   * registration when the realm allows it and the realm-level flow exists, reset when the realm
+   * allows "Forgot password" and its flow exists. A client attribute can still point elsewhere.
+   */
+  public static java.util.List<String> flowsSupported(RealmModel realm) {
+    java.util.List<String> flows = new java.util.ArrayList<>();
+    flows.add(Protocol.NATIVE_FLOW_LOGIN);
+    if (realm.isRegistrationAllowed() && realm.getFlowByAlias(flowAlias(realm, null, Protocol.NATIVE_FLOW_REGISTRATION)) != null) {
+      flows.add(Protocol.NATIVE_FLOW_REGISTRATION);
+    }
+    if (realm.isResetPasswordAllowed() && realm.getFlowByAlias(flowAlias(realm, null, Protocol.NATIVE_FLOW_RESET_CREDENTIALS)) != null) {
+      flows.add(Protocol.NATIVE_FLOW_RESET_CREDENTIALS);
+    }
+    return flows;
+  }
+
   public static CodeRedirectUriMode codeRedirectUriMode(RealmModel realm) {
     return CodeRedirectUriMode.parse(realm.getAttribute(Protocol.ATTR_CODE_REDIRECT_URI_MODE));
   }

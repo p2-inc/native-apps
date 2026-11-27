@@ -1,0 +1,2 @@
+io.phasetwo.keycloak.nativeauth.registration.NativeRegistrationAuthenticatorFactory
+io.phasetwo.keycloak.nativeauth.registration.NativeResetCredentialsAuthenticatorFactory

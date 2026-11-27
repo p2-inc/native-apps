@@ -1,0 +1,104 @@
+{
+  "test": "RegistrationIT.metadataAdvertisesRegistrationAndReset",
+  "recorded_at": "2026-11-27T15:02:03.730520Z",
+  "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
+  "base_url": "http://localhost:50784",
+  "masked_form_fields": [
+    "client_secret",
+    "code_verifier",
+    "otp",
+    "password",
+    "password_confirm",
+    "pin",
+    "pin_confirm",
+    "recovery_code",
+    "refresh_token",
+    "token",
+    "totp"
+  ],
+  "exchanges": [
+    {
+      "seq": 1,
+      "request": {
+        "method": "GET",
+        "path": "/realms/demo/native-auth/metadata",
+        "headers": {
+          "Accept": "*/*"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "protocol_version": "1",
+          "fipa_draft": "draft-ietf-oauth-first-party-apps-04",
+          "authorization_challenge_endpoint": "http://localhost:50784/realms/demo/native-auth/challenge",
+          "token_endpoint": "http://localhost:50784/realms/demo/protocol/openid-connect/token",
+          "authorization_endpoint": "http://localhost:50784/realms/demo/protocol/openid-connect/auth",
+          "code_exchange": {
+            "redirect_uri_required": false
+          },
+          "passkey": {
+            "rp_id": "localhost",
+            "register_options_endpoint": "http://localhost:50784/realms/demo/native-auth/passkey/register/options",
+            "register_finish_endpoint": "http://localhost:50784/realms/demo/native-auth/passkey/register/finish"
+          },
+          "push": {
+            "enabled": true,
+            "enroll_start_endpoint": "http://localhost:50784/realms/demo/native-auth/push/enroll/start",
+            "device_api_base": "http://localhost:50784/realms/demo/push-mfa",
+            "device_token": "native",
+            "push_provider_types": [
+              "apns",
+              "fcm",
+              "log",
+              "none"
+            ]
+          },
+          "challenge_types_supported": [
+            "username",
+            "password",
+            "passkey",
+            "passkey_registration",
+            "totp",
+            "otp",
+            "push",
+            "recovery_code",
+            "update_password",
+            "verify_email",
+            "terms",
+            "push_enrollment",
+            "pin",
+            "pin_setup",
+            "registration"
+          ],
+          "flows_supported": [
+            "login",
+            "registration",
+            "reset_credentials"
+          ],
+          "dpop_signing_alg_values_supported": [
+            "PS384",
+            "RS384",
+            "EdDSA",
+            "ES384",
+            "ES256",
+            "RS256",
+            "ES512",
+            "PS256",
+            "PS512",
+            "RS512"
+          ],
+          "client_attestation": {
+            "required": false,
+            "methods": [ ]
+          }
+        }
+      }
+    }
+  ]
+}

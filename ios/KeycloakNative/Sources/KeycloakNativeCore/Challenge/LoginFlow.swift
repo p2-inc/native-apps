@@ -17,6 +17,10 @@ public struct LoginParameters: Sendable, Equatable {
   /// the user is authenticated, e.g. `UPDATE_PASSWORD`. Usually set through
   /// `Authentication.requiredAction(_:maxAge:)`; the outcome is `NativeLoginFlow.kcActionStatus`.
   public var kcAction: String?
+  /// What the flow does (spec/22 phase 3): `nil` or `"login"` for a login, `"registration"` for a new
+  /// user, `"reset_credentials"` for "Forgot password". `NativeAuthMetadata.flowsSupported` lists what
+  /// the realm allows.
+  public var flow: String?
   /// Extra fields of the initial request (spec/03 §2.3), e.g. a device or risk signal from another
   /// on-device SDK. Use the reserved `x_` prefix so a future profile parameter cannot collide; the
   /// Keycloak implementation keeps them for the whole login (`NativeRequestContext.extensionParameter`).
@@ -37,6 +41,7 @@ public struct LoginParameters: Sendable, Equatable {
     deviceName: String? = nil,
     deviceId: String? = nil,
     kcAction: String? = nil,
+    flow: String? = nil,
     additionalParameters: [String: String] = [:],
     continuationParameters: [String: String] = [:]
   ) {
@@ -50,6 +55,7 @@ public struct LoginParameters: Sendable, Equatable {
     self.deviceName = deviceName
     self.deviceId = deviceId
     self.kcAction = kcAction
+    self.flow = flow
     self.additionalParameters = additionalParameters
     self.continuationParameters = continuationParameters
   }
@@ -162,6 +168,7 @@ public actor NativeLoginFlow: LoginFlow {
     if let v = parameters.deviceName { fields.append(("device_name", v)) }
     if let v = parameters.deviceId { fields.append(("device_id", v)) }
     if let v = parameters.kcAction { fields.append(("kc_action", v)) }
+    if let v = parameters.flow, v != "login" { fields.append(("native_flow", v)) }
     fields += try Self.extraFields(parameters.additionalParameters, after: fields)
     if let stepUpSession {
       // spec/03 §5: a §2.1 request plus the post-login auth_session = step-up / re-authentication.
@@ -231,7 +238,7 @@ public actor NativeLoginFlow: LoginFlow {
   /// Names the SDK itself sends on some request (spec/03 §2.1, §2.2); callers may not override them.
   static let reservedFieldNames: Set<String> = [
     "client_id", "response_type", "scope", "code_challenge", "code_challenge_method", "acr_values", "login_hint",
-    "prompt", "max_age", "nonce", "ui_locales", "device_name", "device_id", "kc_action", "auth_session", "challenge_type",
+    "prompt", "max_age", "nonce", "ui_locales", "device_name", "device_id", "kc_action", "native_flow", "auth_session", "challenge_type",
     "challenge_id", "action",
   ]
 

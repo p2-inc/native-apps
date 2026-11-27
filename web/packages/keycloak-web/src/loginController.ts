@@ -41,6 +41,8 @@ export interface LoginControllerOptions {
   /** What to start: a login (default), a step-up, or an application-initiated action. */
   mode?:
     | { kind: 'login'; parameters?: LoginParameters }
+    | { kind: 'registration'; parameters?: LoginParameters }
+    | { kind: 'resetPassword'; parameters?: LoginParameters }
     | { kind: 'stepUp'; parameters?: LoginParameters }
     | { kind: 'requiredAction'; alias: string; parameters?: LoginParameters };
   /** Run the passkey prompt as soon as a set shows `passkey`. Default `false`. */
@@ -127,7 +129,11 @@ export class LoginController {
       this.flowValue =
         mode.kind === 'login'
           ? await auth.startLogin(mode.parameters)
-          : mode.kind === 'stepUp'
+          : mode.kind === 'registration'
+            ? await auth.startLogin({ ...mode.parameters, flow: 'registration' })
+            : mode.kind === 'resetPassword'
+              ? await auth.startLogin({ ...mode.parameters, flow: 'reset_credentials' })
+              : mode.kind === 'stepUp'
             ? await auth.stepUp(mode.parameters)
             : await auth.requiredAction(mode.alias, mode.parameters);
       return this.flowValue.start();

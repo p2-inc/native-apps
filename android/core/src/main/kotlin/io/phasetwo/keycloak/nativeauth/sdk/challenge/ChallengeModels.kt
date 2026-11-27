@@ -48,6 +48,9 @@ public sealed class ChallengeType(public val wire: String) {
   // advertise them only when the extension is installed.
   public object Pin : ChallengeType("pin")
   public object PinSetup : ChallengeType("pin_setup")
+
+  // New-user registration (spec/22 phase 3), with the native-auth-registration module.
+  public object Registration : ChallengeType("registration")
   public class Unknown(wire: String) : ChallengeType(wire)
 
   /**
@@ -71,7 +74,7 @@ public sealed class ChallengeType(public val wire: String) {
 
   public companion object {
     private val known: Map<String, ChallengeType> by lazy {
-      listOf(Username, Password, Passkey, PasskeyRegistration, Totp, Otp, Push, RecoveryCode, Select, UpdatePassword, VerifyEmail, Terms, PushEnrollment, Pin, PinSetup)
+      listOf(Username, Password, Passkey, PasskeyRegistration, Totp, Otp, Push, RecoveryCode, Select, UpdatePassword, VerifyEmail, Terms, PushEnrollment, Pin, PinSetup, Registration)
         .associateBy { it.wire }
     }
 
@@ -158,6 +161,7 @@ public class Challenge(
   public val pushEnrollmentParams: PushEnrollmentParams? get() = if (type == ChallengeType.PushEnrollment) PushEnrollmentParams(params) else null
   public val pinParams: PinParams? get() = if (type == ChallengeType.Pin) PinParams(params) else null
   public val pinSetupParams: PinSetupParams? get() = if (type == ChallengeType.PinSetup) PinSetupParams(params) else null
+  public val registrationParams: RegistrationParams? get() = if (type == ChallengeType.Registration) RegistrationParams(params) else null
 
   /**
    * `pin` with `credential_locked` (spec/03 §4.17): the PIN cannot be used until it is reset; another
@@ -244,6 +248,39 @@ public class PushEnrollmentParams(json: JsonElement) {
 
   /** Unverified claims of the enrolment token, for display and for building the device JWT. */
   public val enrollmentClaims: JsonElement? get() = enrollmentToken?.let(Jwt::decodePayload)
+}
+
+/**
+ * spec/22 phase 3: new-user registration. [attributes] are the realm's declarative user profile for
+ * registration, in display order; answer with [ChallengeAnswer.Registration]. After an
+ * `invalid_profile` answer, [fieldErrors] names the refused fields (`password` and
+ * `password_confirm` included).
+ */
+public class RegistrationParams(json: JsonElement) {
+  public class Attribute(json: JsonElement) {
+    public val name: String = json["name"].stringValue.orEmpty()
+
+    /** Resolved through the login theme (`${firstName}` → "First name"). */
+    public val displayName: String = json["display_name"].stringValue ?: name
+    public val required: Boolean = json["required"].boolValue ?: false
+    public val multivalued: Boolean = json["multivalued"].boolValue ?: false
+    public val group: String? = json["group"].stringValue
+    public val defaultValue: String? = json["default_value"].stringValue
+
+    /** Keycloak's `inputType` annotation (`text`, `textarea`, `select`, `html5-email`, …). */
+    public val inputType: String? = json["input_type"].stringValue
+    public val options: List<String> = json["options"].stringArray.orEmpty()
+
+    /** Keycloak validator id → its configuration (`length`, `pattern`, `email`, …). */
+    public val validators: Map<String, JsonElement> = json["validators"].objectValue.orEmpty()
+  }
+
+  public val attributes: List<Attribute> =
+    json["attributes"].arrayValue.orEmpty().map(::Attribute).filter { it.name.isNotEmpty() }
+  public val passwordPolicy: Map<String, JsonElement> = json["password_policy"].objectValue.orEmpty()
+  public val emailAsUsername: Boolean = json["email_as_username"].boolValue ?: false
+  public val fieldErrors: Map<String, List<String>> =
+    json["field_errors"].objectValue.orEmpty().mapValues { it.value.stringArray.orEmpty() }
 }
 
 /** spec/03 §4.17: the PIN factor. */
@@ -606,6 +643,18 @@ public sealed class ChallengeAnswer {
   }
 
   /**
+   * `registration` (spec/22 phase 3): one value per user-profile attribute (several for a
+   * multivalued one) plus the password twice.
+   */
+  public data class Registration(
+    public val attributes: Map<String, List<String>>,
+    public val password: String,
+    public val confirm: String,
+  ) : ChallengeAnswer() {
+    override fun toString(): String = "Registration(${attributes.keys}, ***)"
+  }
+
+  /**
    * `action=skip` (spec/03 §4.11): decline a required action whose challenge [Challenge.isSkippable]
    * ("Not now"); pass the challenge's type. The flow continues like after any answer.
    */
@@ -637,6 +686,7 @@ public sealed class ChallengeAnswer {
       is PushEnrollment, PushEnrollmentCheck -> ChallengeType.PushEnrollment
       is Pin -> ChallengeType.Pin
       is PinSetup -> ChallengeType.PinSetup
+      is Registration -> ChallengeType.Registration
       is Skip -> type
       is Custom -> type
     }
@@ -664,6 +714,8 @@ public sealed class ChallengeAnswer {
       PushEnrollmentCheck -> listOf("action" to "check")
       is Pin -> listOf("pin" to pin)
       is PinSetup -> listOf("pin" to pin, "pin_confirm" to confirm)
+      is Registration ->
+        attributes.flatMap { (name, values) -> values.map { name to it } } + listOf("password" to password, "password_confirm" to confirm)
       is Skip -> listOf("action" to "skip")
       is Custom -> fields.map { it.name to it.value }
     }

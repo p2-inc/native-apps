@@ -57,6 +57,11 @@
     </dependency>
     <dependency>
       <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>native-auth-registration</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.phasetwo.keycloak</groupId>
       <artifactId>native-auth-required-actions</artifactId>
     </dependency>
     <dependency>

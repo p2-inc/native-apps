@@ -81,6 +81,15 @@ function MyPassword({ challenge, submit, isSubmitting }: ChallengeProps<'passwor
 
 Or take the whole layout with `render`, or drive the flow yourself with `useLogin()` (a `LoginController` and its state). Strings are English by default; pass `strings` to `KeycloakProvider` or a component to replace some or all of them.
 
+## Sign-up and forgot password
+
+When the realm allows them (**Realm settings → Login → User registration / Forgot password**) and has the `native-registration` / `native-reset-credentials` flows (module `native-auth-registration`), `<SignIn>` offers "Create an account" and "Forgot password?" and switches in place; `links={false}` hides them. `<SignUp>` and `<ResetPassword>` are the same views on their own.
+
+- **Sign-up** shows the realm's user profile for registration (labels, required fields, select options) and a password; Keycloak validates it (duplicate username or email, the password policy) and the errors appear under their fields. Email verification and terms then run as usual, and the new user is signed in.
+- **Forgot password** asks for the username or email, emails a code (the realm's SMTP settings), asks for a new password and signs the user in. It does not reveal whether an account exists.
+
+Without React: `kc.authentication().startLogin({ flow: 'registration' })` or `{ flow: 'reset_credentials' }`; `(await kc.metadata()).flowsSupported` says what the realm allows.
+
 ## Step-up and app-initiated actions
 
 - `<StepUp acrValues="2" />` asks only for what the requested level still needs; `<StepUp maxAge={0} />` asks for every factor again ("Confirm it's you").

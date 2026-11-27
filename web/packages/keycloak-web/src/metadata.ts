@@ -17,6 +17,8 @@ export interface NativeAuthMetadata {
     registerFinishEndpoint?: string;
   };
   challengeTypesSupported: string[];
+  /** `native_flow` values the realm allows (spec/22 phase 3); `['login']` from older servers. */
+  flowsSupported: string[];
   dpopSigningAlgValuesSupported: string[];
   push?: { enabled: boolean; enrollStartEndpoint?: string; deviceApiBase?: string };
   raw: JsonObject;
@@ -56,6 +58,7 @@ export function parseMetadata(json: unknown): NativeAuthMetadata {
             registerFinishEndpoint: str(passkey?.register_finish_endpoint),
           },
     challengeTypesSupported: strings(o.challenge_types_supported),
+    flowsSupported: strings(o.flows_supported).length > 0 ? strings(o.flows_supported) : ['login'],
     dpopSigningAlgValuesSupported: strings(o.dpop_signing_alg_values_supported),
     push:
       push === undefined

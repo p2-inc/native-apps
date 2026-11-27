@@ -116,4 +116,7 @@
     <item quantity="one">Noch 1 Versuch</item>
     <item quantity="other">Noch %d Versuche</item>
   </plurals>
+  <string name="nl_create_your_account">Konto erstellen</string>
+  <string name="nl_create_account">Konto erstellen</string>
+  <string name="nl_confirm_password">Passwort bestätigen</string>
 </resources>

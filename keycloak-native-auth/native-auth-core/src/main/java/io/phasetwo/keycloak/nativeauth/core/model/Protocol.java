@@ -25,6 +25,16 @@ public final class Protocol {
   public static final String MAX_AGE = "max_age";
   public static final String LOGIN_HINT = "login_hint";
   public static final String PROMPT = "prompt";
+  /** OIDC "prompt=create" (Initiating User Registration via OpenID Connect): same as {@code native_flow=registration}. */
+  public static final String PROMPT_CREATE = "create";
+  /**
+   * Initial parameter choosing what the flow does (spec/22 phase 3): {@link #NATIVE_FLOW_LOGIN} (default),
+   * {@link #NATIVE_FLOW_REGISTRATION} or {@link #NATIVE_FLOW_RESET_CREDENTIALS}.
+   */
+  public static final String NATIVE_FLOW = "native_flow";
+  public static final String NATIVE_FLOW_LOGIN = "login";
+  public static final String NATIVE_FLOW_REGISTRATION = "registration";
+  public static final String NATIVE_FLOW_RESET_CREDENTIALS = "reset_credentials";
   public static final String NONCE = "nonce";
   public static final String UI_LOCALES = "ui_locales";
   public static final String AUTH_SESSION = "auth_session";
@@ -135,6 +145,8 @@ public final class Protocol {
   public static final String DESC_ERR_INVALID_FORMAT = "invalid_format";
   /** {@code pin_setup}: rejected as easy to guess (spec/03 §4.18). */
   public static final String DESC_ERR_WEAK_PIN = "weak_pin";
+  /** {@code registration}: one or more fields were refused; {@code params.field_errors} names them (spec/22). */
+  public static final String DESC_ERR_INVALID_PROFILE = "invalid_profile";
 
   // ---- Keycloak client / realm attributes ----
   public static final String CLIENT_ATTR_ENABLED = "native-auth.enabled";
@@ -145,6 +157,12 @@ public final class Protocol {
   public static final String ATTR_PASSKEY_REGISTRATION_MAX_AGE = "native-auth.passkey-registration-max-age";
   public static final int DEFAULT_PASSKEY_REGISTRATION_MAX_AGE = 300;
   public static final String DEFAULT_FLOW_ALIAS = "native";
+  /** Client / realm attribute: the flow behind {@code native_flow=registration} (spec/22 phase 3). */
+  public static final String ATTR_REGISTRATION_FLOW_ALIAS = "native-auth.registration-flow-alias";
+  public static final String DEFAULT_REGISTRATION_FLOW_ALIAS = "native-registration";
+  /** Client / realm attribute: the flow behind {@code native_flow=reset_credentials} (spec/22 phase 3). */
+  public static final String ATTR_RESET_CREDENTIALS_FLOW_ALIAS = "native-auth.reset-credentials-flow-alias";
+  public static final String DEFAULT_RESET_CREDENTIALS_FLOW_ALIAS = "native-reset-credentials";
   /** Client attribute: {@code redirect_uri} used for {@code redirect_to_web} (spec/03 §3.4); defaults to the first registered one. */
   public static final String CLIENT_ATTR_WEB_FALLBACK_REDIRECT_URI = "native-auth.web-fallback-redirect-uri";
   /** Provider id of the native passkey-registration required action (spec/03 §4.4); referenced by {@code native-passkey}'s enrol-on-first-login. */

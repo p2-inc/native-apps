@@ -70,6 +70,7 @@ public class NativeAuthResource {
       m.setPush(push.metadata(realm, baseUri));
     }
     m.setChallengeTypesSupported(installedChallengeTypes());
+    m.setFlowsSupported(NativeAuthConfig.flowsSupported(realm));
     // The challenge endpoint verifies proofs and binds auth_session/code to the key (spec/03 §8, 13 D3).
     m.setDpopSigningAlgValuesSupported(DPoPProofChecker.supportedAlgorithms(session));
     // A public document: any browser origin may read it (the web SDK, spec/22).

@@ -21,6 +21,8 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
   /// advertise them only when the extension is installed.
   case pin
   case pinSetup
+  /// New-user registration (spec/22 phase 3), with the native-auth-registration module.
+  case registration
   case unknown(String)
 
   public init(wire: String) {
@@ -40,6 +42,7 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     case "push_enrollment": self = .pushEnrollment
     case "pin": self = .pin
     case "pin_setup": self = .pinSetup
+    case "registration": self = .registration
     default: self = .unknown(wire)
     }
   }
@@ -61,6 +64,7 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
     case .pushEnrollment: "push_enrollment"
     case .pin: "pin"
     case .pinSetup: "pin_setup"
+    case .registration: "registration"
     case .unknown(let value): value
     }
   }
@@ -69,7 +73,7 @@ public enum ChallengeType: Sendable, Hashable, CustomStringConvertible {
   /// §4.9) but no server-side authenticator emits it yet.
   public var isSupported: Bool {
     switch self {
-    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp, .push, .recoveryCode, .updatePassword, .verifyEmail, .terms, .pushEnrollment, .pin, .pinSetup: true
+    case .username, .password, .passkey, .passkeyRegistration, .totp, .otp, .push, .recoveryCode, .updatePassword, .verifyEmail, .terms, .pushEnrollment, .pin, .pinSetup, .registration: true
     default: false
     }
   }
@@ -193,10 +197,57 @@ public struct Challenge: Sendable, Identifiable, Equatable {
   public var pushEnrollmentParams: PushEnrollmentParams? { type == .pushEnrollment ? PushEnrollmentParams(json: params) : nil }
   public var pinParams: PinParams? { type == .pin ? PinParams(json: params) : nil }
   public var pinSetupParams: PinSetupParams? { type == .pinSetup ? PinSetupParams(json: params) : nil }
+  public var registrationParams: RegistrationParams? { type == .registration ? RegistrationParams(json: params) : nil }
 
   /// `pin` with `credential_locked` (spec/03 §4.17): the PIN cannot be used until it is reset;
   /// another attempt always fails, so offer cancel (or another alternative) instead.
   public var isLocked: Bool { error?.code == ChallengeError.Code.credentialLocked }
+}
+
+/// spec/22 phase 3 — new-user registration. `attributes` are the realm's declarative user profile for
+/// registration, in display order; answer with `.registration(attributes:password:confirm:)`. After
+/// an `invalid_profile` answer, `fieldErrors` names the refused fields (`password` and
+/// `password_confirm` included).
+public struct RegistrationParams: Sendable, Equatable {
+  public struct Attribute: Sendable, Equatable {
+    public let name: String
+    /// Resolved through the login theme (`${firstName}` → "First name").
+    public let displayName: String
+    public let required: Bool
+    public let multivalued: Bool
+    public let group: String?
+    public let defaultValue: String?
+    /// Keycloak's `inputType` annotation (`text`, `textarea`, `select`, `html5-email`, …).
+    public let inputType: String?
+    public let options: [String]
+    /// Keycloak validator id → its configuration (`length`, `pattern`, `email`, …).
+    public let validators: [String: JSONValue]
+
+    init?(json: JSONValue) {
+      guard let name = json["name"]?.stringValue, !name.isEmpty else { return nil }
+      self.name = name
+      displayName = json["display_name"]?.stringValue ?? name
+      required = json["required"]?.boolValue ?? false
+      multivalued = json["multivalued"]?.boolValue ?? false
+      group = json["group"]?.stringValue
+      defaultValue = json["default_value"]?.stringValue
+      inputType = json["input_type"]?.stringValue
+      options = json["options"]?.stringArray ?? []
+      validators = json["validators"]?.objectValue ?? [:]
+    }
+  }
+
+  public let attributes: [Attribute]
+  public let passwordPolicy: [String: JSONValue]
+  public let emailAsUsername: Bool
+  public let fieldErrors: [String: [String]]
+
+  public init(json: JSONValue) {
+    attributes = (json["attributes"]?.arrayValue ?? []).compactMap(Attribute.init(json:))
+    passwordPolicy = json["password_policy"]?.objectValue ?? [:]
+    emailAsUsername = json["email_as_username"]?.boolValue ?? false
+    fieldErrors = (json["field_errors"]?.objectValue ?? [:]).mapValues { $0.stringArray ?? [] }
+  }
 }
 
 /// spec/03 §4.17 — the PIN factor.
@@ -674,6 +725,9 @@ public enum ChallengeAnswer: Sendable, Equatable {
   case pin(String)
   /// `pin_setup` (spec/03 §4.18): the new PIN, sent as `pin` + `pin_confirm`.
   case pinSetup(pin: String, confirm: String)
+  /// `registration` (spec/22 phase 3): one value per user-profile attribute (several for a
+  /// multivalued one) plus the password twice.
+  case registration(attributes: [String: [String]], password: String, confirm: String)
   /// `action=skip` (spec/03 §4.11): decline a required action whose challenge `isSkippable`
   /// ("Not now"); pass the challenge's type. The flow continues like after any answer.
   case skip(ChallengeType)
@@ -701,6 +755,7 @@ public enum ChallengeAnswer: Sendable, Equatable {
     case .pushEnrollment, .pushEnrollmentCheck: .pushEnrollment
     case .pin: .pin
     case .pinSetup: .pinSetup
+    case .registration: .registration
     case .skip(let type): type
     case .custom(let type, _): type
     }
@@ -751,6 +806,14 @@ public enum ChallengeAnswer: Sendable, Equatable {
       return [("pin", pin)]
     case .pinSetup(let pin, let confirm):
       return [("pin", pin), ("pin_confirm", confirm)]
+    case .registration(let attributes, let password, let confirm):
+      var fields: [(name: String, value: String)] = []
+      for name in attributes.keys.sorted() {
+        for value in attributes[name] ?? [] { fields.append((name, value)) }
+      }
+      fields.append(("password", password))
+      fields.append(("password_confirm", confirm))
+      return fields
     case .skip:
       return [("action", "skip")]
     case .custom(_, let fields):

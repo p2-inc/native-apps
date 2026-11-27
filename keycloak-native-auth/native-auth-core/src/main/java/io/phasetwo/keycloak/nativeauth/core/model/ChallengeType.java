@@ -26,6 +26,8 @@ public enum ChallengeType {
    */
   PIN("pin"),
   PIN_SETUP("pin_setup"),
+  /** New-user registration from the declarative user profile (spec/22 phase 3). */
+  REGISTRATION("registration"),
   REDIRECT_TO_WEB("redirect_to_web");
 
   private final String wire;
