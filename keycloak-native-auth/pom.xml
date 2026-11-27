@@ -24,6 +24,7 @@
     <module>native-auth-authenticators</module>
     <module>native-auth-otp-sender</module>
     <module>native-auth-required-actions</module>
+    <module>native-auth-registration</module>
     <module>native-auth-endpoint</module>
     <module>push-mfa-extension-java21</module>
     <module>native-auth-push</module>
@@ -131,6 +132,11 @@
       <dependency>
         <groupId>io.phasetwo.keycloak</groupId>
         <artifactId>native-auth-otp-sender</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.phasetwo.keycloak</groupId>
+        <artifactId>native-auth-registration</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

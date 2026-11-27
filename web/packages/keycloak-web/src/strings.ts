@@ -65,6 +65,14 @@ export interface LoginStrings {
   unsupported(wireType: string): string;
   /** "Try another way" entries, by challenge type. */
   alternative(type: string): string;
+  createAccount: string;
+  forgotPassword: string;
+  backToSignIn: string;
+  signUpTitle: string;
+  resetPasswordTitle: string;
+  confirmPassword: string;
+  yourEmail: string;
+  yourPhone: string;
   errors: Partial<Record<string, string>>;
 }
 
@@ -139,6 +147,14 @@ export const defaultLoginStrings: LoginStrings = {
   attemptsLeft: (remaining) => `${remaining} attempt${remaining === 1 ? '' : 's'} left`,
   unsupported: (wireType) => `This sign-in step (${wireType}) is not supported here.`,
   alternative: (type) => alternatives[type] ?? type,
+  createAccount: 'Create an account',
+  forgotPassword: 'Forgot password?',
+  backToSignIn: 'Back to sign in',
+  signUpTitle: 'Create your account',
+  resetPasswordTitle: 'Reset your password',
+  confirmPassword: 'Confirm password',
+  yourEmail: 'your email',
+  yourPhone: 'your phone',
   errors: {
     invalid_credential: 'That did not work. Try again.',
     invalid_user: 'We do not know that user.',
@@ -156,6 +172,7 @@ export const defaultLoginStrings: LoginStrings = {
     network_error: 'We could not reach the server. Check your connection.',
     passkey_unavailable: 'Passkeys are not available in this browser.',
     rp_id_mismatch: 'Passkeys are not set up for this site.',
+    invalid_profile: 'Some fields need attention.',
     web_fallback_failed: 'The sign-in window was blocked. Allow pop-ups for this site and try again.',
   },
 };

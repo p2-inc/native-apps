@@ -2,6 +2,10 @@ export { KeycloakProvider, useKeycloak, useKeycloakContext, type KeycloakProvide
 export { useLogin, type UseLoginResult } from './useLogin';
 export {
   SignIn,
+  SignUp,
+  ResetPassword,
+  useFlowsSupported,
+  type SignInProps,
   StepUp,
   RequiredAction,
   StepUpBoundary,

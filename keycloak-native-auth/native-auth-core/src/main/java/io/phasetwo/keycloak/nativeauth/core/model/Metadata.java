@@ -17,6 +17,7 @@ import java.util.List;
   "passkey",
   "push",
   "challenge_types_supported",
+  "flows_supported",
   "dpop_signing_alg_values_supported",
   "client_attestation"
 })
@@ -32,6 +33,8 @@ public class Metadata {
   /** Present when the push-MFA extension is installed (spec/03 §1.1, §7). */
   private Push push;
   private List<ChallengeType> challengeTypesSupported = new ArrayList<>();
+  /** {@code native_flow} values this client can start (spec/22 phase 3): {@code login}, {@code registration}, {@code reset_credentials}. */
+  private List<String> flowsSupported = new ArrayList<>();
   private List<String> dpopSigningAlgValuesSupported = new ArrayList<>();
   private ClientAttestation clientAttestation = new ClientAttestation();
 
@@ -97,6 +100,14 @@ public class Metadata {
 
   public void setPush(Push push) {
     this.push = push;
+  }
+
+  public List<String> getFlowsSupported() {
+    return flowsSupported;
+  }
+
+  public void setFlowsSupported(List<String> flowsSupported) {
+    this.flowsSupported = flowsSupported;
   }
 
   public List<ChallengeType> getChallengeTypesSupported() {

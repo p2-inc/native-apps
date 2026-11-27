@@ -40,12 +40,13 @@ The server SHOULD also advertise `authorization_challenge_endpoint` in `/.well-k
   "passkey": { "rp_id": "idp.example.com", "register_options_endpoint": "…", "register_finish_endpoint": "…" },
   "push": { "enabled": true, "enroll_start_endpoint": "…/native-auth/push/enroll/start", "device_api_base": "https://idp.example.com/realms/demo/push-mfa", "device_token": "native", "push_provider_types": ["apns", "none"] },
   "challenge_types_supported": ["username", "password", "passkey", "passkey_registration", "totp", "otp", "push", "recovery_code", "select", "update_password", "verify_email", "terms", "redirect_to_web"],
+  "flows_supported": ["login", "registration", "reset_credentials"],
   "dpop_signing_alg_values_supported": ["ES256", "ES384", "ES512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"],
   "client_attestation": { "required": false, "methods": [] }
 }
 ```
 
-`authorization_endpoint` is the realm's standard OIDC authorization endpoint; clients need it only for §3.4. `dpop_signing_alg_values_supported` lists the proof algorithms the challenge endpoint verifies (§8); it is empty when the server does not verify proofs at all. The `push` block is present only when the push-MFA extension is installed (§7): `device_token` says how the device API is authenticated — `native` (the user's DPoP-bound native access token with the DPoP key as device key, §7.1) or `client_credentials` (ba-itsys' stock `push-device-client`, then `device_client_id` is present); `push_provider_types` lists the installed senders (`apns`, `fcm`, `log`, `none`). `pin` and `pin_setup` (§4.17, §4.18) appear in `challenge_types_supported` only when the PIN extension is installed (`keycloak-pin` with the `native-auth-pin` module, spec/20); a client MUST NOT assume them from the protocol version.
+`authorization_endpoint` is the realm's standard OIDC authorization endpoint; clients need it only for §3.4. `dpop_signing_alg_values_supported` lists the proof algorithms the challenge endpoint verifies (§8); it is empty when the server does not verify proofs at all. The `push` block is present only when the push-MFA extension is installed (§7): `device_token` says how the device API is authenticated — `native` (the user's DPoP-bound native access token with the DPoP key as device key, §7.1) or `client_credentials` (ba-itsys' stock `push-device-client`, then `device_client_id` is present); `push_provider_types` lists the installed senders (`apns`, `fcm`, `log`, `none`). `pin` and `pin_setup` (§4.17, §4.18) appear in `challenge_types_supported` only when the PIN extension is installed (`keycloak-pin` with the `native-auth-pin` module, spec/20); a client MUST NOT assume them from the protocol version. `flows_supported` lists the `native_flow` values (§2.1) the realm allows: `login` always, `registration` when the realm allows user registration and its registration flow exists, `reset_credentials` when it allows "Forgot password" and its reset flow exists (spec/22); older servers omit it, which means `["login"]`.
 
 ---
 
@@ -63,6 +64,7 @@ The server SHOULD also advertise `authorization_challenge_endpoint` in `/.well-k
 | `code_challenge`, `code_challenge_method` | SHOULD | PKCE S256. Required if the client wants `redirect_to_web` to carry a `request_uri`. |
 | `acr_values`, `max_age`, `login_hint`, `prompt`, `nonce`, `ui_locales` | opt | Standard OIDC semantics. `acr_values` drives step-up. `login_hint` pre-fills the `username` challenge. |
 | `kc_action` | opt | Application-initiated action (21): the alias of a required action to run once the user is authenticated, optionally `alias:parameter`, with Keycloak's `kc_action` semantics (re-authentication when the action's maximum authentication age has passed, cancel, status). Usually sent with a post-login `auth_session` (§5). The outcome is `kc_action_status` in the §3.1 body, or on the browser redirect when the action has no native variant and the login continues through §3.4. |
+| `native_flow` | opt | What the flow does (spec/22): `login` (the default), `registration` (a new user, §4.19) or `reset_credentials` (forgotten password: `username`, then an emailed code as `otp`, then `update_password`). `prompt=create` (OIDC user registration) means `registration`. The realm must allow registration / password reset (`403 access_denied` otherwise); an unknown value is `400 invalid_request`. The flow is the client's or realm's `native-auth.registration-flow-alias` / `native-auth.reset-credentials-flow-alias`, default `native-registration` / `native-reset-credentials`. Ignored on a step-up (§5). |
 | `auth_session` | opt | A **post-login** value (§3.1, §5) when the client wants to step up or re-authenticate inside an existing user session; the other §2.1 parameters are sent as for a fresh login (a new PKCE pair, `acr_values`, `max_age`, `prompt`, `scope`). Sending an **in-flow** value here is a §2.2 continuation instead. |
 | `device_name`, `device_id` | opt | Free-text label + stable app-generated UUID; used in events and push prompts. |
 | `x_*` | opt | Extension parameters (§2.3). |
@@ -339,6 +341,25 @@ Served by `native-configure-pin`, which substitutes for the PIN extension's `pha
 `length` is the PIN length the realm's required-action configuration asks for (4–12, default 4); the client shows that many slots twice (enter, confirm) with a numeric keypad.
 response: `pin=<digits>`, `pin_confirm=<the same digits>`.
 Error codes on the descriptor (none counts as a brute-force failure): `missing_credential` (`pin` empty), `pin_mismatch` (`pin_confirm` differs), `invalid_format` (not exactly `length` digits, or a non-digit character), `weak_pin` (rejected as easy to guess, such as all the same digit or a simple ascending or descending run, when the realm's `reject-weak` setting is on, its default). On success the PIN replaces any earlier one (one PIN per user; its attempt counter and lock are cleared), the pending required action is removed and the flow continues (next required action, else the code).
+
+### 4.19 `registration` — create an account (spec/22)
+
+Served by `native-registration` (module `native-auth-registration`) in the flow `native_flow=registration` selects. params:
+```json
+{
+  "attributes": [
+    { "name": "username", "display_name": "Username", "required": true, "validators": { "length": { "min": 3, "max": 255 } } },
+    { "name": "email", "display_name": "Email", "required": true, "validators": { "email": {} } },
+    { "name": "firstName", "display_name": "First name", "required": true }
+  ],
+  "password_policy": { "length": 8 },
+  "email_as_username": false,
+  "field_errors": { "username": ["Username already exists."] }
+}
+```
+`attributes` is the realm's declarative user profile for registration (the fields Keycloak's registration page shows), in display order, without read-only attributes: `name`, `display_name` (resolved through the login theme in the request's locale), `required`, and when present `multivalued`, `group`, `default_value`, `input_type` (Keycloak's `inputType` annotation), `options` (for `select`), `validators` (Keycloak's validator configuration, for client-side hints), `annotations`. `password_policy` is as in §4.12. `field_errors` appears only after a refused answer.
+response: one form field per attribute (repeated for a multivalued one), `password`, `password_confirm`.
+Validation is Keycloak's: the user profile's validators (including duplicate username or email) and the password policy. A refused answer re-issues the challenge with `error.code = invalid_profile` and `params.field_errors` (attribute, `password` or `password_confirm` → messages in the request's locale); no brute-force failure is counted. On success the user is created with the password and the flow continues: required actions (email verification, terms) run as usual, then the code (§3.1). The `REGISTER` event is recorded.
 
 ---
 

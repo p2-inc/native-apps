@@ -61,6 +61,8 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
   public var codeExchange: CodeExchange
   public var passkey: Passkey?
   public var challengeTypesSupported: [String]
+  /// `native_flow` values the realm allows (spec/22 phase 3); `["login"]` from older servers.
+  public var flowsSupported: [String]
   /// Proof algorithms the challenge endpoint verifies and binds to (spec/03 §8); empty when it does
   /// not verify proofs. The SDK sends ES256 proofs either way and reads `token_type` for the result.
   public var dpopSigningAlgValuesSupported: [String]
@@ -78,6 +80,7 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
     case codeExchange = "code_exchange"
     case passkey
     case challengeTypesSupported = "challenge_types_supported"
+    case flowsSupported = "flows_supported"
     case dpopSigningAlgValuesSupported = "dpop_signing_alg_values_supported"
     case clientAttestation = "client_attestation"
     case push
@@ -93,6 +96,8 @@ public struct NativeAuthMetadata: Sendable, Equatable, Codable {
     codeExchange = try c.decodeIfPresent(CodeExchange.self, forKey: .codeExchange) ?? CodeExchange()
     passkey = try c.decodeIfPresent(Passkey.self, forKey: .passkey)
     challengeTypesSupported = try c.decodeIfPresent([String].self, forKey: .challengeTypesSupported) ?? []
+    let flows = try c.decodeIfPresent([String].self, forKey: .flowsSupported) ?? []
+    flowsSupported = flows.isEmpty ? ["login"] : flows
     dpopSigningAlgValuesSupported = try c.decodeIfPresent([String].self, forKey: .dpopSigningAlgValuesSupported) ?? []
     clientAttestation = try c.decodeIfPresent(ClientAttestation.self, forKey: .clientAttestation)
     push = try c.decodeIfPresent(Push.self, forKey: .push)

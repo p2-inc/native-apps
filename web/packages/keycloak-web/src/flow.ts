@@ -40,6 +40,11 @@ export interface LoginParameters {
   deviceId?: string;
   /** Application-initiated action (spec/21, `kc_action`), e.g. `UPDATE_PASSWORD`. */
   kcAction?: string;
+  /**
+   * What the flow does (spec/22 phase 3): a login (default), a new-user `registration`, or a
+   * forgotten-password `reset_credentials`. Metadata `flowsSupported` lists what the realm allows.
+   */
+  flow?: 'login' | 'registration' | 'reset_credentials';
   /** Extra fields of the initial request (spec/03 §2.3); use the reserved `x_` prefix. */
   additionalParameters?: Record<string, string>;
   /** Extra fields on every continuation request of the flow. */
@@ -93,6 +98,7 @@ const RESERVED_FIELD_NAMES = new Set([
   'device_name',
   'device_id',
   'kc_action',
+  'native_flow',
   'auth_session',
   'challenge_type',
   'challenge_id',
@@ -266,6 +272,7 @@ export class NativeLoginFlow {
     if (p.deviceName !== undefined) fields.push(['device_name', p.deviceName]);
     if (p.deviceId !== undefined) fields.push(['device_id', p.deviceId]);
     if (p.kcAction !== undefined) fields.push(['kc_action', p.kcAction]);
+    if (p.flow !== undefined && p.flow !== 'login') fields.push(['native_flow', p.flow]);
     fields.push(...extraFields(p.additionalParameters, fields));
     // spec/03 §5: an initial request plus the post-login auth_session = step-up.
     if (this.stepUpSession !== undefined) fields.push(['auth_session', this.stepUpSession]);

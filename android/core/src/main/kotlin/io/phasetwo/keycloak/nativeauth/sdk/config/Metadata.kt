@@ -30,6 +30,8 @@ public data class NativeAuthMetadata(
   public val codeExchange: CodeExchange = CodeExchange(),
   public val passkey: Passkey? = null,
   public val challengeTypesSupported: List<String> = emptyList(),
+  /** `native_flow` values the realm allows (spec/22 phase 3); `["login"]` from older servers. */
+  public val flowsSupported: List<String> = listOf("login"),
   /**
    * Proof algorithms the challenge endpoint verifies and binds to (spec/03 §8); empty when it does not
    * verify proofs. The SDK sends ES256 proofs either way and reads `token_type` for the result.
@@ -87,6 +89,7 @@ public data class NativeAuthMetadata(
           )
         },
         challengeTypesSupported = json["challenge_types_supported"].stringArray.orEmpty(),
+        flowsSupported = json["flows_supported"].stringArray?.takeIf { it.isNotEmpty() } ?: listOf("login"),
         dpopSigningAlgValuesSupported = json["dpop_signing_alg_values_supported"].stringArray.orEmpty(),
         clientAttestation = json["client_attestation"]?.let {
           ClientAttestation(it["required"].boolValue ?: false, it["methods"].stringArray.orEmpty())

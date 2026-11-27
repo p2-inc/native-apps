@@ -219,7 +219,7 @@ export function OtpChallenge({ challenge, strings, isSubmitting, submit }: Chall
   const [code, setCode] = useState('');
   const p = challenge.params;
   const wait = useCountdown(p.resendAllowedAt);
-  const destination = p.destinationMasked ?? '';
+  const destination = p.destinationMasked ?? (p.channel === 'sms' ? strings.yourPhone : strings.yourEmail);
   return (
     <Form type="otp" onSubmit={() => (p.sent ? submit({ kind: 'otp', code }) : submit({ kind: 'otpResend' }))}>
       <Description>{p.sent ? strings.weSentCode(p.digits, destination) : strings.weCanSendCode(p.digits, destination)}</Description>
@@ -453,6 +453,108 @@ export function PinSetupChallenge({ challenge, strings, isSubmitting, submit }: 
   );
 }
 
+/** `autocomplete` for well-known user-profile attributes, so browsers and password managers fill them. */
+const AUTOCOMPLETE: Record<string, string> = {
+  username: 'username',
+  email: 'email',
+  firstName: 'given-name',
+  lastName: 'family-name',
+  phoneNumber: 'tel',
+  locale: 'language',
+};
+
+function inputType(inputType: string | undefined, name: string): string {
+  if (inputType?.startsWith('html5-')) return inputType.slice('html5-'.length);
+  if (name === 'email') return 'email';
+  return 'text';
+}
+
+/** New-user registration (spec/22 phase 3): the realm's user-profile fields, then the password. */
+export function RegistrationChallenge({ challenge, strings, isSubmitting, submit }: ChallengeProps<'registration'>) {
+  const p = challenge.params;
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(p.attributes.map((a) => [a.name, a.defaultValue ?? '']))
+  );
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const set = (name: string) => (value: string) => setValues((v) => ({ ...v, [name]: value }));
+  const fieldError = (name: string) => p.fieldErrors[name]?.join(' ');
+  const missing = p.attributes.some((a) => a.required && (values[a.name] ?? '').trim().length === 0);
+  return (
+    <Form
+      type="registration"
+      onSubmit={() =>
+        submit({
+          kind: 'registration',
+          attributes: Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()])),
+          password,
+          confirm,
+        })
+      }
+    >
+      {challenge.error && challenge.error.code !== 'invalid_profile' && (
+        <p data-kc-part="error" role="alert">
+          {errorMessage(strings, challenge.error.code, challenge.error.message)}
+        </p>
+      )}
+      {p.attributes.map((a, index) =>
+        a.inputType === 'select' && a.options.length > 0 ? (
+          <div key={a.name} data-kc-part="field" data-kc-field={a.name} data-invalid={fieldError(a.name) ? '' : undefined}>
+            <label data-kc-part="label">
+              {a.displayName}
+              <select data-kc-part="select" name={a.name} value={values[a.name]} onChange={(e) => set(a.name)(e.target.value)} disabled={isSubmitting} required={a.required}>
+                <option value="" />
+                {a.options.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {fieldError(a.name) && (
+              <p data-kc-part="error" role="alert">
+                {fieldError(a.name)}
+              </p>
+            )}
+          </div>
+        ) : (
+          <Field
+            key={a.name}
+            label={a.displayName}
+            name={a.name}
+            type={inputType(a.inputType, a.name)}
+            value={values[a.name] ?? ''}
+            onChange={set(a.name)}
+            autoComplete={AUTOCOMPLETE[a.name] ?? 'off'}
+            autoFocus={index === 0}
+            disabled={isSubmitting}
+            error={fieldError(a.name)}
+          />
+        )
+      )}
+      {p.passwordHints.length > 0 && (
+        <ul data-kc-part="hints">
+          {p.passwordHints.map((h) => (
+            <li key={h}>{h}</li>
+          ))}
+        </ul>
+      )}
+      <Field label={strings.password} name="password" type="password" value={password} onChange={setPassword} autoComplete="new-password" disabled={isSubmitting} error={fieldError('password')} />
+      <Field
+        label={strings.confirmPassword}
+        name="password_confirm"
+        type="password"
+        value={confirm}
+        onChange={setConfirm}
+        autoComplete="new-password"
+        disabled={isSubmitting}
+        error={confirm.length > 0 && confirm !== password ? strings.passwordsDoNotMatch : fieldError('password_confirm')}
+      />
+      <Submit label={strings.createAccount} disabled={isSubmitting || missing || password.length === 0 || confirm !== password} />
+    </Form>
+  );
+}
+
 /** Challenge types the web cannot answer in place (push enrollment is for phones, `select`, unknown). */
 export function UnsupportedChallenge({ challenge, strings, isSubmitting, submit }: ChallengeProps) {
   return (
@@ -478,6 +580,7 @@ export const defaultChallengeComponents: ChallengeComponents = {
   terms: TermsChallenge,
   pin: PinChallenge,
   pin_setup: PinSetupChallenge,
+  registration: RegistrationChallenge,
   select: UnsupportedChallenge as ComponentType<ChallengeProps<'select'>>,
   unknown: UnsupportedChallenge as ComponentType<ChallengeProps<'unknown'>>,
 };

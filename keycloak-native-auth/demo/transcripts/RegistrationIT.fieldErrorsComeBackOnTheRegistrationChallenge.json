@@ -1,0 +1,286 @@
+{
+  "test": "RegistrationIT.fieldErrorsComeBackOnTheRegistrationChallenge",
+  "recorded_at": "2026-11-27T15:12:57.988656Z",
+  "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
+  "base_url": "http://localhost:55243",
+  "masked_form_fields": [
+    "client_secret",
+    "code_verifier",
+    "otp",
+    "password",
+    "password_confirm",
+    "pin",
+    "pin_confirm",
+    "recovery_code",
+    "refresh_token",
+    "token",
+    "totp"
+  ],
+  "exchanges": [
+    {
+      "seq": 1,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "client_id": "demo-native",
+          "response_type": "code",
+          "scope": "openid profile",
+          "code_challenge": "web7jmBTpKR_HO93BEwt1BTF1S1XfTh2R9ps5uM4Rro",
+          "code_challenge_method": "S256",
+          "device_name": "NativeAuthIT",
+          "native_flow": "registration"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..xKIxJG5vyG6yMRVo.SqEbZGtj5vC9o_gV_ykcaWkHojmNdjt5wbNrrN_TNsvWFTNKPHU3KUJ78ttEBFq3eg74CeXG1n_rD-uk1SBR0KgcUx0FpUPMmral4OHIAO79JrJdgVPh9BXbwYp3FumTctMfIFCBnhRuWnp11EmhOBKo4vxBDZGHb4njM0sDkSN0ohhVt7S10MVWa-vtaBVJxx1xtw.nHYXnnAVj74k9w0geoz0Xw",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "registration",
+              "id": "cd115ac1-cf09-43da-be5a-ff0949e80b3b",
+              "label": "Create an account",
+              "required": true,
+              "params": {
+                "attributes": [
+                  {
+                    "name": "username",
+                    "display_name": "Username",
+                    "required": true,
+                    "validators": {
+                      "username-prohibited-characters": {
+                        "ignore.empty.value": true
+                      },
+                      "multivalued": {
+                        "max": "1"
+                      },
+                      "length": {
+                        "max": 255,
+                        "ignore.empty.value": true,
+                        "min": 3
+                      },
+                      "up-username-not-idn-homograph": {
+                        "ignore.empty.value": true
+                      }
+                    }
+                  },
+                  {
+                    "name": "email",
+                    "display_name": "Email",
+                    "required": true,
+                    "validators": {
+                      "multivalued": {
+                        "max": "1"
+                      },
+                      "length": {
+                        "max": 255,
+                        "ignore.empty.value": true
+                      },
+                      "email": {
+                        "ignore.empty.value": true
+                      }
+                    }
+                  },
+                  {
+                    "name": "firstName",
+                    "display_name": "First name",
+                    "required": true,
+                    "validators": {
+                      "person-name-prohibited-characters": {
+                        "ignore.empty.value": true
+                      },
+                      "multivalued": {
+                        "max": "1"
+                      },
+                      "length": {
+                        "max": 255,
+                        "ignore.empty.value": true
+                      }
+                    }
+                  },
+                  {
+                    "name": "lastName",
+                    "display_name": "Last name",
+                    "required": true,
+                    "validators": {
+                      "person-name-prohibited-characters": {
+                        "ignore.empty.value": true
+                      },
+                      "multivalued": {
+                        "max": "1"
+                      },
+                      "length": {
+                        "max": 255,
+                        "ignore.empty.value": true
+                      }
+                    }
+                  }
+                ],
+                "password_policy": { },
+                "email_as_username": false
+              }
+            }
+          ],
+          "context": {
+            "client_name": "Demo iOS App"
+          }
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..xKIxJG5vyG6yMRVo.SqEbZGtj5vC9o_gV_ykcaWkHojmNdjt5wbNrrN_TNsvWFTNKPHU3KUJ78ttEBFq3eg74CeXG1n_rD-uk1SBR0KgcUx0FpUPMmral4OHIAO79JrJdgVPh9BXbwYp3FumTctMfIFCBnhRuWnp11EmhOBKo4vxBDZGHb4njM0sDkSN0ohhVt7S10MVWa-vtaBVJxx1xtw.nHYXnnAVj74k9w0geoz0Xw",
+          "challenge_type": "registration",
+          "challenge_id": "cd115ac1-cf09-43da-be5a-ff0949e80b3b",
+          "username": "bob",
+          "email": "not-an-email",
+          "firstName": "Rhea",
+          "lastName": "Example",
+          "password": "***",
+          "password_confirm": "***"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..MPNQzHfDfak3gTsM.3TmBLHMsqA5w5FWSV6EWr88zsl2z0xI0c8Uno4cqeqHnIiRkDZvQp22awlL23Nnz9SeArM8y6fboemD_5buNWQ8o-gWzgg37Ynlpnjb-RGHUeQESUS7ht4XPD6wNn-b4X6vnRuDZARBk3U37MmYyDTY9V2tWkHUaSyVg2MEbyBDwXhmC7v3DKG_Y_rQ4Axv62xoQTw._XSZO6GzrNoRoEi4BcNdqw",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "registration",
+              "id": "cd115ac1-cf09-43da-be5a-ff0949e80b3b",
+              "label": "Create an account",
+              "required": true,
+              "error": {
+                "code": "invalid_profile",
+                "message": "Some fields need attention"
+              },
+              "params": {
+                "attributes": [
+                  {
+                    "name": "username",
+                    "display_name": "Username",
+                    "required": true,
+                    "validators": {
+                      "username-prohibited-characters": {
+                        "ignore.empty.value": true
+                      },
+                      "multivalued": {
+                        "max": "1"
+                      },
+                      "length": {
+                        "max": 255,
+                        "ignore.empty.value": true,
+                        "min": 3
+                      },
+                      "up-username-not-idn-homograph": {
+                        "ignore.empty.value": true
+                      }
+                    }
+                  },
+                  {
+                    "name": "email",
+                    "display_name": "Email",
+                    "required": true,
+                    "validators": {
+                      "multivalued": {
+                        "max": "1"
+                      },
+                      "length": {
+                        "max": 255,
+                        "ignore.empty.value": true
+                      },
+                      "email": {
+                        "ignore.empty.value": true
+                      }
+                    }
+                  },
+                  {
+                    "name": "firstName",
+                    "display_name": "First name",
+                    "required": true,
+                    "validators": {
+                      "person-name-prohibited-characters": {
+                        "ignore.empty.value": true
+                      },
+                      "multivalued": {
+                        "max": "1"
+                      },
+                      "length": {
+                        "max": 255,
+                        "ignore.empty.value": true
+                      }
+                    }
+                  },
+                  {
+                    "name": "lastName",
+                    "display_name": "Last name",
+                    "required": true,
+                    "validators": {
+                      "person-name-prohibited-characters": {
+                        "ignore.empty.value": true
+                      },
+                      "multivalued": {
+                        "max": "1"
+                      },
+                      "length": {
+                        "max": 255,
+                        "ignore.empty.value": true
+                      }
+                    }
+                  }
+                ],
+                "password_policy": { },
+                "email_as_username": false,
+                "field_errors": {
+                  "email": [
+                    "Invalid email address."
+                  ],
+                  "username": [
+                    "Username already exists."
+                  ],
+                  "password_confirm": [
+                    "Passwords don't match."
+                  ]
+                }
+              }
+            }
+          ],
+          "context": {
+            "client_name": "Demo iOS App"
+          }
+        }
+      }
+    }
+  ]
+}

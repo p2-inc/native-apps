@@ -46,6 +46,8 @@ export const ChallengeTypes = [
   // PIN extension (spec/03 §4.17, §4.18); servers advertise them only when it is installed.
   'pin',
   'pin_setup',
+  // New-user registration (spec/22 phase 3), when the native-auth-registration module is installed.
+  'registration',
 ] as const;
 export type KnownChallengeType = (typeof ChallengeTypes)[number];
 
@@ -187,6 +189,35 @@ export interface PushEnrollmentParams {
   userId?: string;
 }
 
+/** One field of the registration form: an attribute of the realm's declarative user profile. */
+export interface RegistrationAttribute {
+  name: string;
+  /** Resolved through the login theme (`${firstName}` → "First name"). */
+  displayName: string;
+  required: boolean;
+  multivalued: boolean;
+  group?: string;
+  defaultValue?: string;
+  /** Keycloak's `inputType` annotation: `text`, `textarea`, `select`, `multiselect`, `html5-email`, … */
+  inputType?: string;
+  /** For `select` / `multiselect` (the `options` validator). */
+  options: string[];
+  /** Keycloak validator id → its configuration (`length`, `pattern`, `email`, …). */
+  validators: JsonObject;
+  annotations: JsonObject;
+}
+
+/** spec/22 phase 3: the `registration` challenge. */
+export interface RegistrationParams {
+  attributes: RegistrationAttribute[];
+  passwordPolicy: JsonObject;
+  /** Hints for the password, like `update_password`'s. */
+  passwordHints: string[];
+  emailAsUsername: boolean;
+  /** Attribute (or `password`, `password_confirm`) → messages, after an `invalid_profile` answer. */
+  fieldErrors: Record<string, string[]>;
+}
+
 /** spec/03 §4.17: the PIN factor. */
 export interface PinParams {
   /** The length of the user's stored PIN: show that many slots and a numeric keypad. */
@@ -262,6 +293,7 @@ export type Challenge =
   | Typed<'terms', TermsParams>
   | Typed<'pin', PinParams>
   | Typed<'pin_setup', PinSetupParams>
+  | Typed<'registration', RegistrationParams>
   | Typed<'select', JsonObject>
   | Typed<'unknown', JsonObject>;
 
@@ -415,6 +447,39 @@ function parsePush(p: JsonObject): PushParams {
   };
 }
 
+function parseRegistration(p: JsonObject): RegistrationParams {
+  const policy = asObject(p.password_policy) ?? {};
+  const fieldErrors: Record<string, string[]> = {};
+  for (const [name, messages] of Object.entries(asObject(p.field_errors) ?? {})) {
+    fieldErrors[name] = strings(messages);
+  }
+  return {
+    attributes: arr(p.attributes).flatMap((entry) => {
+      const o = asObject(entry);
+      const name = str(o?.name);
+      if (o === undefined || name === undefined) return [];
+      return [
+        {
+          name,
+          displayName: str(o.display_name) ?? name,
+          required: bool(o.required) ?? false,
+          multivalued: bool(o.multivalued) ?? false,
+          group: str(o.group),
+          defaultValue: str(o.default_value),
+          inputType: str(o.input_type),
+          options: strings(o.options),
+          validators: asObject(o.validators) ?? {},
+          annotations: asObject(o.annotations) ?? {},
+        },
+      ];
+    }),
+    passwordPolicy: policy,
+    passwordHints: passwordHints(policy),
+    emailAsUsername: bool(p.email_as_username) ?? false,
+    fieldErrors,
+  };
+}
+
 /** The typed params of a wire type (`undefined` for passkey params missing a required field). */
 function typedParams(type: string, p: JsonObject): unknown {
   switch (type) {
@@ -498,6 +563,8 @@ function typedParams(type: string, p: JsonObject): unknown {
       return { length: int(p.length) ?? 4 } satisfies PinParams;
     case 'pin_setup':
       return { length: int(p.length) ?? 4 } satisfies PinSetupParams;
+    case 'registration':
+      return parseRegistration(p);
     case 'passkey':
       return parsePasskeyAssertion(p);
     case 'passkey_registration':
@@ -660,6 +727,16 @@ export type ChallengeAnswer =
   | { kind: 'pin'; pin: string }
   /** `pin_setup` (spec/03 §4.18): the new PIN, sent as `pin` + `pin_confirm`. */
   | { kind: 'pinSetup'; pin: string; confirm: string }
+  /**
+   * `registration` (spec/22 phase 3): one value (or several, for multivalued attributes) per
+   * attribute name, plus the password twice.
+   */
+  | {
+      kind: 'registration';
+      attributes: Record<string, string | string[]>;
+      password: string;
+      confirm: string;
+    }
   /** Declines a skippable required action for this login ("Not now"). */
   | { kind: 'skip' }
   /** Any other answer, e.g. for an extension challenge type (spec/03 §4.16). */
@@ -688,6 +765,7 @@ export const answerChallengeType: Record<
   pushEnrollmentCheck: 'push_enrollment',
   pin: 'pin',
   pinSetup: 'pin_setup',
+  registration: 'registration',
 };
 
 export function passkeyAssertionFields(a: PasskeyAssertion): [string, string][] {
@@ -766,6 +844,14 @@ export function answerFields(answer: ChallengeAnswer): [string, string][] {
         ['pin', answer.pin],
         ['pin_confirm', answer.confirm],
       ];
+    case 'registration': {
+      const fields: [string, string][] = [];
+      for (const [name, value] of Object.entries(answer.attributes)) {
+        for (const v of Array.isArray(value) ? value : [value]) fields.push([name, v]);
+      }
+      fields.push(['password', answer.password], ['password_confirm', answer.confirm]);
+      return fields;
+    }
     case 'skip':
       return [['action', 'skip']];
     case 'custom':

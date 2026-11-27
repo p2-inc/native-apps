@@ -80,6 +80,9 @@ final class ChallengeFlowDriver {
   private final KeycloakSession session;
   private final RealmModel realm;
 
+  /** Client note: the {@code native_flow} the session started with (spec/22 phase 3). */
+  static final String CLIENT_NOTE_NATIVE_FLOW = "native-auth.native-flow";
+
   /** The client the request turned out to belong to, once known (for CORS, {@link WebCors}). */
   private ClientModel requestClient;
   private final ClientConnection connection;
@@ -127,9 +130,13 @@ final class ChallengeFlowDriver {
     ClientModel client = requireClient(form.getFirst(Protocol.CLIENT_ID));
     requestClient = client;
     checkInitialParameters(client, form);
+    String nativeFlow = nativeFlow(form);
     EventBuilder event = newEvent(client);
+    if (Protocol.NATIVE_FLOW_REGISTRATION.equals(nativeFlow)) event.event(EventType.REGISTER);
     AuthenticationSessionModel authSession = newAuthenticationSession(client, form, jkt);
-    AuthenticationFlowModel flow = requireFlow(client);
+    AuthenticationFlowModel flow = requireFlow(client, nativeFlow);
+    // Continuations run the same flow (resume reads it back).
+    authSession.setClientNote(CLIENT_NOTE_NATIVE_FLOW, nativeFlow);
     return run(authSession, flow, event);
   }
 
@@ -158,7 +165,11 @@ final class ChallengeFlowDriver {
     copyNote(form, Protocol.SCOPE, authSession, OAuth2Constants.SCOPE);
     copyNote(form, Protocol.NONCE, authSession, OIDCLoginProtocol.NONCE_PARAM);
     copyNote(form, Protocol.LOGIN_HINT, authSession, OIDCLoginProtocol.LOGIN_HINT_PARAM);
-    copyNote(form, Protocol.PROMPT, authSession, OIDCLoginProtocol.PROMPT_PARAM);
+    String prompt = form.getFirst(Protocol.PROMPT);
+    if (prompt != null && !prompt.isBlank() && !Protocol.PROMPT_CREATE.equals(prompt.trim())) {
+      // prompt=create selects the registration flow (nativeFlow) and is not a login prompt.
+      authSession.setClientNote(OIDCLoginProtocol.PROMPT_PARAM, prompt);
+    }
     copyNote(form, Protocol.MAX_AGE, authSession, OIDCLoginProtocol.MAX_AGE_PARAM);
     copyNote(form, Protocol.UI_LOCALES, authSession, LocaleSelectorProvider.CLIENT_REQUEST_LOCALE);
     copyNote(form, Protocol.ACR_VALUES, authSession, OIDCLoginProtocol.ACR_PARAM);
@@ -279,7 +290,7 @@ final class ChallengeFlowDriver {
     if (loaMap != null) {
       authSession.setAuthNote(Constants.LOA_MAP, loaMap);
     }
-    AuthenticationFlowModel flow = requireFlow(client);
+    AuthenticationFlowModel flow = requireFlow(client, Protocol.NATIVE_FLOW_LOGIN);
     AcrStore acrStore = new AcrStore(session, authSession);
     LoginProtocol protocol = session.getProvider(LoginProtocol.class, OIDCLoginProtocol.LOGIN_PROTOCOL);
     if (protocol.requireReauthentication(userSession, authSession)) {
@@ -408,7 +419,8 @@ final class ChallengeFlowDriver {
     if (execution == null) {
       throw invalidRequest("challenge_id is unknown", authSession);
     }
-    AuthenticationFlowModel flowModel = requireFlow(client);
+    String nativeFlow = authSession.getClientNote(CLIENT_NOTE_NATIVE_FLOW);
+    AuthenticationFlowModel flowModel = requireFlow(client, nativeFlow == null ? Protocol.NATIVE_FLOW_LOGIN : nativeFlow);
     AuthenticationProcessor processor = processor(authSession, flowModel, event);
     try {
       processor.validateUser(authSession.getAuthenticatedUser());
@@ -738,10 +750,37 @@ final class ChallengeFlowDriver {
     }
   }
 
-  private AuthenticationFlowModel requireFlow(ClientModel client) {
-    AuthenticationFlowModel flow = NativeAuthConfig.flow(realm, client);
+  /**
+   * The {@code native_flow} of an initial request (spec/22 phase 3); {@code prompt=create} is the OIDC
+   * way to ask for registration. Registration and reset need the realm's "User registration" and
+   * "Forgot password" switches, as on Keycloak's pages.
+   */
+  private String nativeFlow(MultivaluedMap<String, String> form) {
+    String value = form.getFirst(Protocol.NATIVE_FLOW);
+    String prompt = form.getFirst(Protocol.PROMPT);
+    if ((value == null || value.isBlank()) && prompt != null && java.util.Arrays.asList(prompt.trim().split("\\s+")).contains(Protocol.PROMPT_CREATE)) {
+      value = Protocol.NATIVE_FLOW_REGISTRATION;
+    }
+    if (value == null || value.isBlank() || Protocol.NATIVE_FLOW_LOGIN.equals(value)) return Protocol.NATIVE_FLOW_LOGIN;
+    if (Protocol.NATIVE_FLOW_REGISTRATION.equals(value)) {
+      if (!realm.isRegistrationAllowed()) {
+        throw new NativeAuthException(Response.Status.FORBIDDEN, Protocol.ERR_ACCESS_DENIED, "User registration is not allowed in this realm");
+      }
+      return value;
+    }
+    if (Protocol.NATIVE_FLOW_RESET_CREDENTIALS.equals(value)) {
+      if (!realm.isResetPasswordAllowed()) {
+        throw new NativeAuthException(Response.Status.FORBIDDEN, Protocol.ERR_ACCESS_DENIED, "Password reset is not allowed in this realm");
+      }
+      return value;
+    }
+    throw new NativeAuthException(Response.Status.BAD_REQUEST, Protocol.ERR_INVALID_REQUEST, "Unknown native_flow '" + value + "'");
+  }
+
+  private AuthenticationFlowModel requireFlow(ClientModel client, String nativeFlow) {
+    String alias = NativeAuthConfig.flowAlias(realm, client, nativeFlow);
+    AuthenticationFlowModel flow = realm.getFlowByAlias(alias);
     if (flow == null) {
-      String alias = NativeAuthConfig.flowAlias(realm, client);
       log.errorf("Native authentication flow '%s' not found in realm '%s'", alias, realm.getName());
       throw new NativeAuthException(
           Response.Status.INTERNAL_SERVER_ERROR,

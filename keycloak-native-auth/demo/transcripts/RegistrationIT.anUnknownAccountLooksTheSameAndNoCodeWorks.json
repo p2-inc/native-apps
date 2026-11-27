@@ -1,0 +1,176 @@
+{
+  "test": "RegistrationIT.anUnknownAccountLooksTheSameAndNoCodeWorks",
+  "recorded_at": "2026-11-27T15:12:59.213762Z",
+  "keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
+  "base_url": "http://localhost:55243",
+  "masked_form_fields": [
+    "client_secret",
+    "code_verifier",
+    "otp",
+    "password",
+    "password_confirm",
+    "pin",
+    "pin_confirm",
+    "recovery_code",
+    "refresh_token",
+    "token",
+    "totp"
+  ],
+  "exchanges": [
+    {
+      "seq": 1,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "client_id": "demo-native",
+          "response_type": "code",
+          "scope": "openid profile",
+          "code_challenge": "f3f6tVUzPr_PFrANRqkeFQAUxYlLbXEtkrKF8fYAHno",
+          "code_challenge_method": "S256",
+          "device_name": "NativeAuthIT",
+          "native_flow": "reset_credentials"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..VWrJdDIWYZsQCAzC.NW5R72CHe5wRD0okHlUn20hwSOggLDluc5ZUVACTnpsWtM_2IgMNnuMeFONsJAlAWIyiwDsXpaztQYiZvkaPhABaeUE5MDs-1ZKQ0sNZ6eU7qXTyauPaT8CAdCPxSc966iccLV6mVGRTBgln5hyVYZvLr1TvIL5TqPBntilHp421GgtBNhg3mnJYtFg9xngP6ioWHA.hR2FMfgv2i0RCx4BQyDcJg",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "username",
+              "id": "e3d65423-ac17-4d8b-bb5e-97651d3d70d5",
+              "label": "Username or email",
+              "required": true,
+              "params": {
+                "allow_email": true
+              }
+            }
+          ],
+          "context": {
+            "client_name": "Demo iOS App"
+          }
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..VWrJdDIWYZsQCAzC.NW5R72CHe5wRD0okHlUn20hwSOggLDluc5ZUVACTnpsWtM_2IgMNnuMeFONsJAlAWIyiwDsXpaztQYiZvkaPhABaeUE5MDs-1ZKQ0sNZ6eU7qXTyauPaT8CAdCPxSc966iccLV6mVGRTBgln5hyVYZvLr1TvIL5TqPBntilHp421GgtBNhg3mnJYtFg9xngP6ioWHA.hR2FMfgv2i0RCx4BQyDcJg",
+          "challenge_type": "username",
+          "challenge_id": "e3d65423-ac17-4d8b-bb5e-97651d3d70d5",
+          "username": "nobody@example.com"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..n4P3r6iVga-s9iOE.PPWF5Jejalhb45j3VgAZOTpEi03SISFuAwAsjT_a8kf3GQfMWz-oQGOqClGild5tGTfT-kovs3w-rhmC4OrqG9M-vQECSU_ihY9_OrBGO8MMypd63Rnr4EM33Qo32kWYvGtBOMpz6VVVUIGn60EOIhQ-WyUcBKyIOqnZlzJ4D9MGRyp4e1l9ogwkMv4gJp2wt8EqxQ.6EHWx1Uisrka8a38lbY8Rg",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "otp",
+              "id": "e3d65423-ac17-4d8b-bb5e-97651d3d70d5",
+              "label": "Code from your email",
+              "required": true,
+              "params": {
+                "channel": "email",
+                "digits": 6,
+                "ttl": 600,
+                "sent": true,
+                "destination_masked": "n***@example.com",
+                "resend_allowed_at": 1795792409
+              }
+            }
+          ],
+          "context": {
+            "client_name": "Demo iOS App"
+          }
+        }
+      }
+    },
+    {
+      "seq": 3,
+      "request": {
+        "method": "POST",
+        "path": "/realms/demo/native-auth/challenge",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        "form": {
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..n4P3r6iVga-s9iOE.PPWF5Jejalhb45j3VgAZOTpEi03SISFuAwAsjT_a8kf3GQfMWz-oQGOqClGild5tGTfT-kovs3w-rhmC4OrqG9M-vQECSU_ihY9_OrBGO8MMypd63Rnr4EM33Qo32kWYvGtBOMpz6VVVUIGn60EOIhQ-WyUcBKyIOqnZlzJ4D9MGRyp4e1l9ogwkMv4gJp2wt8EqxQ.6EHWx1Uisrka8a38lbY8Rg",
+          "challenge_type": "otp",
+          "challenge_id": "e3d65423-ac17-4d8b-bb5e-97651d3d70d5",
+          "otp": "***"
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json",
+          "Pragma": "no-cache"
+        },
+        "json": {
+          "error": "insufficient_authorization",
+          "error_description": "Authentication required",
+          "auth_session": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiOWE0YjQ4N2YtODIwOS00NDRhLTkzYWYtM2Y3MmNhYWNiMWY5In0..R9f4ub4QREjSEywB.K6mkUuwECASrxjPlyPyEYBBT9-24pSyd5gRwzVIn4U4iPuFwBO9xzKzIxfZSu2drGNueA1lMFsTkhpsraSYnhQvkqvAK0m9ESWXSEp3_DDaYaK05X2fuh5zzKJQCGfNi3_ncwQtY-3BhlqVrwusqtevVvjhd4uxeCodQzsG0nK38ZL4lK1eManj-ndciG_b4kQIkaw.982df6pzrY9rN9LkdU0A4w",
+          "protocol_version": "1",
+          "expires_in": 1800,
+          "challenges": [
+            {
+              "type": "otp",
+              "id": "e3d65423-ac17-4d8b-bb5e-97651d3d70d5",
+              "label": "Code from your email",
+              "required": true,
+              "error": {
+                "code": "invalid_credential",
+                "message": "Invalid code"
+              },
+              "params": {
+                "channel": "email",
+                "digits": 6,
+                "ttl": 600,
+                "sent": true,
+                "destination_masked": "n***@example.com",
+                "resend_allowed_at": 1795792409
+              }
+            }
+          ],
+          "context": {
+            "client_name": "Demo iOS App"
+          }
+        }
+      }
+    }
+  ]
+}

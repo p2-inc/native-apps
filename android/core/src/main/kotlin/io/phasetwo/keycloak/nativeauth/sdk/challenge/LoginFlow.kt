@@ -30,6 +30,12 @@ public data class LoginParameters(
    */
   public val kcAction: String? = null,
   /**
+   * What the flow does (spec/22 phase 3): `null` or `login` for a login, `registration` for a new
+   * user, `reset_credentials` for "Forgot password". `NativeAuthMetadata.flowsSupported` lists what
+   * the realm allows.
+   */
+  public val flow: String? = null,
+  /**
    * Extra fields of the initial request (spec/03 §2.3), e.g. a device or risk signal from another
    * on-device SDK. Use the reserved `x_` prefix so a future profile parameter cannot collide; the
    * Keycloak implementation keeps them for the whole login. Sent in key order.
@@ -135,6 +141,7 @@ public class NativeLoginFlow internal constructor(
     parameters.deviceName?.let { fields += "device_name" to it }
     parameters.deviceId?.let { fields += "device_id" to it }
     parameters.kcAction?.let { fields += "kc_action" to it }
+    parameters.flow?.takeIf { it != "login" }?.let { fields += "native_flow" to it }
     fields += extraFields(parameters.additionalParameters, fields)
     // spec/03 §5: a §2.1 request plus the post-login auth_session = step-up / re-authentication.
     stepUpSession?.let { fields += "auth_session" to it }
@@ -262,7 +269,7 @@ public class NativeLoginFlow internal constructor(
     /** Names the SDK itself sends on some request (spec/03 §2.1, §2.2); callers may not override them. */
     val RESERVED_FIELD_NAMES: Set<String> = setOf(
       "client_id", "response_type", "scope", "code_challenge", "code_challenge_method", "acr_values", "login_hint",
-      "prompt", "max_age", "nonce", "ui_locales", "device_name", "device_id", "kc_action", "auth_session", "challenge_type",
+      "prompt", "max_age", "nonce", "ui_locales", "device_name", "device_id", "kc_action", "native_flow", "auth_session", "challenge_type",
       "challenge_id", "action",
     )
 
