@@ -58,13 +58,23 @@ async function verifyDPoP(proof, method, url, accessToken, jkt) {
   if (b64url(createHash("sha256").update(canonical).digest()) !== jkt) throw new Error("jkt");
 }
 
+// Browser apps (the web SDK, spec/22) call it cross-origin, without cookies.
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Expose-Headers": "WWW-Authenticate, DPoP-Nonce",
+};
+
 function json(res, status, body, headers = {}) {
-  res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers });
+  res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store", ...CORS, ...headers });
   res.end(JSON.stringify(body));
 }
 
 createServer(async (req, res) => {
   const url = `${process.env.PUBLIC_BASE || `http://localhost:${PORT}`}${req.url.split("?")[0]}`;
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, { ...CORS, "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": "Authorization, DPoP, Content-Type", "Access-Control-Max-Age": "3600" });
+    return res.end();
+  }
   try {
     const auth = req.headers.authorization || "";
     const [scheme, token] = auth.split(" ");

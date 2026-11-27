@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Signing in…</title>
+  </head>
+  <body>
+    <p>Signing in…</p>
+    <script type="module">
+      // The redirect_to_web popup lands here. The opener reads this URL itself; this is the fallback
+      // for pages isolated by Cross-Origin-Opener-Policy.
+      import { completeWebFallbackPopup } from '@p2-inc/keycloak-web';
+      // Not a popup (the full-page fallback): hand the code to the app, which finishes the login.
+      if (!completeWebFallbackPopup()) location.replace('/' + location.search + location.hash);
+    </script>
+  </body>
+</html>

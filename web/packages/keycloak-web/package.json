@@ -1,0 +1,33 @@
+{
+  "name": "@p2-inc/keycloak-web",
+  "version": "0.5.0-dev",
+  "description": "Sign users in to Keycloak from a single-page app without a redirect: the native-apps challenge protocol in the browser, with DPoP, passkeys and step-up",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "src", "!**/*.test.ts"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": ["keycloak", "authentication", "passkeys", "dpop", "oauth", "spa", "first-party-apps"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/p2-inc/native-apps.git",
+    "directory": "web/packages/keycloak-web"
+  },
+  "author": "Phase Two, Inc. <support@phasetwo.io> (https://phasetwo.io)",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  }
+}

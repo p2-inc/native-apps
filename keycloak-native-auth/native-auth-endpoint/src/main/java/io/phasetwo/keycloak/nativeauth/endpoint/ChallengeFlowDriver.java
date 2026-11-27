@@ -79,6 +79,9 @@ final class ChallengeFlowDriver {
 
   private final KeycloakSession session;
   private final RealmModel realm;
+
+  /** The client the request turned out to belong to, once known (for CORS, {@link WebCors}). */
+  private ClientModel requestClient;
   private final ClientConnection connection;
   private final HttpRequest request;
   private final AuthSessionCodec codec;
@@ -91,6 +94,11 @@ final class ChallengeFlowDriver {
     this.request = session.getContext().getHttpRequest();
     this.codec = new AuthSessionCodec(new RealmAuthSessionKeys(session, realm));
     this.sessions = new AuthenticationSessionManager(session);
+  }
+
+  /** The client of the handled request, or {@code null} when it could not be determined. */
+  ClientModel requestClient() {
+    return requestClient;
   }
 
   Response handle(MultivaluedMap<String, String> form) {
@@ -117,6 +125,7 @@ final class ChallengeFlowDriver {
 
   private Response start(MultivaluedMap<String, String> form, String jkt) {
     ClientModel client = requireClient(form.getFirst(Protocol.CLIENT_ID));
+    requestClient = client;
     checkInitialParameters(client, form);
     EventBuilder event = newEvent(client);
     AuthenticationSessionModel authSession = newAuthenticationSession(client, form, jkt);
@@ -326,6 +335,7 @@ final class ChallengeFlowDriver {
     if (client == null || !client.isEnabled() || !NativeAuthConfig.isNativeEnabled(client)) {
       throw invalidSession("auth_session is bound to an unknown client");
     }
+    requestClient = client;
     String requestedClientId = form.getFirst(Protocol.CLIENT_ID);
     if (requestedClientId != null && !requestedClientId.equals(client.getClientId())) {
       throw invalidSession("client_id does not match auth_session");
