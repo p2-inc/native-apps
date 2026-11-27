@@ -14,6 +14,7 @@ This repository lets an application render Keycloak authentication challenges as
 | [Android integration](android-integration.md) | Add the Gradle modules, drive challenges, store and refresh credentials, push over FCM |
 | [Flutter integration](flutter-integration.md) | Add the `keycloak_native_flutter` plugin, default widgets or your own screens, tokens and DPoP, push |
 | [React Native integration](react-native-integration.md) | Install the module, use the default screens or drive challenges from TypeScript, credentials, push, Expo |
+| [Web integration](web-integration.md) | Sign in from a single-page app without a redirect: the web SDK, unstyled React components, step-up, passkeys, the popup fallback |
 | [Sample application](sample-app.md) | Run and understand the demo, including passkey and push setup |
 | [Development and troubleshooting](development-and-troubleshooting.md) | Builds, tests, diagnostics, compatibility and verification record |
 | [Security](security.md) | Trust boundaries, implemented protections, deployment responsibilities and gaps |

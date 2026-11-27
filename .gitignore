@@ -15,3 +15,7 @@ android/local.properties
 
 # The Android demo copies the developer's Firebase config here at configure time (android/demo/README.md).
 android/demo/google-services.json
+
+# Web SDK (npm workspaces under web/)
+web/**/node_modules/
+web/**/dist/

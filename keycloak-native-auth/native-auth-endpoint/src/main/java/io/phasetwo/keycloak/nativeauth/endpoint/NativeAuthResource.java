@@ -9,6 +9,7 @@ import io.phasetwo.keycloak.nativeauth.core.spi.NativeRequiredActionFactory;
 import io.phasetwo.keycloak.nativeauth.requiredactions.PasskeyRegistrationOptions;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.OPTIONS;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -71,7 +72,15 @@ public class NativeAuthResource {
     m.setChallengeTypesSupported(installedChallengeTypes());
     // The challenge endpoint verifies proofs and binds auth_session/code to the key (spec/03 §8, 13 D3).
     m.setDpopSigningAlgValuesSupported(DPoPProofChecker.supportedAlgorithms(session));
-    return Responses.json(Response.Status.OK, m);
+    // A public document: any browser origin may read it (the web SDK, spec/22).
+    return WebCors.anyOrigin(Responses.json(Response.Status.OK, m));
+  }
+
+  /** CORS preflights for browser clients (spec/22); the actual response decides the origin. */
+  @OPTIONS
+  @Path("{any: .*}")
+  public Response preflight() {
+    return WebCors.preflight(session);
   }
 
   @POST
@@ -82,7 +91,9 @@ public class NativeAuthResource {
     // Read the form through Keycloak's HttpRequest so the authenticators see the same parameters.
     MultivaluedMap<String, String> form = session.getContext().getHttpRequest().getDecodedFormParameters();
     if (form == null) form = new MultivaluedHashMap<>();
-    return new ChallengeFlowDriver(session).handle(form);
+    ChallengeFlowDriver driver = new ChallengeFlowDriver(session);
+    Response response = driver.handle(form);
+    return WebCors.apply(session, driver.requestClient(), response);
   }
 
   /** Passkey registration for an already authenticated user (spec/03 §6 step 1). */
@@ -110,7 +121,11 @@ public class NativeAuthResource {
     return guarded(() -> new PasskeyRegistrationDriver(session).pushEnrollStart());
   }
 
-  private static Response guarded(java.util.function.Supplier<Response> action) {
+  private Response guarded(java.util.function.Supplier<Response> action) {
+    return WebCors.apply(session, null, unguarded(action));
+  }
+
+  private static Response unguarded(java.util.function.Supplier<Response> action) {
     try {
       return action.get();
     } catch (NativeAuthException e) {

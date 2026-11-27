@@ -1,0 +1,45 @@
+{
+  "name": "@p2-inc/keycloak-web-react",
+  "version": "0.5.0-dev",
+  "description": "Unstyled React components and hooks for signing users in to Keycloak without a redirect, on @p2-inc/keycloak-web",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "src", "!**/*.test.tsx"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@p2-inc/keycloak-web": "0.5.0-dev",
+    "react": ">=18.2.0"
+  },
+  "devDependencies": {
+    "@p2-inc/keycloak-web": "0.5.0-dev",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.0.0",
+    "jsdom": "^26.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "keywords": ["keycloak", "react", "authentication", "passkeys", "headless", "unstyled"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/p2-inc/native-apps.git",
+    "directory": "web/packages/keycloak-web-react"
+  },
+  "author": "Phase Two, Inc. <support@phasetwo.io> (https://phasetwo.io)",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  }
+}

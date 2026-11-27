@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "paths": { "@p2-inc/keycloak-web": ["../keycloak-web/src/index.ts"] }
+  },
+  "include": ["src", "test"]
+}

@@ -42,7 +42,9 @@
   "webAuthnPolicyPasswordlessCreateTimeout": 0,
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
   "webAuthnPolicyPasswordlessAcceptableAaguids": [],
-  "webAuthnPolicyPasswordlessExtraOrigins": [],
+  "webAuthnPolicyPasswordlessExtraOrigins": [
+    "http://localhost:5173"
+  ],
   "eventsEnabled": true,
   "eventsExpiration": 86400,
   "eventsListeners": [
@@ -78,6 +80,57 @@
         "native-auth.enabled": "true",
         "oauth2.device.authorization.grant.enabled": "false",
         "post.logout.redirect.uris": "+"
+      }
+    },
+    {
+      "clientId": "demo-web",
+      "name": "Demo Web App",
+      "description": "Public browser client (single-page app) using the native authentication profile through the web SDK (spec/22)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "native-auth.enabled": "true",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "post.logout.redirect.uris": "+",
+        "native-auth.web-fallback-redirect-uri": "http://localhost:5173/callback.html"
+      }
+    },
+    {
+      "clientId": "demo-web-stepup",
+      "name": "Demo Web App (step-up flow)",
+      "description": "Like demo-web, bound to the native-step-up flow: level 1 = password or passkey, level 2 = TOTP (spec/03 \u00a75, spec/22)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "native-auth.enabled": "true",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "post.logout.redirect.uris": "+",
+        "native-auth.web-fallback-redirect-uri": "http://localhost:5173/callback.html",
+        "native-auth.flow-alias": "native-step-up"
       }
     },
     {

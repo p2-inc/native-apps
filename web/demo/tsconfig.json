@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "paths": {
+      "@p2-inc/keycloak-web": ["../packages/keycloak-web/src/index.ts"],
+      "@p2-inc/keycloak-web-react": ["../packages/keycloak-web-react/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

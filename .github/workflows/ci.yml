@@ -30,6 +30,7 @@ jobs:
       android: ${{ steps.parts.outputs.android }}
       flutter: ${{ steps.parts.outputs.flutter }}
       react-native: ${{ steps.parts.outputs.react-native }}
+      web: ${{ steps.parts.outputs.web }}
     steps:
       - uses: actions/checkout@v4
       - name: Map changed paths to parts
@@ -63,6 +64,7 @@ jobs:
           # The wrappers build the native SDKs from the repository, so SDK changes rebuild them too.
           part flutter '^flutter/|^ios/|^android/|^Package\.(swift|resolved)$' flutter
           part react-native '^react-native/|^ios/|^android/|^Package\.(swift|resolved)$' react-native
+          part web '^web/' web
 
   build-and-test:
     # One build (compiled against the newest supported Keycloak, keycloak.version in the POM) is
@@ -322,11 +324,36 @@ jobs:
       - name: Build the floor app
         run: scripts/floor-build.sh ${{ matrix.platform }} "$RUNNER_TEMP/rn-floor"
 
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    name: Web SDK (typecheck, transcript replay, React component tests, builds)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install (npm workspaces: the packages and the demo app)
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests (core replays keycloak-native-auth/demo/transcripts; React components in jsdom)
+        run: npm test
+      - name: Build the packages and the demo app
+        run: npm run build
+
   ci-passed:
     # The only required status check on main. Add every new job to `needs`.
     name: CI passed
     if: always()
-    needs: [changes, build-and-test, walkthrough, ios-sdk, android-core, flutter, flutter-ios, react-native, react-native-ios, react-native-floor]
+    needs: [changes, build-and-test, walkthrough, ios-sdk, android-core, flutter, flutter-ios, react-native, react-native-ios, react-native-floor, web]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     defaults:

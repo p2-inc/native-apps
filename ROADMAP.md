@@ -10,7 +10,8 @@ Where the project stands and what comes next. The design record behind it, inclu
 - **Android SDK**: `core` (the login state machine, tokens, DPoP, credentials, the push protocol; replays the same transcripts as iOS), `android` (Credential Manager passkeys and saved passwords, Keystore keys and storage, the Auth Tab browser fallback), `ui` (default Jetpack Compose screens, replaceable per challenge, with password-manager support and the push approvals list), `push` (Firebase Cloud Messaging enrollment, approvals with number matching, token sync) and the demo app.
 - **React Native module** (`react-native/keycloak-native-react-native/`): a TurboModule over both SDKs with a typed challenge model, default React screens for every challenge type, passkeys, saved passwords, push enrollment and approvals, and an Expo config plugin. React Native 0.84 and later.
 - **Flutter plugin** (`flutter/keycloak_native_flutter/`): wraps both SDKs over Pigeon channels, with Dart challenge classes, a default widget for every challenge type, passkeys, saved passwords, push and the browser fallback. Flutter 3.35 and later.
-- **Integration guides** for [iOS](docs/ios-integration.md), [Android](docs/android-integration.md), [React Native](docs/react-native-integration.md) and [Flutter](docs/flutter-integration.md).
+- **Web SDK** (`web/`, [spec/22](spec/22-web-sdk.md)): `@p2-inc/keycloak-web` (the login state machine in the browser, DPoP with a non-extractable key, the refresh token in IndexedDB, passkeys with autofill, the popup fallback, RFC 9470 step-up for `fetch`) and `@p2-inc/keycloak-web-react` (unstyled components and hooks, every challenge type replaceable); CORS on the challenge endpoint for the client's Web Origins.
+- **Integration guides** for [iOS](docs/ios-integration.md), [Android](docs/android-integration.md), [React Native](docs/react-native-integration.md), [Flutter](docs/flutter-integration.md) and the [web](docs/web-integration.md).
 
 ## In progress
 
@@ -25,6 +26,14 @@ Where the project stands and what comes next. The design record behind it, inclu
 - **Distribution**: from 0.3.0 the Android libraries are on Maven Central, and each release still attaches them as a zipped Maven repository.
 - **Upstream to ba-itsys**: a Java 21 build, the programmatic enrollment service, the APNs sender, and a challenge issuer for non-HTML authenticators.
 
+## Web SDK, next ([spec/22](spec/22-web-sdk.md#3-phases))
+
+- **Registration and forgot password**, native in every SDK.
+- **Account widgets and web components**: profile, credentials, sessions and devices, organization switcher; `@p2-inc/keycloak-elements` with a styled default and a script-tag bundle; a shadcn registry.
+- **Magic link, captcha and organization selection** as challenges in every SDK.
+- **SSO cookie session**: a client setting that also signs the user in to Keycloak's browser session.
+- **Later**: a backend-for-frontend adapter.
+
 ## Later
 
 - Native SSO between several first-party apps (OpenID Native SSO) instead of repeating the login per app.
@@ -34,4 +43,4 @@ Where the project stands and what comes next. The design record behind it, inclu
 
 ## Not planned for native screens
 
-New-user registration, forgotten-password recovery, TOTP enrollment, recovery-code generation and social/identity-provider login stay on Keycloak's own pages in the browser.
+New-user registration and forgotten-password recovery stay on Keycloak's pages until the web SDK's phase 3 brings them to every SDK. TOTP enrollment, recovery-code generation and social/identity-provider login stay on Keycloak's own pages in the browser.

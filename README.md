@@ -168,6 +168,27 @@ const flow = await kc.authentication.startLogin({ scope: 'openid profile' });
 
 📖 [React Native guide](docs/react-native-integration.md), including the Android activity and Expo setup.
 
+## 🌐 Web
+
+For single-page apps: the same challenge protocol in the browser, with DPoP, passkeys, step-up and unstyled React components. No redirect to Keycloak unless a step has no native variant; then a popup carries it.
+
+```bash
+npm install @p2-inc/keycloak-web @p2-inc/keycloak-web-react
+```
+
+```tsx
+import { KeycloakWeb } from '@p2-inc/keycloak-web';
+import { KeycloakProvider, SignIn } from '@p2-inc/keycloak-web-react';
+
+const kc = KeycloakWeb.configure({ issuer: 'https://idp.example.com/realms/demo', clientId: 'my-spa' });
+
+<KeycloakProvider kc={kc}>
+  <SignIn onResult={(result) => console.log(result.kind)} />
+</KeycloakProvider>
+```
+
+📖 [Web guide](docs/web-integration.md): client settings (Web Origins, passkey origins), styling and replacing screens, step-up with `kc.fetch`, tokens and sessions.
+
 ## 🐦 Flutter
 
 A plugin for Flutter 3.35+ on iOS and Android.
